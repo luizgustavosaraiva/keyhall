@@ -18,10 +18,13 @@ concurrency:
 jobs:
   codeql:
     name: codeql (${{ matrix.language }})
+    # Code scanning is free for public repositories only.
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: read
+      actions: read # CodeQL reads the workflow run it belongs to
       security-events: write # upload CodeQL results to code scanning
     strategy:
       fail-fast: false
@@ -55,7 +58,8 @@ jobs:
 
   dependencies:
     name: dependency review
-    if: github.event_name == 'pull_request'
+    # Dependency review needs the dependency graph, free for public repositories only.
+    if: ${{ github.event_name == 'pull_request' && !github.event.repository.private }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

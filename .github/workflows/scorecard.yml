@@ -12,6 +12,8 @@ permissions: {}
 
 jobs:
   analysis:
+    # Scorecard only analyzes and publishes public repositories.
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     permissions:
       contents: read

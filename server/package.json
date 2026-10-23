@@ -14,7 +14,7 @@
     "key:rotate": "tsx --env-file-if-exists=../.env src/scripts/rotate-key.ts",
     "db:backup": "tsx --env-file-if-exists=../.env src/scripts/backup.ts",
     "db:generate": "drizzle-kit generate",
-    "test": "node --test test/"
+    "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
     "@better-auth/api-key": "^1.7.10",

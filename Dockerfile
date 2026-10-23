@@ -12,6 +12,13 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm build \
   && pnpm --filter server deploy --legacy --prod /out
+# better-auth lists drizzle-kit as an optional peer, so the production install pulls in
+# drizzle-kit, tsx and three esbuild binaries that keyhall never runs. Drop them.
+RUN cd /out/node_modules/.pnpm \
+  && rm -rf drizzle-kit@* esbuild@* @esbuild+* @esbuild-kit+* tsx@* \
+    node_modules/drizzle-kit node_modules/esbuild node_modules/@esbuild \
+    node_modules/@esbuild-kit node_modules/tsx \
+    node_modules/.bin/drizzle-kit node_modules/.bin/esbuild node_modules/.bin/tsx
 
 FROM node:24-slim
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=8787 DATABASE_PATH=/data/keyhall.db
