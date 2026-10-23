@@ -1,0 +1,86 @@
+# Quality gate for every push to main and every pull request (including forks).
+# Runs with a read-only token and no secrets, so code from a fork can't reach anything.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: lint, types, build, tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Lint and format (Biome)
+        run: pnpm check
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Build
+        run: pnpm build
+      - name: End-to-end tests
+        run: pnpm test
+      - name: Audit production dependencies
+        run: pnpm audit --prod --audit-level high
+
+  image:
+    name: docker image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          load: true
+          tags: keyhall:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Smoke test
+        run: |
+          docker run -d --name keyhall -p 127.0.0.1:8787:8787 \
+            -e BETTER_AUTH_SECRET="$(openssl rand -base64 32)" \
+            -e KEYHALL_ENCRYPTION_KEY="$(openssl rand -base64 32)" \
+            -e BETTER_AUTH_URL=http://127.0.0.1:8787 \
+            -e TRUSTED_ORIGINS=http://127.0.0.1:8787 \
+            keyhall:ci
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8787/api/health && break
+            sleep 1
+          done
+          expected=$(node -p "require('./package.json').version")
+          curl -fsS http://127.0.0.1:8787/api/health | grep -q "\"version\":\"$expected\""
+          docker logs keyhall 2>&1 | grep -q "Setup code:"
+          test "$(docker inspect -f '{{.Config.User}}' keyhall)" = node
+      - name: Show logs on failure
+        if: failure()
+        run: docker logs keyhall || true
+      - name: Vulnerability scan (Grype)
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
+        with:
+          image: keyhall:ci
+          fail-build: true
+          severity-cutoff: critical
+          only-fixed: true
+          output-format: table

@@ -1,0 +1,40 @@
+# keyhall on a public server, with automatic HTTPS from Caddy (Let's Encrypt).
+# Point a DNS A/AAAA record for KEYHALL_DOMAIN at this server and open ports 80 and 443.
+# Copy ../.env.example to .env here, fill it in, then:
+#   docker compose up -d
+#   docker compose logs keyhall   # the setup code for the first sign-in is here
+services:
+  keyhall:
+    image: ghcr.io/luizgustavosaraiva/keyhall:${KEYHALL_VERSION:-latest}
+    container_name: keyhall
+    restart: unless-stopped
+    environment:
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in .env}
+      KEYHALL_ENCRYPTION_KEY: ${KEYHALL_ENCRYPTION_KEY:?set KEYHALL_ENCRYPTION_KEY in .env}
+      BETTER_AUTH_URL: https://${KEYHALL_DOMAIN:?set KEYHALL_DOMAIN in .env}
+      TRUSTED_ORIGINS: https://${KEYHALL_DOMAIN}
+      KEYHALL_ALLOW_STDIO: ${KEYHALL_ALLOW_STDIO:-true}
+    volumes:
+      - keyhall-data:/data
+
+  caddy:
+    image: caddy:2
+    container_name: keyhall-caddy
+    restart: unless-stopped
+    depends_on:
+      - keyhall
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      KEYHALL_DOMAIN: ${KEYHALL_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  keyhall-data:
+  caddy-data:
+  caddy-config:

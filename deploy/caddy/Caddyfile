@@ -1,0 +1,4 @@
+{$KEYHALL_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy keyhall:8787
+}

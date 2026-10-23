@@ -1,0 +1,205 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+@import "@fontsource/varela-round";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-heading: "Geist Variable", sans-serif;
+  --font-sans: "Geist Variable", sans-serif;
+  --font-brand: "Varela Round", sans-serif;
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* keyhall brand: amber #F5A524 and graphite #17181C. Warm background in light, graphite in dark;
+   amber is reserved for emphasis (primary action, focus, active item). */
+:root {
+  --background: oklch(0.982 0.003 85);
+  --foreground: oklch(0.205 0.006 275);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.205 0.006 275);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.205 0.006 275);
+  --primary: oklch(0.79 0.16 75);
+  --primary-foreground: oklch(0.205 0.006 275);
+  --secondary: oklch(0.955 0.004 85);
+  --secondary-foreground: oklch(0.205 0.006 275);
+  --muted: oklch(0.96 0.004 85);
+  --muted-foreground: oklch(0.5 0.01 275);
+  --accent: oklch(0.95 0.005 85);
+  --accent-foreground: oklch(0.205 0.006 275);
+  --destructive: oklch(0.577 0.215 27);
+  --success: oklch(0.6 0.15 155);
+  --warning: oklch(0.68 0.16 65);
+  --border: oklch(0.915 0.005 85);
+  --input: oklch(0.89 0.006 85);
+  --ring: oklch(0.79 0.16 75);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.75rem;
+  --sidebar: oklch(0.968 0.004 85);
+  --sidebar-foreground: oklch(0.205 0.006 275);
+  --sidebar-primary: oklch(0.79 0.16 75);
+  --sidebar-primary-foreground: oklch(0.205 0.006 275);
+  --sidebar-accent: oklch(0.925 0.006 85);
+  --sidebar-accent-foreground: oklch(0.205 0.006 275);
+  --sidebar-border: oklch(0.91 0.005 85);
+  --sidebar-ring: oklch(0.79 0.16 75);
+  --scrollbar: oklch(0.2 0.006 275 / 0.18);
+  --scrollbar-hover: oklch(0.2 0.006 275 / 0.32);
+  --shadow-surface:
+    0 1px 2px oklch(0.2 0.01 275 / 0.04),
+    0 4px 16px -4px oklch(0.2 0.01 275 / 0.06);
+  --shadow-raised:
+    0 1px 2px oklch(0.2 0.01 275 / 0.05),
+    0 12px 32px -8px oklch(0.2 0.01 275 / 0.14);
+}
+
+.dark {
+  --background: oklch(0.165 0.005 275);
+  --foreground: oklch(0.965 0.003 85);
+  --card: oklch(0.205 0.006 275);
+  --card-foreground: oklch(0.965 0.003 85);
+  --popover: oklch(0.225 0.006 275);
+  --popover-foreground: oklch(0.965 0.003 85);
+  --primary: oklch(0.8 0.16 75);
+  --primary-foreground: oklch(0.205 0.006 275);
+  --secondary: oklch(0.26 0.006 275);
+  --secondary-foreground: oklch(0.965 0.003 85);
+  --muted: oklch(0.245 0.006 275);
+  --muted-foreground: oklch(0.7 0.01 275);
+  --accent: oklch(0.27 0.007 275);
+  --accent-foreground: oklch(0.965 0.003 85);
+  --destructive: oklch(0.68 0.19 25);
+  --success: oklch(0.72 0.15 155);
+  --warning: oklch(0.8 0.15 75);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 13%);
+  --ring: oklch(0.8 0.16 75);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.185 0.005 275);
+  --sidebar-foreground: oklch(0.965 0.003 85);
+  --sidebar-primary: oklch(0.8 0.16 75);
+  --sidebar-primary-foreground: oklch(0.205 0.006 275);
+  --sidebar-accent: oklch(0.255 0.006 275);
+  --sidebar-accent-foreground: oklch(0.965 0.003 85);
+  --sidebar-border: oklch(1 0 0 / 7%);
+  --sidebar-ring: oklch(0.8 0.16 75);
+  --scrollbar: oklch(1 0 0 / 0.16);
+  --scrollbar-hover: oklch(1 0 0 / 0.3);
+  --shadow-surface: 0 1px 2px oklch(0 0 0 / 0.3), 0 0 0 1px oklch(1 0 0 / 0.02);
+  --shadow-raised:
+    0 1px 2px oklch(0 0 0 / 0.4), 0 16px 40px -8px oklch(0 0 0 / 0.55);
+}
+
+/* Base card: card background, subtle border and layered shadow. */
+@utility surface {
+  background-color: var(--card);
+  color: var(--card-foreground);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-surface);
+  border: 1px solid var(--border);
+}
+
+/* Glass bars: translucent background with blur. */
+@utility glass {
+  background-color: color-mix(in oklch, var(--background) 72%, transparent);
+  backdrop-filter: saturate(180%) blur(20px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  html {
+    @apply font-sans;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply tracking-tight;
+  }
+}
+
+/* Scrollbars in the panel's theme: thin, rounded, no arrows. Chromium and Safari use
+   ::-webkit-scrollbar; Firefox uses the standard properties. */
+@supports selector(::-webkit-scrollbar) {
+  ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar);
+    background-clip: content-box;
+    border: 3px solid transparent;
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-hover);
+  }
+  ::-webkit-scrollbar-button {
+    display: none;
+  }
+}
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar) transparent;
+  }
+}

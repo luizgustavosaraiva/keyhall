@@ -1,0 +1,25 @@
+# keyhall from source, without Docker. See docs/deploy/from-source.md.
+# Install to /etc/systemd/system/keyhall.service, then:
+#   systemctl daemon-reload && systemctl enable --now keyhall
+#   journalctl -u keyhall   # the setup code for the first sign-in is here
+[Unit]
+Description=keyhall
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=keyhall
+WorkingDirectory=/opt/keyhall/server
+# BETTER_AUTH_SECRET, KEYHALL_ENCRYPTION_KEY, BETTER_AUTH_URL, TRUSTED_ORIGINS, DATABASE_PATH
+EnvironmentFile=/etc/keyhall/keyhall.env
+ExecStart=/usr/bin/node dist/index.js
+Restart=on-failure
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/keyhall
+
+[Install]
+WantedBy=multi-user.target

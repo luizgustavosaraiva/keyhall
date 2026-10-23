@@ -1,0 +1,41 @@
+# keyhall reachable only from your tailnet, with HTTPS from Tailscale. No open ports.
+# Enable MagicDNS and HTTPS certificates in the Tailscale admin console first.
+# Copy ../.env.example to .env here, set TS_AUTHKEY and KEYHALL_URL
+# (https://keyhall.<your-tailnet>.ts.net), then:
+#   docker compose up -d
+#   docker compose logs keyhall   # the setup code for the first sign-in is here
+services:
+  tailscale:
+    image: tailscale/tailscale:latest
+    container_name: keyhall-tailscale
+    hostname: ${TS_HOSTNAME:-keyhall}
+    restart: unless-stopped
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY:?set TS_AUTHKEY in .env}
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_SERVE_CONFIG: /config/serve.json
+      TS_AUTH_ONCE: "true"
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+      - ./config:/config:ro
+
+  keyhall:
+    image: ghcr.io/luizgustavosaraiva/keyhall:${KEYHALL_VERSION:-latest}
+    container_name: keyhall
+    restart: unless-stopped
+    # Shares the Tailscale container's network: Serve proxies to 127.0.0.1:8787.
+    network_mode: service:tailscale
+    depends_on:
+      - tailscale
+    environment:
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in .env}
+      KEYHALL_ENCRYPTION_KEY: ${KEYHALL_ENCRYPTION_KEY:?set KEYHALL_ENCRYPTION_KEY in .env}
+      BETTER_AUTH_URL: ${KEYHALL_URL:?set KEYHALL_URL in .env}
+      TRUSTED_ORIGINS: ${KEYHALL_URL}
+      KEYHALL_ALLOW_STDIO: ${KEYHALL_ALLOW_STDIO:-true}
+    volumes:
+      - keyhall-data:/data
+
+volumes:
+  tailscale-state:
+  keyhall-data:

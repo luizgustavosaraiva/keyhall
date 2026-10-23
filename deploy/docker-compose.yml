@@ -1,0 +1,23 @@
+# keyhall on a single machine, published on localhost only.
+# Copy .env.example to .env, fill it in, then:
+#   docker compose up -d
+#   docker compose logs keyhall   # the setup code for the first sign-in is here
+# For a public server with HTTPS use caddy/, for a private tailnet use tailscale/.
+services:
+  keyhall:
+    image: ghcr.io/luizgustavosaraiva/keyhall:${KEYHALL_VERSION:-latest}
+    container_name: keyhall
+    restart: unless-stopped
+    ports:
+      - "${KEYHALL_BIND:-127.0.0.1}:${KEYHALL_PORT:-8787}:8787"
+    environment:
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in .env}
+      KEYHALL_ENCRYPTION_KEY: ${KEYHALL_ENCRYPTION_KEY:?set KEYHALL_ENCRYPTION_KEY in .env}
+      BETTER_AUTH_URL: ${KEYHALL_URL:-http://localhost:8787}
+      TRUSTED_ORIGINS: ${KEYHALL_URL:-http://localhost:8787}
+      KEYHALL_ALLOW_STDIO: ${KEYHALL_ALLOW_STDIO:-true}
+    volumes:
+      - keyhall-data:/data
+
+volumes:
+  keyhall-data:

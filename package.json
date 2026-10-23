@@ -1,0 +1,29 @@
+{
+  "name": "keyhall",
+  "version": "0.1.0",
+  "description": "Self-hosted hub for MCP servers, APIs and secrets, with scoped tokens per consumer.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/luizgustavosaraiva/keyhall.git"
+  },
+  "private": true,
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev:server": "pnpm --filter server dev",
+    "dev:web": "pnpm --filter web dev",
+    "build": "pnpm --filter web build && pnpm --filter server build",
+    "start": "pnpm --filter server start",
+    "test": "pnpm --filter server test",
+    "typecheck": "pnpm -r typecheck",
+    "check": "biome check",
+    "check:fix": "biome check --write"
+  },
+  "packageManager": "pnpm@12.14.0",
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15"
+  }
+}

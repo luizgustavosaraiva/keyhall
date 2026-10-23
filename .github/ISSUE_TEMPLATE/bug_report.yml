@@ -1,0 +1,57 @@
+name: Bug report
+description: Something doesn't work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Security problems go to the [private advisory form](https://github.com/luizgustavosaraiva/keyhall/security/advisories/new), not here.
+        Never paste tokens (`kh_…`), keys or secrets: redact them.
+  - type: input
+    id: version
+    attributes:
+      label: keyhall version
+      description: Account menu in the panel, or `curl <host>/api/health`.
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: deploy
+    attributes:
+      label: How do you run it?
+      options:
+        - Docker (deploy/docker-compose.yml)
+        - Docker with Caddy (deploy/caddy)
+        - Docker with Tailscale (deploy/tailscale)
+        - Docker on a platform (Dokploy, Coolify, Portainer…)
+        - From source
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Create a Remote MCP connection to …
+        2. …
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Server logs
+      description: Output of `docker compose logs keyhall` around the problem (redacted).
+      render: text
+  - type: input
+    id: client
+    attributes:
+      label: MCP client, if relevant
+      placeholder: Claude Code 2.x, Cursor…
