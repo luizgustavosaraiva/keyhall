@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM node:24-slim AS build
+FROM node:24-slim@sha256:55fb5f5a527ea2c5c4a95f963e48ef90aa38c7b346054fdc8ee9957a2b55d205 AS build
 # better-sqlite3 compiles its native module on install
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
   && rm -rf /var/lib/apt/lists/*
@@ -20,7 +20,7 @@ RUN cd /out/node_modules/.pnpm \
     node_modules/@esbuild-kit node_modules/tsx \
     node_modules/.bin/drizzle-kit node_modules/.bin/esbuild node_modules/.bin/tsx
 
-FROM node:24-slim
+FROM node:24-slim@sha256:55fb5f5a527ea2c5c4a95f963e48ef90aa38c7b346054fdc8ee9957a2b55d205
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=8787 DATABASE_PATH=/data/keyhall.db
 WORKDIR /app/server
 COPY --from=build /out ./
