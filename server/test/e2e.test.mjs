@@ -191,6 +191,52 @@ describe("keyhall", () => {
     )
   })
 
+  test("a QR code signs a phone in with a session of its own", async () => {
+    const create = (admin) =>
+      call("/api/auth/device-link/create", {
+        method: "POST",
+        admin,
+        headers: { origin: base },
+        body: {},
+      })
+    assert.equal((await create(false)).status, 401)
+    const link = await create(true)
+    assert.equal(link.status, 200, link.text)
+    const redeem = () =>
+      call("/api/auth/device-link/redeem", {
+        method: "POST",
+        headers: { origin: base },
+        body: { token: link.json.token },
+      })
+    const first = await redeem()
+    assert.equal(first.status, 200, first.text)
+    const phone = first.headers
+      .getSetCookie()
+      .map((c) => c.split(";")[0])
+      .join("; ")
+    const asPhone = (path) =>
+      call(path, { headers: { cookie: phone, origin: base } })
+    assert.equal((await asPhone("/api/admin/connections")).status, 200)
+    // One use only.
+    assert.equal((await redeem()).status, 400)
+    // The phone's session is its own: signing it out keeps the admin's.
+    const phoneSession = (await asPhone("/api/auth/get-session")).json.session
+    const adminSession = (await call("/api/auth/get-session", { admin: true }))
+      .json.session
+    assert.notEqual(phoneSession.id, adminSession.id)
+    const revoke = await call("/api/auth/revoke-session", {
+      method: "POST",
+      admin: true,
+      body: { token: phoneSession.token },
+    })
+    assert.equal(revoke.status, 200, revoke.text)
+    assert.equal((await asPhone("/api/admin/connections")).status, 401)
+    assert.equal(
+      (await call("/api/admin/connections", { admin: true })).status,
+      200
+    )
+  })
+
   test("secrets and connections that reference them", async () => {
     const secret = await call("/api/admin/secrets", {
       method: "POST",

@@ -36,6 +36,19 @@ reference a secret.
 
 Tokens are rate-limited to 600 requests per minute each.
 
+### Signing in on a phone
+
+The account menu's **Sign in on a phone** shows a QR code. Scanning it opens the panel on the
+phone with a session of its own. The code:
+
+- can only be created by a signed-in administrator;
+- works once and expires after 60 seconds;
+- is stored only as a SHA-256 hash.
+
+Attempts are limited to 10 per minute. The same dialog lists every signed-in device, and each one
+can be signed out on its own. The QR code carries a sign-in link, so show it only to your own
+camera.
+
 ## Local connections
 
 A local connection runs a command you configure (`npx -y package`) **inside the keyhall

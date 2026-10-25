@@ -199,7 +199,7 @@ export function Tokens({
           {tokens.map((tk) => (
             <li
               key={tk.id}
-              className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center"
+              className="flex flex-wrap items-center gap-3 px-5 py-4 sm:flex-nowrap"
             >
               <div className="flex min-w-0 flex-1 items-center gap-3">
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-amber-700 dark:text-primary">
@@ -212,7 +212,8 @@ export function Tokens({
                   </span>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs sm:justify-end">
+              {/* On a phone the details drop to their own line, under the name. */}
+              <div className="order-last flex basis-full flex-wrap items-center gap-x-6 gap-y-2 text-xs max-sm:pl-13 sm:order-none sm:basis-auto sm:justify-end">
                 <StatusPill
                   tone={tk.target.kind === "scope" ? "neutral" : "warning"}
                   dot={false}
@@ -233,30 +234,30 @@ export function Tokens({
                     {tk.expiresAt ? date(tk.expiresAt) : t("tokens.never")}
                   </span>
                 </span>
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="rounded-full"
-                        aria-label={t("common.more")}
-                      />
-                    }
-                  >
-                    <MoreHorizontalIcon />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-40">
-                    <DropdownMenuItem
-                      variant="destructive"
-                      onClick={() => revoke(tk)}
-                    >
-                      <Trash2Icon />
-                      {t("tokens.revoke")}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
               </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="rounded-full"
+                      aria-label={t("common.more")}
+                    />
+                  }
+                >
+                  <MoreHorizontalIcon />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => revoke(tk)}
+                  >
+                    <Trash2Icon />
+                    {t("tokens.revoke")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </li>
           ))}
         </ul>

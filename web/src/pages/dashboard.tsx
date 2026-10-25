@@ -8,6 +8,7 @@ import {
 } from "@/components/app-sidebar"
 import { ChangePasswordDialog } from "@/components/change-password"
 import { useConfirm } from "@/components/confirm"
+import { DevicesDialog } from "@/components/devices"
 import { NameDialog, type NameRequest } from "@/components/name-dialog"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
@@ -83,7 +84,13 @@ function usePage() {
   return [page, setPage] as const
 }
 
-export function Dashboard({ user }: { user: { name: string; email: string } }) {
+export function Dashboard({
+  user,
+  sessionToken,
+}: {
+  user: { name: string; email: string }
+  sessionToken: string
+}) {
   const { t } = useI18n()
   const confirm = useConfirm()
   const [orgs, setOrgs] = useState<Org[]>([])
@@ -96,6 +103,7 @@ export function Dashboard({ user }: { user: { name: string; email: string } }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [naming, setNaming] = useState<NameRequest>()
   const [changingPassword, setChangingPassword] = useState(false)
+  const [devices, setDevices] = useState(false)
 
   function setView(next: View) {
     setViewState(next)
@@ -282,6 +290,7 @@ export function Dashboard({ user }: { user: { name: string; email: string } }) {
       }
     },
     changePassword: () => setChangingPassword(true),
+    devices: () => setDevices(true),
     signOut: () => authClient.signOut(),
   }
 
@@ -395,6 +404,11 @@ export function Dashboard({ user }: { user: { name: string; email: string } }) {
       <ChangePasswordDialog
         open={changingPassword}
         onOpenChange={setChangingPassword}
+      />
+      <DevicesDialog
+        open={devices}
+        onOpenChange={setDevices}
+        currentToken={sessionToken}
       />
     </div>
   )

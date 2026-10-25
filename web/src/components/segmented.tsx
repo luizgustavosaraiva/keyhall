@@ -35,7 +35,8 @@ export function Segmented<T extends string>({
             aria-checked={active}
             onClick={() => onChange(o.value)}
             className={cn(
-              "flex min-h-8 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 font-medium text-[0.8rem] text-muted-foreground outline-none transition-all focus-visible:ring-3 focus-visible:ring-ring/50 [&_svg]:size-4",
+              // Phones drop the icons and padding so the labels fit.
+              "flex min-h-8 min-w-0 items-center justify-center gap-1.5 rounded-lg px-1.5 py-1.5 font-medium text-[0.8rem] text-muted-foreground outline-none transition-all focus-visible:ring-3 focus-visible:ring-ring/50 sm:px-3 [&_svg]:size-4 max-sm:[&_svg]:hidden",
               active
                 ? "bg-card text-foreground shadow-[var(--shadow-surface)]"
                 : "hover:text-foreground"

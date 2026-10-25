@@ -141,6 +141,7 @@ The consumer now lists only the tools its token reaches, all with the connection
 ## Next steps
 
 - Add the rest of your services and one token per consumer.
+- Open the panel on your phone: **Sign in on a phone** in the account menu shows a QR code.
 - Set up [backups](operations.md#backup) and save your encryption key somewhere safe.
 - Read secrets from scripts and CI with the [REST API](api.md#secrets).
 - Use the [proxy](api.md#proxy) to call APIs with keyhall injecting the key.

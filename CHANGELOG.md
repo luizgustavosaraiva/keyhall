@@ -6,6 +6,20 @@ All notable changes to keyhall are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- **Sign in on a phone** with a QR code. Each code works once and expires in 60 seconds. The
+  phone gets a session of its own, and the same dialog lists signed-in devices so each can be
+  signed out.
+
+### Changed
+
+- Panel layout on phones:
+  - secret and token rows keep their menu next to the name;
+  - code samples wrap;
+  - segmented controls fit their labels;
+  - project menus are always visible on touch screens.
+
 ## [0.1.0] - 2026-10-23
 
 First public release.

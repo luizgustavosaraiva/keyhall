@@ -14,6 +14,7 @@ import {
   PencilIcon,
   PlugIcon,
   PlusIcon,
+  QrCodeIcon,
   SunIcon,
   SwatchBookIcon,
   Trash2Icon,
@@ -48,6 +49,7 @@ export type SidebarActions = {
   renameProject: (project: Project) => void
   deleteProject: (project: Project) => void
   changePassword: () => void
+  devices: () => void
   signOut: () => void
 }
 
@@ -85,15 +87,16 @@ function NavItem({
           <span
             className={cn(
               "text-muted-foreground text-xs tabular-nums",
-              menu && "group-hover/item:opacity-0"
+              menu && "pointer-coarse:hidden group-hover/item:opacity-0"
             )}
           >
             {count}
           </span>
         )}
       </button>
+      {/* Hover reveals the menu; touch screens have no hover, so it stays visible there. */}
       {menu && (
-        <div className="absolute top-1/2 right-1 -translate-y-1/2 opacity-0 transition-opacity focus-within:opacity-100 group-hover/item:opacity-100 has-aria-expanded:opacity-100">
+        <div className="absolute top-1/2 right-1 -translate-y-1/2 opacity-0 pointer-coarse:opacity-100 transition-opacity focus-within:opacity-100 group-hover/item:opacity-100 has-aria-expanded:opacity-100">
           {menu}
         </div>
       )}
@@ -311,6 +314,10 @@ export function AppSidebar({
             <ChevronsUpDownIcon className="size-4 shrink-0 text-muted-foreground" />
           </DropdownMenuTrigger>
           <DropdownMenuContent side="top" className="w-60">
+            <DropdownMenuItem onClick={actions.devices}>
+              <QrCodeIcon />
+              {t("devices.menu")}
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={actions.changePassword}>
               <LockKeyholeIcon />
               {t("account.changePassword")}

@@ -402,7 +402,7 @@ export function Secrets({
         <ul className="surface divide-y overflow-hidden">
           {secrets.map((s) => (
             <li key={s.id} className="flex flex-col gap-3 px-5 py-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                   <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-foreground/[0.06] text-foreground/70">
                     <LockKeyholeIcon className="size-5" />
@@ -421,7 +421,8 @@ export function Secrets({
                     </span>
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 text-xs sm:justify-end">
+                {/* On a phone the details drop to their own line, under the name. */}
+                <div className="order-last flex basis-full flex-wrap items-center gap-2 text-xs max-sm:pl-13 sm:order-none sm:basis-auto sm:justify-end">
                   {s.agentAccess && (
                     <StatusPill tone="warning" dot={false}>
                       <BotIcon className="size-3" />
@@ -450,48 +451,48 @@ export function Secrets({
                       ? t("vault.hide")
                       : t("vault.reveal")}
                   </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          className="rounded-full"
-                          aria-label={t("common.more")}
-                        />
-                      }
-                    >
-                      <MoreHorizontalIcon />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem onClick={() => setRotating(s)}>
-                        <RotateCwIcon />
-                        {t("vault.rotate")}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setAgents(s.agentAccess)
-                          setEditing(s)
-                        }}
-                      >
-                        <PencilIcon />
-                        {t("vault.editDetails")}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setHistory(s)}>
-                        <HistoryIcon />
-                        {t("vault.history")}
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onClick={() => remove(s)}
-                      >
-                        <Trash2Icon />
-                        {t("common.delete")}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                 </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="rounded-full"
+                        aria-label={t("common.more")}
+                      />
+                    }
+                  >
+                    <MoreHorizontalIcon />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem onClick={() => setRotating(s)}>
+                      <RotateCwIcon />
+                      {t("vault.rotate")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setAgents(s.agentAccess)
+                        setEditing(s)
+                      }}
+                    >
+                      <PencilIcon />
+                      {t("vault.editDetails")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setHistory(s)}>
+                      <HistoryIcon />
+                      {t("vault.history")}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() => remove(s)}
+                    >
+                      <Trash2Icon />
+                      {t("common.delete")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
               {revealed[s.id] !== undefined && (
                 <div className="flex items-start gap-2 rounded-xl bg-muted/60 py-1 pr-1 pl-3 ring-1 ring-border ring-inset sm:ml-13">

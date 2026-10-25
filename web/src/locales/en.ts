@@ -64,6 +64,25 @@ export const en = {
   "connections.updated": "{name} updated",
   "connections.url": "Server URL",
 
+  "devices.description":
+    "Scan the code with your phone's camera to sign in there. Each device gets a session of its own.",
+  "devices.expired": "Code expired. Tap for a new one",
+  "devices.expiresIn": "Valid for one use, for {n} more seconds",
+  "devices.expiresIn_one": "Valid for one use, for 1 more second",
+  "devices.failed": "Couldn't do that. Try again.",
+  "devices.linkFailed":
+    "This sign-in code is invalid or has expired. Generate a new one.",
+  "devices.linked": "New device signed in",
+  "devices.localhost":
+    "This panel is open as localhost, which the phone can't reach. Open it by an address the phone can reach, then scan again.",
+  "devices.menu": "Sign in on a phone",
+  "devices.oneUse": "Each code works once and expires in a minute.",
+  "devices.signOut": "Sign out this device",
+  "devices.signedIn": "Signed-in devices",
+  "devices.since": "Since {date}",
+  "devices.thisDevice": "This device",
+  "devices.title": "Sign in on a phone",
+
   "kind.api": "HTTP API",
   "kind.apiDescription":
     "An HTTP API with a fixed key. The key stays encrypted in keyhall and never reaches consumers.",

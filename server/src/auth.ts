@@ -3,6 +3,7 @@ import { betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { admin } from "better-auth/plugins/admin"
 import { db } from "./db/index.js"
+import { deviceLink } from "./device-link.js"
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "sqlite" }),
@@ -19,5 +20,6 @@ export const auth = betterAuth({
       // The plugin default is 10 requests a day; an MCP client makes several per minute.
       rateLimit: { enabled: true, timeWindow: 60_000, maxRequests: 600 },
     }),
+    deviceLink(),
   ],
 })

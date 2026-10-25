@@ -67,6 +67,25 @@ export const pt: Record<keyof typeof en, string> = {
   "connections.updated": "{name} atualizada",
   "connections.url": "URL do servidor",
 
+  "devices.description":
+    "Aponte a câmera do celular para o código para entrar nele. Cada aparelho ganha uma sessão própria.",
+  "devices.expired": "Código expirado. Toque para gerar outro",
+  "devices.expiresIn": "Vale para um uso, por mais {n} segundos",
+  "devices.expiresIn_one": "Vale para um uso, por mais 1 segundo",
+  "devices.failed": "Não deu certo. Tente de novo.",
+  "devices.linkFailed":
+    "Este código de entrada é inválido ou expirou. Gere outro.",
+  "devices.linked": "Novo aparelho conectado",
+  "devices.localhost":
+    "Este painel está aberto como localhost, que o celular não alcança. Abra-o por um endereço que o celular alcance e escaneie de novo.",
+  "devices.menu": "Entrar no celular",
+  "devices.oneUse": "Cada código funciona uma vez e expira em um minuto.",
+  "devices.signOut": "Desconectar este aparelho",
+  "devices.signedIn": "Aparelhos conectados",
+  "devices.since": "Desde {date}",
+  "devices.thisDevice": "Este aparelho",
+  "devices.title": "Entrar no celular",
+
   "kind.api": "API HTTP",
   "kind.apiDescription":
     "API HTTP com chave fixa. A chave fica cifrada no keyhall e nunca chega aos consumidores.",
