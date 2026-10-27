@@ -20,6 +20,29 @@ test("returns the value and the console output", async () => {
   })
 })
 
+test("tools() filters the catalog, read once and not counted as a call", async () => {
+  let reads = 0
+  const catalog = async () => {
+    reads++
+    return [
+      { name: "mail__dispatch_message", description: "Sends an email" },
+      { name: "dns__records", description: "Lists DNS records" },
+    ]
+  }
+  const run = await runCode(
+    `const all = await tools()
+    const dns = await tools("dns__")
+    return { mail: all.filter((t) => /email/i.test(t.description)).map((t) => t.name), dns: dns.length }`,
+    tool,
+    catalog
+  )
+  assert.deepEqual(run.ok && run.result, {
+    mail: ["mail__dispatch_message"],
+    dns: 1,
+  })
+  assert.equal(reads, 1)
+})
+
 test("accepts a bare async function", async () => {
   const run = await runCode("async () => { return 42 }", tool)
   assert.equal(run.ok && run.result, 42)

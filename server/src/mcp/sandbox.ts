@@ -10,10 +10,12 @@ import {
 } from "quickjs-emscripten-core"
 
 // Runs code written by an agent in QuickJS (WebAssembly): no network, no files, no process,
-// no timers. Its only way out is call(name, args), which the host answers with the same
-// checks as a direct tool call. Values cross the boundary as JSON.
+// no timers. Its only ways out are call(name, args), which the host answers with the same
+// checks as a direct tool call, and tools(), which reads the catalog the token reaches. Values
+// cross the boundary as JSON.
 
 export type ToolCaller = (name: string, args: unknown) => Promise<unknown>
+export type ToolLister = () => Promise<unknown>
 
 export type RunResult =
   | { ok: true; result: unknown; logs: string[] }
@@ -73,6 +75,10 @@ async function slot() {
 const PRELUDE = `
 globalThis.call = async (name, args) =>
   JSON.parse(await __call(String(name), JSON.stringify(args ?? {}) ?? "{}"))
+globalThis.tools = async (prefix) => {
+  const all = JSON.parse(await __tools())
+  return prefix ? all.filter((t) => t.name.startsWith(String(prefix))) : all
+}
 const __fmt = (a) => a.map((x) => (typeof x === "string" ? x : JSON.stringify(x))).join(" ")
 globalThis.console = Object.freeze({
   log: (...a) => __log(__fmt(a)),
@@ -98,17 +104,22 @@ ${body}
 
 export async function runCode(
   code: string,
-  callTool: ToolCaller
+  callTool: ToolCaller,
+  listTools: ToolLister = async () => []
 ): Promise<RunResult> {
   const release = await slot()
   try {
-    return await run(code, callTool)
+    return await run(code, callTool, listTools)
   } finally {
     release()
   }
 }
 
-async function run(code: string, callTool: ToolCaller): Promise<RunResult> {
+async function run(
+  code: string,
+  callTool: ToolCaller,
+  listTools: ToolLister
+): Promise<RunResult> {
   const runtime = (await freshQuickJS()).newRuntime()
   runtime.setMaxStackSize(LIMITS.stackBytes)
   const deadline = Date.now() + LIMITS.timeoutMs
@@ -128,9 +139,8 @@ async function run(code: string, callTool: ToolCaller): Promise<RunResult> {
     if (logs.length < LIMITS.logLines) logs.push(vm.getString(line))
     else if (logs.length === LIMITS.logLines) logs.push("… more lines dropped")
   })
-  const callFn = vm.newFunction("__call", (nameH, argsH) => {
-    const name = vm.getString(nameH)
-    const args = JSON.parse(vm.getString(argsH)) as unknown
+  // A promise inside the VM that settles with the host's answer, as a JSON string.
+  const answer = (work: () => Promise<unknown>) => {
     const deferred = vm.newPromise()
     pending.add(deferred)
     const settle = (fn: () => void) => {
@@ -140,17 +150,7 @@ async function run(code: string, callTool: ToolCaller): Promise<RunResult> {
       deferred.dispose()
       pump()
     }
-    if (++calls > LIMITS.calls) {
-      queueMicrotask(() =>
-        settle(() => {
-          const err = vm.newError(`More than ${LIMITS.calls} calls in one run`)
-          deferred.reject(err)
-          err.dispose()
-        })
-      )
-      return deferred.handle
-    }
-    callTool(name, args).then(
+    work().then(
       (value) =>
         settle(() => {
           const s = vm.newString(JSON.stringify(value ?? null))
@@ -167,11 +167,27 @@ async function run(code: string, callTool: ToolCaller): Promise<RunResult> {
         })
     )
     return deferred.handle
+  }
+  const callFn = vm.newFunction("__call", (nameH, argsH) => {
+    const name = vm.getString(nameH)
+    const args = JSON.parse(vm.getString(argsH)) as unknown
+    if (++calls > LIMITS.calls)
+      return answer(async () => {
+        throw new Error(`More than ${LIMITS.calls} calls in one run`)
+      })
+    return answer(() => callTool(name, args))
   })
+  // The catalog doesn't count as a call; it is read once per run.
+  let catalog: Promise<unknown> | undefined
+  const toolsFn = vm.newFunction("__tools", () =>
+    answer(() => (catalog ??= listTools()))
+  )
   vm.setProp(vm.global, "__log", logFn)
   vm.setProp(vm.global, "__call", callFn)
+  vm.setProp(vm.global, "__tools", toolsFn)
   logFn.dispose()
   callFn.dispose()
+  toolsFn.dispose()
 
   const fail = (error: string): RunResult => ({ ok: false, error, logs })
   let timer: NodeJS.Timeout | undefined

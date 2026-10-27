@@ -484,6 +484,21 @@ describe("keyhall", () => {
       '{"said":"hi","env":"FOO=s3cret-v2","secret":9}\n\nconsole:\ngot hi'
     )
 
+    const catalog = await tool("execute", {
+      code: `const all = await tools()
+      const echo = await tools("echo__")
+      const found = all.filter((t) => /back/i.test(t.description)).map((t) => t.name)
+      return { total: all.length, echo: echo.length, found, input: echo.find((t) => t.name === "echo__echo").input }`,
+    })
+    assert.ok(!catalog.isError, catalog.content[0].text)
+    const listed = JSON.parse(catalog.content[0].text)
+    assert.ok(
+      listed.total >= listed.echo && listed.echo > 1,
+      catalog.content[0].text
+    )
+    assert.ok(listed.found.includes("echo__echo"), catalog.content[0].text)
+    assert.match(listed.input, /text: string/)
+
     const denied = await tool("execute", {
       code: `return await call("other__tool", {})`,
     })

@@ -3,6 +3,8 @@ import { LIMITS, runCode } from "./sandbox.js"
 
 // Code Mode: instead of every tool, the client sees two. search finds tools by what they do
 // and shows their input types; execute runs code that calls them and returns only the result.
+// search ranks by words, so a tool named unlike the query can miss it; inside execute, tools()
+// hands the whole catalog to the agent's code to filter by its own criteria.
 // The tool list stays the same size however many connections a token reaches, and
 // intermediate results never enter the model's context.
 
@@ -34,7 +36,7 @@ export function codeModeTools(ctx: CodeModeContext): Tool[] {
   return [
     {
       name: SEARCH,
-      description: `Find the tools keyhall can call for you. Search by what you want to do (e.g. "deploy application", "dns records"); each result shows the tool name to pass to call(), its description and its input type. Connections: ${reach}. Tool names start with the connection prefix.${vault}`,
+      description: `Find the tools keyhall can call for you. Search by what you want to do (e.g. "deploy application", "dns records"); each result shows the tool name to pass to call(), its description and its input type. Results are ranked by matching words, so a tool named differently can be missed: then filter the full catalog in execute with tools(). Connections: ${reach}. Tool names start with the connection prefix.${vault}`,
       inputSchema: {
         type: "object",
         properties: {
@@ -58,13 +60,16 @@ export function codeModeTools(ctx: CodeModeContext): Tool[] {
       name: EXECUTE,
       description: `Run JavaScript that calls keyhall tools and return only what you need. The code is the body of an async function:
 - await call("tool_name", { ...input }) calls a tool (names and inputs from search) and returns its result, parsed from JSON when possible; a failed call throws an Error;
+- await tools(prefix?) returns every tool the token reaches, or those whose name starts with prefix, as { name, description, input } (input is a TypeScript type); filter it to find tools search missed;
 - chain, loop, filter and combine calls in one run instead of calling tools one by one;
 - return the final value (it must be JSON-serializable); console.log output is returned too.
 There is no fetch, require, file system or timers. Limits per run: ${LIMITS.timeoutMs / 1000} s, ${LIMITS.calls} calls, ${LIMITS.memoryBytes / 1024 / 1024} MB.
 
-Example:
+Examples:
 const apps = await call("dokploy__application-search", { name: "web" })
-return apps.items.map((a) => ({ id: a.applicationId, status: a.applicationStatus }))`,
+return apps.items.map((a) => ({ id: a.applicationId, status: a.applicationStatus }))
+
+return (await tools()).filter((t) => /mail|send/i.test(t.name + " " + t.description)).map((t) => t.name)`,
       inputSchema: {
         type: "object",
         properties: { code: { type: "string" } },
@@ -173,7 +178,7 @@ async function search(ctx: CodeModeContext, query: string, limit: number) {
   const shown = scored.slice(0, Math.min(Math.max(1, limit), 50))
   if (!shown.length)
     return text(
-      `No tool matches "${query}" among ${tools.length}. Try other words, or a connection prefix: ${ctx.connections.map((c) => c.prefix).join(", ") || "none"}.`
+      `No tool matches "${query}" among ${tools.length}. Try other words, a connection prefix (${ctx.connections.map((c) => c.prefix).join(", ") || "none"}), or filter the catalog in execute: (await tools()).filter((t) => /word/i.test(t.name + " " + t.description)).`
     )
   const header = `${scored.length} of ${tools.length} tools match; showing ${shown.length}.`
   return text(
@@ -286,15 +291,23 @@ function toValue(result: CallToolResult): unknown {
 
 async function execute(ctx: CodeModeContext, code: string) {
   if (!code.trim()) return text("Empty code.", true)
-  const run = await runCode(code, async (name, args) =>
-    toValue(
-      await ctx.call(
-        name,
-        args && typeof args === "object" && !Array.isArray(args)
-          ? (args as Record<string, unknown>)
-          : undefined
-      )
-    )
+  const run = await runCode(
+    code,
+    async (name, args) =>
+      toValue(
+        await ctx.call(
+          name,
+          args && typeof args === "object" && !Array.isArray(args)
+            ? (args as Record<string, unknown>)
+            : undefined
+        )
+      ),
+    async () =>
+      (await ctx.catalog()).map((tool) => ({
+        name: tool.name,
+        description: tool.description ?? "",
+        input: typeOf(tool.inputSchema),
+      }))
   )
   const logs = run.logs.length ? `\n\nconsole:\n${run.logs.join("\n")}` : ""
   if (!run.ok) return text(`Error: ${run.error}${logs}`, true)

@@ -11,7 +11,9 @@ All notable changes to keyhall are documented here. The format is based on
 - **Code Mode**, a tool mode per token, and the default for new tokens. The consumer sees two
   tools whatever the token reaches:
   - `search` finds tools and shows their inputs as TypeScript types;
-  - `execute` runs agent-written JavaScript that calls them and returns only the result.
+  - `execute` runs agent-written JavaScript that calls them and returns only the result;
+    `tools()` inside it gives the code the whole catalog, to find tools by its own criteria
+    when the word ranking of `search` misses them.
 
   The code runs in a QuickJS WebAssembly sandbox, limited in time, memory and calls. Existing
   tokens keep listing every tool and can be switched from the token's menu.

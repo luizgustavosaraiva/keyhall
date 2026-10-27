@@ -45,7 +45,7 @@ Tokens in Code Mode list two tools instead:
 
 | Tool | Arguments | Returns |
 |---|---|---|
-| `search` | `query`, optional `limit` (default 10, max 50) | Matching tools: name, description, and input (and output, when known) as TypeScript types. A connection prefix as `query` lists that connection's tools. |
+| `search` | `query`, optional `limit` (default 10, max 50) | Matching tools: name, description, and input (and output, when known) as TypeScript types. A connection prefix as `query` lists that connection's tools. Ranking is by matching words, so a tool named unlike the query can be missed; `tools()` covers that. |
 | `execute` | `code` | The JSON of the value the code returns, followed by its `console.log` output. |
 
 `code` is the body of an async function. `await call("<tool name>", { ...input })` calls a tool
@@ -59,9 +59,18 @@ for (const a of stopped) await call("dokploy__application-start", { applicationI
 return stopped.map((a) => a.name)
 ```
 
+`await tools(prefix?)` returns the whole catalog the token reaches, or the tools whose name
+starts with `prefix`, as `{ name, description, input }` with `input` as a TypeScript type. The
+code filters it by its own criteria, and only what it returns reaches the model:
+
+```js
+return (await tools()).filter((t) => /mail|send/i.test(`${t.name} ${t.description}`)).map((t) => t.name)
+```
+
 Each call goes through the same checks as a direct `tools/call`. The code runs in QuickJS
 compiled to WebAssembly, with no network, file system, timers or process access: `call()` is
-its only way out. Limits per run: 60 seconds, 100 calls, 128 MB of memory, 4 runs at a time;
+its only way out, besides reading the catalog with `tools()`. Limits per run: 60 seconds, 100 calls
+(`tools()` doesn't count), 128 MB of memory, 4 runs at a time;
 output over 24,000 characters is cut.
 
 `/mcp/<scope-slug>` is still accepted for consumers configured with older versions. The token
