@@ -90,34 +90,81 @@ export async function callCodeMode(
   return text(`Unknown tool: ${name}. Use search, then execute.`, true)
 }
 
+// Words of a name or query: camelCase, kebab-case and snake_case all split apart.
 const words = (s: string) =>
   s
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
     .toLowerCase()
     .split(/[^a-z0-9]+/)
     .filter(Boolean)
 
+// "projects" finds "project", "policies" finds "policy".
+function forms(term: string) {
+  const out = new Set([term])
+  if (term.length > 3 && term.endsWith("ies")) out.add(`${term.slice(0, -3)}y`)
+  if (term.length > 3 && term.endsWith("es")) out.add(term.slice(0, -2))
+  if (term.length > 3 && term.endsWith("s") && !term.endsWith("ss"))
+    out.add(term.slice(0, -1))
+  return [...out]
+}
+
+// Verbs that tools name differently; a synonym in the name counts a little less.
+const SYNONYMS: Record<string, string[]> = {
+  list: ["all", "search", "find", "ls"],
+  get: ["one", "read", "fetch", "show", "retrieve"],
+  find: ["search", "list"],
+  search: ["find", "list", "query"],
+  create: ["add", "new", "insert"],
+  delete: ["remove", "rm", "destroy"],
+  update: ["edit", "set", "patch", "modify"],
+  start: ["deploy", "run", "resume"],
+  stop: ["pause", "suspend", "kill"],
+}
+
 async function search(ctx: CodeModeContext, query: string, limit: number) {
   const tools = await ctx.catalog()
   const q = query.trim().toLowerCase()
-  const terms = words(q)
-  // A connection prefix lists that connection's tools, in order.
-  const byPrefix = tools.filter(
-    (t) => q && t.name.toLowerCase().startsWith(q.replace(/_*$/, "__"))
-  )
-  const scored = byPrefix.length
-    ? byPrefix.map((tool) => ({ tool, score: 1 }))
+  // A connection named in the query (or a prefix like "dokploy__") narrows the search to it.
+  const prefixes = ctx.connections.map((c) => c.prefix.toLowerCase())
+  const named = prefixes.filter((prefix) => {
+    const slug = prefix.replace(/__$/, "")
+    return (
+      q === slug ||
+      q.startsWith(prefix) ||
+      words(q).includes(slug.split("__").pop() ?? slug)
+    )
+  })
+  const pool = named.length
+    ? tools.filter((t) =>
+        named.some((prefix) => t.name.toLowerCase().startsWith(prefix))
+      )
     : tools
+  const slugs = new Set(
+    named.flatMap((prefix) => words(prefix.replace(/__$/, "")))
+  )
+  const terms = words(q).filter((t) => !slugs.has(t))
+
+  const scored = !terms.length
+    ? pool.map((tool) => ({ tool, score: 1 }))
+    : pool
         .map((tool) => {
-          const name = words(tool.name).join(" ")
+          const prefix = prefixes.find((p) =>
+            tool.name.toLowerCase().startsWith(p)
+          )
+          const name = new Set(words(tool.name.slice(prefix?.length ?? 0)))
           const description = (tool.description ?? "").toLowerCase()
           let score = 0
+          let found = 0
           for (const term of terms) {
-            if (name.includes(term)) score += 3
-            if (description.includes(term)) score += 1
+            const variants = forms(term)
+            if (variants.some((v) => name.has(v))) score += 3
+            else if ((SYNONYMS[term] ?? []).some((v) => name.has(v))) score += 2
+            else if (variants.some((v) => description.includes(v))) score += 1
+            else continue
+            found++
           }
           // Every word found is worth more than one word found many times.
-          if (terms.every((t) => name.includes(t) || description.includes(t)))
-            score += 2 * terms.length
+          if (found === terms.length) score += 2 * terms.length
           return { tool, score }
         })
         .filter((r) => r.score > 0)
