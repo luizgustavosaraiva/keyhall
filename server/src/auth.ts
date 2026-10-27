@@ -17,6 +17,8 @@ export const auth = betterAuth({
     admin(),
     apiKey({
       defaultPrefix: "kh_",
+      // Holds the token's tool mode (see access.ts).
+      enableMetadata: true,
       // The plugin default is 10 requests a day; an MCP client makes several per minute.
       rateLimit: { enabled: true, timeWindow: 60_000, maxRequests: 600 },
     }),

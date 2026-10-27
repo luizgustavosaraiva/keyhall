@@ -3,10 +3,11 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js"
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js"
 import {
   CallToolRequestSchema,
+  type CallToolResult,
   ListToolsRequestSchema,
   type Tool,
 } from "@modelcontextprotocol/sdk/types.js"
-import type { Access, Link } from "../access.js"
+import type { Access, Link, ToolMode } from "../access.js"
 import { callOperation, operations } from "../api/openapi.js"
 import {
   currentValue,
@@ -15,6 +16,7 @@ import {
   type Reachable,
   reachableSecrets,
 } from "../secrets/store.js"
+import { callCodeMode, codeModeTools } from "./code-mode.js"
 import { withUpstream } from "./upstream.js"
 
 export const allowed = (list: string[] | null, tool: string) =>
@@ -31,6 +33,11 @@ export function exposedName(prefix: string, tool: string) {
   return `${prefix}${tool.slice(0, Math.max(1, MAX_NAME - prefix.length - 7))}_${hash}`
 }
 
+// Code Mode searches the catalog on every call, so upstream lists are kept for a minute.
+// A change to the connection (new tokens, a new spec) starts a fresh list.
+const LIST_TTL_MS = 60_000
+const listCache = new Map<string, { key: number; at: number; tools: Tool[] }>()
+
 async function upstreamTools(link: Link): Promise<Tool[]> {
   if (link.conn.kind === "api")
     return operations(link.conn).map(({ name, description, inputSchema }) => ({
@@ -38,7 +45,15 @@ async function upstreamTools(link: Link): Promise<Tool[]> {
       description,
       inputSchema,
     }))
-  return (await withUpstream(link.conn, (client) => client.listTools())).tools
+  const key = link.conn.updatedAt.getTime()
+  const hit = listCache.get(link.conn.id)
+  if (hit && hit.key === key && Date.now() - hit.at < LIST_TTL_MS)
+    return hit.tools
+  const { tools } = await withUpstream(link.conn, (client) =>
+    client.listTools()
+  )
+  listCache.set(link.conn.id, { key, at: Date.now(), tools })
+  return tools
 }
 
 const denied = (name: string) => ({
@@ -114,67 +129,115 @@ async function callSecretTool(
   return text(currentValue(result.found.secret))
 }
 
-function buildServer(access: Access, agentSecrets: Reachable[]) {
-  const { links } = access
+// Every tool the token reaches, with the names consumers call. full keeps long names whole
+// (Code Mode passes them inside code, where the client's 64-character limit doesn't apply).
+async function catalog(
+  access: Access,
+  agentSecrets: Reachable[],
+  full = false
+): Promise<Tool[]> {
+  const results = await Promise.allSettled(
+    access.links
+      .filter((l) => l.conn.status === "connected")
+      .map(async (link) =>
+        (await upstreamTools(link))
+          .filter((t) => allowed(link.allowedTools, t.name))
+          .map(
+            (t): Tool => ({
+              ...t,
+              name: full
+                ? `${link.prefix}${t.name}`
+                : exposedName(link.prefix, t.name),
+            })
+          )
+      )
+  )
+  const tools: Tool[] = agentSecrets.length
+    ? secretTools(new Set(agentSecrets.map((r) => r.project.id)).size > 1)
+    : []
+  for (const r of results) {
+    if (r.status === "fulfilled") tools.push(...r.value)
+    else console.error("upstream failed on tools/list:", r.reason)
+  }
+  return tools
+}
+
+async function callTool(
+  access: Access,
+  agentSecrets: Reachable[],
+  name: string,
+  args: Record<string, unknown> | undefined
+): Promise<CallToolResult> {
+  if (agentSecrets.length && (name === LIST_SECRETS || name === GET_SECRET))
+    return callSecretTool(
+      name,
+      args,
+      agentSecrets,
+      `token ${access.token.name}`
+    )
+  // The prefix ends in "__", so only one connection matches.
+  const link = access.links.find((l) => name.startsWith(l.prefix))
+  if (!link) return denied(name)
+  let tool = name.slice(link.prefix.length)
+  if (`${link.prefix}${tool}`.length >= MAX_NAME) {
+    // It may be a shortened name: find the original with the same rule.
+    const match = (await upstreamTools(link)).find(
+      (t) => exposedName(link.prefix, t.name) === name
+    )
+    if (match) tool = match.name
+  }
+  if (!allowed(link.allowedTools, tool)) return denied(name)
+
+  if (link.conn.kind === "api") {
+    const op = operations(link.conn).find((o) => o.name === tool)
+    if (!op) return denied(name)
+    return callOperation(link.conn, op, args)
+  }
+  return withUpstream(
+    link.conn,
+    (client) =>
+      client.callTool({
+        name: tool,
+        arguments: args,
+      }) as Promise<CallToolResult>
+  )
+}
+
+function buildServer(
+  access: Access,
+  agentSecrets: Reachable[],
+  mode: ToolMode
+) {
   const server = new Server(
     { name: "keyhall", version: "0.2.0" },
     { capabilities: { tools: {} } }
   )
 
-  server.setRequestHandler(ListToolsRequestSchema, async () => {
-    const results = await Promise.allSettled(
-      links
+  if (mode === "code") {
+    const ctx = {
+      catalog: () => catalog(access, agentSecrets, true),
+      call: (name: string, args: Record<string, unknown> | undefined) =>
+        callTool(access, agentSecrets, name, args),
+      connections: access.links
         .filter((l) => l.conn.status === "connected")
-        .map(async (link) =>
-          (await upstreamTools(link))
-            .filter((t) => allowed(link.allowedTools, t.name))
-            .map(
-              (t): Tool => ({ ...t, name: exposedName(link.prefix, t.name) })
-            )
-        )
+        .map((l) => ({ prefix: l.prefix, name: l.conn.name })),
+      secrets: agentSecrets.length > 0,
+    }
+    server.setRequestHandler(ListToolsRequestSchema, async () => ({
+      tools: codeModeTools(ctx),
+    }))
+    server.setRequestHandler(CallToolRequestSchema, (req) =>
+      callCodeMode(ctx, req.params.name, req.params.arguments)
     )
-    const tools: Tool[] = agentSecrets.length
-      ? secretTools(new Set(agentSecrets.map((r) => r.project.id)).size > 1)
-      : []
-    for (const r of results) {
-      if (r.status === "fulfilled") tools.push(...r.value)
-      else console.error("upstream failed on tools/list:", r.reason)
-    }
-    return { tools }
-  })
+    return server
+  }
 
-  server.setRequestHandler(CallToolRequestSchema, async (req) => {
-    const name = req.params.name
-    if (agentSecrets.length && (name === LIST_SECRETS || name === GET_SECRET))
-      return callSecretTool(
-        name,
-        req.params.arguments,
-        agentSecrets,
-        `token ${access.token.name}`
-      )
-    // The prefix ends in "__", so only one connection matches.
-    const link = links.find((l) => name.startsWith(l.prefix))
-    if (!link) return denied(name)
-    let tool = name.slice(link.prefix.length)
-    if (`${link.prefix}${tool}`.length >= MAX_NAME) {
-      // It may be a shortened name: find the original with the same rule.
-      const match = (await upstreamTools(link)).find(
-        (t) => exposedName(link.prefix, t.name) === name
-      )
-      if (match) tool = match.name
-    }
-    if (!allowed(link.allowedTools, tool)) return denied(name)
-
-    if (link.conn.kind === "api") {
-      const op = operations(link.conn).find((o) => o.name === tool)
-      if (!op) return denied(name)
-      return callOperation(link.conn, op, req.params.arguments)
-    }
-    return withUpstream(link.conn, (client) =>
-      client.callTool({ name: tool, arguments: req.params.arguments })
-    )
-  })
-
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+    tools: await catalog(access, agentSecrets),
+  }))
+  server.setRequestHandler(CallToolRequestSchema, (req) =>
+    callTool(access, agentSecrets, req.params.name, req.params.arguments)
+  )
   return server
 }
 
@@ -183,7 +246,7 @@ export async function handleMcp(access: Access, req: Request) {
   const agentSecrets = (await reachableSecrets(access.target)).filter(
     (r) => r.secret.agentAccess
   )
-  const server = buildServer(access, agentSecrets)
+  const server = buildServer(access, agentSecrets, access.mode)
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,

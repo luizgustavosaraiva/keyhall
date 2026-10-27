@@ -33,6 +33,9 @@ every MCP server, and access to all of their tools. keyhall puts them in one pla
   hand-picked connections and tools, e.g. "the support bot may only *list* mail domains".
 - **One endpoint.** Every consumer uses `https://<your-keyhall>/mcp`. Revoke one token without
   touching the others.
+- **Code Mode.** However many connections a token reaches, the agent sees two tools: `search`
+  finds what it needs, and `execute` runs a short script that calls the tools and returns only
+  the result, in a sandbox with no network of its own. Small context, fewer round trips.
 - **Keep secrets in a vault.** Reference them from connections (`{{secret:STRIPE_KEY}}`), load
   them in scripts and CI through REST, or let agents read them through MCP when you allow it.
   Every read is logged.

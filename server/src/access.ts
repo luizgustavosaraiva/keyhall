@@ -25,9 +25,17 @@ export type Link = {
   prefix: string
 }
 
+// How a token sees its tools: each one listed ("tools"), or Code Mode ("code"): search and
+// execute, with tools called from code. Stored in the api-key metadata; older tokens list tools.
+export type ToolMode = "tools" | "code"
+
+export const toolMode = (metadata: unknown): ToolMode =>
+  (metadata as { mode?: unknown } | null)?.mode === "code" ? "code" : "tools"
+
 export type Access = {
   target: Target
   links: Link[]
+  mode: ToolMode
   // The caller, for the vault's read log.
   token: { id: string; name: string }
 }
@@ -130,6 +138,7 @@ export async function resolveToken(key: string): Promise<Access | undefined> {
   return {
     target,
     links: await linksFor(target),
+    mode: toolMode(apiKey.metadata),
     token: { id: apiKey.id, name: apiKey.name ?? apiKey.id },
   }
 }

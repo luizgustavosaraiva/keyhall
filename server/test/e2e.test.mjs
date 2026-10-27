@@ -438,6 +438,81 @@ describe("keyhall", () => {
     assert.match(got.result.content[0].text, /s3cret-v2/)
   })
 
+  test("Code Mode: search finds tools and execute calls them from code", async () => {
+    const created = await call("/api/admin/tokens", {
+      method: "POST",
+      admin: true,
+      body: {
+        name: "code",
+        target: { kind: "project", id: "prj-default" },
+        mode: "code",
+      },
+    })
+    assert.equal(created.status, 201, created.text)
+    const token = created.json.key
+    const tool = async (name, args) =>
+      (await mcp(token, "tools/call", { name, arguments: args })).result
+
+    const list = await mcp(token, "tools/list")
+    assert.deepEqual(
+      list.result.tools.map((t) => t.name),
+      ["search", "execute"]
+    )
+    assert.match(list.result.tools[0].description, /echo \(Echo\)/)
+
+    const found = await tool("search", { query: "echoes text" })
+    assert.match(
+      found.content[0].text,
+      /^echo__echo\n {2}Echoes the text back/m
+    )
+    assert.match(found.content[0].text, /input: \{\n {4}text: string/)
+    const byPrefix = await tool("search", { query: "echo" })
+    assert.match(byPrefix.content[0].text, /echo__show_env/)
+
+    const run = await tool("execute", {
+      code: `const [said, env] = await Promise.all([
+        call("echo__echo", { text: "hi" }),
+        call("echo__show_env"),
+      ])
+      console.log("got", said)
+      const secret = await call("keyhall__get_secret", { name: "ECHO_KEY" })
+      return { said, env, secret: secret.length }`,
+    })
+    assert.ok(!run.isError, run.content[0].text)
+    assert.equal(
+      run.content[0].text,
+      '{"said":"hi","env":"FOO=s3cret-v2","secret":9}\n\nconsole:\ngot hi'
+    )
+
+    const denied = await tool("execute", {
+      code: `return await call("other__tool", {})`,
+    })
+    assert.equal(denied.isError, true)
+    assert.match(denied.content[0].text, /Tool not allowed: other__tool/)
+
+    const sandboxed = await tool("execute", {
+      code: "return [typeof fetch, typeof require, typeof process]",
+    })
+    assert.equal(
+      sandboxed.content[0].text,
+      '["undefined","undefined","undefined"]'
+    )
+
+    const tokenList = await call("/api/admin/tokens", { admin: true })
+    const row = tokenList.json.find((t) => t.name === "code")
+    assert.equal(row.mode, "code")
+    const switched = await call(`/api/admin/tokens/${row.id}`, {
+      method: "PATCH",
+      admin: true,
+      body: { mode: "tools" },
+    })
+    assert.equal(switched.status, 204, switched.text)
+    const names = (await mcp(token, "tools/list")).result.tools.map(
+      (t) => t.name
+    )
+    assert.ok(names.includes("echo__echo"), names.join(", "))
+  })
+
   test("a secret in use can't be deleted", async () => {
     const res = await call(`/api/admin/secrets/${ids.secret}`, {
       method: "DELETE",

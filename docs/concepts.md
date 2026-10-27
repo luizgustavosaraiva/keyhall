@@ -58,6 +58,19 @@ What a consumer uses: `Authorization: Bearer kh_…`. Each token points at one t
 Create one token per consumer so you can revoke each independently. Tokens are shown once and
 stored only as a hash. They can expire (30 days, 90 days, 1 year) or not.
 
+Each token also has a **tool mode**, which can be changed at any time:
+
+- **Code Mode** (the default for new tokens): the consumer sees two tools, `search` and
+  `execute`. The agent searches for the tools it needs, then writes a short script that calls
+  them, combines the results and returns only what it needs. The tool list stays the same size
+  however many connections the token reaches, and intermediate results never enter the
+  model's context.
+- **Every tool**: each tool of each reachable connection is listed. Simple, and fine for a few
+  connections, but every connection adds to the context of every conversation.
+
+Both modes reach exactly the same tools: Code Mode changes how they are called, not what the
+token may do. See [API](api.md#code-mode).
+
 ## Secret
 
 A named value stored encrypted, with history, e.g. `STRIPE_KEY`. Three ways to use it, from the

@@ -96,7 +96,9 @@ Skip this step if the consumer may see everything in a project.
 1. **Tokens → New token**.
 2. Name it after the consumer, e.g. `Claude Code (laptop)`.
 3. Choose what it reaches: the whole **organization**, one **project**, or one **scope**.
-4. Choose an expiry, then **Create token**.
+4. Choose the tool mode. Keep **Code Mode** unless the consumer only reaches a few tools: see
+   [Concepts](concepts.md#token).
+5. Choose an expiry, then **Create token**.
 
 The token (`kh_…`) is shown **once**. The dialog also shows ready-to-paste configuration for the
 consumer.

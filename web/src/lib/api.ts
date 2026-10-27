@@ -91,6 +91,8 @@ export type Token = {
   name: string | null
   start: string | null
   target: { kind: "org" | "project" | "scope"; id: string }
+  // "code": the client sees search and execute (Code Mode); "tools": every tool.
+  mode: "tools" | "code"
   expiresAt: string | null
   lastRequest: string | null
   createdAt: string

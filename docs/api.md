@@ -39,6 +39,31 @@ When the token reaches secrets marked "Readable by agents", two more tools appea
 
 The connection name `keyhall` is reserved for these.
 
+### Code Mode
+
+Tokens in Code Mode list two tools instead:
+
+| Tool | Arguments | Returns |
+|---|---|---|
+| `search` | `query`, optional `limit` (default 10, max 50) | Matching tools: name, description, and input (and output, when known) as TypeScript types. A connection prefix as `query` lists that connection's tools. |
+| `execute` | `code` | The JSON of the value the code returns, followed by its `console.log` output. |
+
+`code` is the body of an async function. `await call("<tool name>", { ...input })` calls a tool
+and returns its result: structured content when the tool gives it, otherwise its text, parsed as
+JSON when possible. A failed call throws an `Error`.
+
+```js
+const apps = await call("dokploy__application-search", { name: "web" })
+const stopped = apps.items.filter((a) => a.applicationStatus !== "running")
+for (const a of stopped) await call("dokploy__application-start", { applicationId: a.applicationId })
+return stopped.map((a) => a.name)
+```
+
+Each call goes through the same checks as a direct `tools/call`. The code runs in QuickJS
+compiled to WebAssembly, with no network, file system, timers or process access: `call()` is
+its only way out. Limits per run: 60 seconds, 100 calls, 128 MB of memory, 4 runs at a time;
+output over 24,000 characters is cut.
+
 `/mcp/<scope-slug>` is still accepted for consumers configured with older versions. The token
 must belong to that scope.
 

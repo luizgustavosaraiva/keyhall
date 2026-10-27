@@ -44,6 +44,8 @@ server/
     db/                   Drizzle schema (auth-schema.ts is generated) and migrator
     mcp/
       gateway.ts          aggregates tools, applies scopes, forwards calls, secret tools
+      code-mode.ts        Code Mode: search and execute tools
+      sandbox.ts          QuickJS (WebAssembly) sandbox that runs execute's code
       upstream.ts         MCP client per connection
       oauth-provider.ts   OAuth client state, stored encrypted on the connection row
       stdio.ts            pool of local MCP processes
@@ -82,6 +84,10 @@ deploy/                   compose files (default, Caddy, Tailscale) and systemd 
    doesn't allow.
 3. `tools/call` maps the name back to the connection and tool, checks the scope again, and
    forwards the call with the decrypted credential.
+
+In Code Mode, `tools/list` returns `search` and `execute`. `search` ranks the same tool list
+(upstream lists are cached for a minute). `execute` runs the code in a fresh QuickJS instance,
+and each `call()` from the code goes through step 3.
 
 ## Connections
 

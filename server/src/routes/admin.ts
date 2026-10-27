@@ -3,6 +3,7 @@ import { UnauthorizedError } from "@modelcontextprotocol/sdk/client/auth.js"
 import { and, eq, inArray, isNull, ne } from "drizzle-orm"
 import { Hono } from "hono"
 import * as z from "zod"
+import { toolMode } from "../access.js"
 import { fetchSpec, operations } from "../api/openapi.js"
 import { auth } from "../auth.js"
 import { decrypt, encrypt } from "../crypto.js"
@@ -115,6 +116,7 @@ const tokenInput = z.object({
     id: z.string().min(1),
   }),
   expiresInDays: z.number().int().positive().optional(),
+  mode: z.enum(["tools", "code"]).default("tools"),
 })
 
 const nameSlug = z.object({ name: z.string().min(1), slug })
@@ -818,6 +820,7 @@ export const admin = new Hono<AdminEnv>()
           const s = scopes.find((x) => x.id === ref || x.slug === ref)
           return { kind: "scope", id: s?.id ?? ref ?? "" }
         })(),
+        mode: toolMode(k.metadata),
         expiresAt: k.expiresAt,
         lastRequest: k.lastRequest,
         createdAt: k.createdAt,
@@ -840,6 +843,7 @@ export const admin = new Hono<AdminEnv>()
         name: input.data.name,
         userId: c.get("session").user.id,
         permissions: { [kind]: [id] },
+        metadata: { mode: input.data.mode },
         expiresIn: input.data.expiresInDays
           ? input.data.expiresInDays * 86_400
           : null,
@@ -847,6 +851,22 @@ export const admin = new Hono<AdminEnv>()
     })
     // The plain key exists only in this response.
     return c.json({ id: created.id, key: created.key }, 201)
+  })
+  // The tool mode can change at any time; clients see it on their next tools/list.
+  .patch("/tokens/:id", async (c) => {
+    const input = z
+      .object({ mode: z.enum(["tools", "code"]) })
+      .safeParse(await c.req.json())
+    if (!input.success)
+      return c.json({ error: z.prettifyError(input.error) }, 400)
+    await auth.api.updateApiKey({
+      body: {
+        keyId: c.req.param("id"),
+        userId: c.get("session").user.id,
+        metadata: { mode: input.data.mode },
+      },
+    })
+    return c.body(null, 204)
   })
   .delete("/tokens/:id", async (c) => {
     await auth.api.deleteApiKey({

@@ -245,6 +245,17 @@ export const pt: Record<keyof typeof en, string> = {
   "tokens.expires": "Expira",
   "tokens.expiry": "Validade",
   "tokens.lastUsed": "Último uso",
+  "tokens.mode": "Ferramentas",
+  "tokens.modeChanged":
+    "Modo alterado. Os clientes veem a mudança na próxima vez que listarem as ferramentas.",
+  "tokens.modeCode": "Code Mode",
+  "tokens.modeCodeHint":
+    "Duas ferramentas, search e execute: o agente busca o que precisa e chama por código. O contexto fica pequeno, não importa quantas conexões o token alcance.",
+  "tokens.modeTools": "Todas as ferramentas",
+  "tokens.modeToolsHint":
+    "Cada ferramenta aparece para o cliente. Simples, mas cada conexão pesa no contexto.",
+  "tokens.toCode": "Mudar para Code Mode",
+  "tokens.toTools": "Listar todas as ferramentas",
   "tokens.levelOrg": "Organização",
   "tokens.levelOrgHint": "Tudo de {name}.",
   "tokens.levelProject": "Projeto",

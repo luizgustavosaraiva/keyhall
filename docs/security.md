@@ -36,6 +36,21 @@ reference a secret.
 
 Tokens are rate-limited to 600 requests per minute each.
 
+### Code Mode
+
+A token in Code Mode runs agent-written JavaScript inside keyhall, so the code runs isolated:
+
+- in QuickJS compiled to WebAssembly, with a fresh memory per run;
+- with no network, file system, timers, `process`, `require` or `WebAssembly`;
+- with a single way out, `call()`, which goes through the same scope checks as a direct tool call.
+
+Each run is limited to 60 seconds, 100 calls and 128 MB, and at most 4 run at a time.
+
+Code Mode doesn't widen what a token reaches, but it lets an agent chain tools in one step. A
+token that reaches both a secret readable by agents and a tool that sends data out (mail, an
+HTTP API) could pass one to the other without the model seeing it. That's possible in the
+other mode too, one call at a time. Keep those apart with scopes.
+
 ### Signing in on a phone
 
 The account menu's **Sign in on a phone** shows a QR code. Scanning it opens the panel on the

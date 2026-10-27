@@ -239,6 +239,17 @@ export const en = {
   "tokens.expires": "Expires",
   "tokens.expiry": "Expiry",
   "tokens.lastUsed": "Last used",
+  "tokens.mode": "Tools",
+  "tokens.modeChanged":
+    "Mode changed. Clients see it the next time they list tools.",
+  "tokens.modeCode": "Code Mode",
+  "tokens.modeCodeHint":
+    "Two tools, search and execute: the agent finds what it needs and calls it from code. The context stays small however many connections the token reaches.",
+  "tokens.modeTools": "Every tool",
+  "tokens.modeToolsHint":
+    "Each tool is listed to the client. Simple, but every connection adds to the context.",
+  "tokens.toCode": "Switch to Code Mode",
+  "tokens.toTools": "List every tool",
   "tokens.levelOrg": "Organization",
   "tokens.levelOrgHint": "Everything in {name}.",
   "tokens.levelProject": "Project",

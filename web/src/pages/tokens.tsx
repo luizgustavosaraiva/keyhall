@@ -1,5 +1,7 @@
 import {
+  BracesIcon,
   KeyRoundIcon,
+  ListIcon,
   MoreHorizontalIcon,
   PlusIcon,
   ShieldAlertIcon,
@@ -39,6 +41,7 @@ import { api, type Scope, type Token, type View } from "@/lib/api"
 import { useI18n } from "@/lib/i18n"
 
 type Level = Token["target"]["kind"]
+type Mode = Token["mode"]
 type Expiry = "never" | "30" | "90" | "365"
 type Snippet = "claude" | "json" | "curl" | "secrets"
 
@@ -85,6 +88,7 @@ export function Tokens({
   const [created, setCreated] = useState<{ key: string }>()
   const [level, setLevel] = useState<Level>("scope")
   const [expiry, setExpiry] = useState<Expiry>("never")
+  const [mode, setMode] = useState<Mode>("code")
   const [shown, setShown] = useState<Snippet>("claude")
   const [pending, setPending] = useState(false)
   const orgScopes = scopes.filter((s) => s.orgId === org.id)
@@ -110,6 +114,7 @@ export function Tokens({
   function openCreate() {
     setLevel(viewScopes.length ? "scope" : view.project ? "project" : "org")
     setExpiry("never")
+    setMode("code")
     setShown("claude")
     setCreated(undefined)
     setCreating(true)
@@ -129,6 +134,7 @@ export function Tokens({
           name: form.get("name"),
           target: { kind: level, id },
           expiresInDays: expiry === "never" ? undefined : Number(expiry),
+          mode,
         },
       })
       setCreated({ key })
@@ -150,6 +156,19 @@ export function Tokens({
     if (!ok) return
     await api(`/tokens/${token.id}`, { method: "DELETE" })
     reload()
+  }
+
+  async function switchMode(token: Token) {
+    try {
+      await api(`/tokens/${token.id}`, {
+        method: "PATCH",
+        body: { mode: token.mode === "code" ? "tools" : "code" },
+      })
+      toast.success(t("tokens.modeChanged"))
+      reload()
+    } catch (err) {
+      toast.error((err as Error).message)
+    }
   }
 
   const endpoint = `${window.location.origin}/mcp`
@@ -220,6 +239,12 @@ export function Tokens({
                 >
                   {describe(tk.target)}
                 </StatusPill>
+                {tk.mode === "code" && (
+                  <StatusPill tone="success" dot={false}>
+                    <BracesIcon className="size-3" />
+                    {t("tokens.modeCode")}
+                  </StatusPill>
+                )}
                 <span className="flex flex-col gap-0.5">
                   <span className="text-muted-foreground">
                     {t("tokens.lastUsed")}
@@ -248,7 +273,13 @@ export function Tokens({
                 >
                   <MoreHorizontalIcon />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuContent align="end" className="w-60">
+                  <DropdownMenuItem onClick={() => switchMode(tk)}>
+                    {tk.mode === "code" ? <ListIcon /> : <BracesIcon />}
+                    {tk.mode === "code"
+                      ? t("tokens.toTools")
+                      : t("tokens.toCode")}
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     variant="destructive"
                     onClick={() => revoke(tk)}
@@ -392,6 +423,23 @@ export function Tokens({
                     )}
                   </Field>
                 )}
+                <Field>
+                  <FieldLabel>{t("tokens.mode")}</FieldLabel>
+                  <Segmented
+                    aria-label={t("tokens.mode")}
+                    value={mode}
+                    onChange={setMode}
+                    options={[
+                      { value: "code", label: t("tokens.modeCode") },
+                      { value: "tools", label: t("tokens.modeTools") },
+                    ]}
+                  />
+                  <FieldDescription>
+                    {mode === "code"
+                      ? t("tokens.modeCodeHint")
+                      : t("tokens.modeToolsHint")}
+                  </FieldDescription>
+                </Field>
                 <Field>
                   <FieldLabel>{t("tokens.expiry")}</FieldLabel>
                   <Segmented

@@ -8,6 +8,13 @@ All notable changes to keyhall are documented here. The format is based on
 
 ### Added
 
+- **Code Mode**, a tool mode per token, and the default for new tokens. The consumer sees two
+  tools whatever the token reaches:
+  - `search` finds tools and shows their inputs as TypeScript types;
+  - `execute` runs agent-written JavaScript that calls them and returns only the result.
+
+  The code runs in a QuickJS WebAssembly sandbox, limited in time, memory and calls. Existing
+  tokens keep listing every tool and can be switched from the token's menu.
 - **Sign in on a phone** with a QR code. Each code works once and expires in 60 seconds. The
   phone gets a session of its own, and the same dialog lists signed-in devices so each can be
   signed out.
