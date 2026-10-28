@@ -1,5 +1,6 @@
 import {
   ArrowRightLeftIcon,
+  ChevronDownIcon,
   GlobeIcon,
   Loader2Icon,
   MoreHorizontalIcon,
@@ -12,6 +13,7 @@ import {
   TerminalIcon,
   Trash2Icon,
   WrenchIcon,
+  XIcon,
 } from "lucide-react"
 import {
   type FormEvent,
@@ -69,6 +71,8 @@ import {
 import { useI18n } from "@/lib/i18n"
 import {
   parseStdioConfig,
+  type RemoteConfig,
+  RemoteServerError,
   type StdioConfig,
   secretLikeArgs,
   stdioExample,
@@ -156,6 +160,122 @@ function ApiFields({
   )
 }
 
+// Fixed headers of a remote MCP connection, from the name/value rows. An empty value when
+// editing keeps the current one; a row left completely empty is ignored.
+function headersBody(form: FormData) {
+  const names = form.getAll("headerName").map((v) => String(v).trim())
+  const values = form.getAll("headerValue").map(String)
+  return Object.fromEntries(
+    names.flatMap((name, i) => (name ? [[name, values[i] ?? ""]] : []))
+  )
+}
+
+// Remote MCP options behind "Advanced": fixed headers, e.g. a key in Authorization for servers
+// that don't use OAuth. One name/value row per header; "+" adds another.
+function HeaderFields({
+  connection,
+  initial,
+  vault,
+}: {
+  connection?: Connection
+  // Headers from a pasted JSON (new connection).
+  initial?: Record<string, string>
+  vault: Vault
+}) {
+  const { t } = useI18n()
+  const [rows, setRows] = useState(() => {
+    const start = connection
+      ? connection.headerNames.map((name) => ({
+          name,
+          value: connection.headerRefs[name] ?? "",
+        }))
+      : Object.entries(initial ?? {}).map(([name, value]) => ({ name, value }))
+    return start.map((r) => ({ ...r, id: crypto.randomUUID() }))
+  })
+  const [open, setOpen] = useState(rows.length > 0)
+  const add = () =>
+    setRows((r) => [...r, { id: crypto.randomUUID(), name: "", value: "" }])
+
+  return (
+    <div className="flex flex-col gap-3">
+      <button
+        type="button"
+        className="flex w-fit items-center gap-1.5 font-medium text-sm"
+        aria-expanded={open}
+        onClick={() => {
+          setOpen(!open)
+          if (!open && rows.length === 0) add()
+        }}
+      >
+        {t("mcp.advanced")}
+        <ChevronDownIcon
+          className={`size-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && (
+        <div className="flex flex-col gap-3 rounded-xl bg-muted/50 p-4 ring-1 ring-border ring-inset">
+          <FieldLabel>{t("mcp.headers")}</FieldLabel>
+          {rows.map((row) => {
+            const saved = connection?.headerNames.includes(row.name)
+            return (
+              <div key={row.id} className="flex items-start gap-2">
+                <Input
+                  name="headerName"
+                  aria-label={t("mcp.headerName")}
+                  className="w-2/5 font-mono text-xs"
+                  placeholder="Authorization"
+                  defaultValue={row.name}
+                  onChange={(e) => {
+                    const name = e.target.value
+                    setRows((r) =>
+                      r.map((x) => (x.id === row.id ? { ...x, name } : x))
+                    )
+                  }}
+                />
+                <div className="min-w-0 flex-1">
+                  <SecretInput
+                    id={`h-${row.id}`}
+                    name="headerValue"
+                    defaultValue={row.value}
+                    placeholder={
+                      saved ? t("common.keepCurrent") : "Bearer {{secret:…}}"
+                    }
+                    {...vault}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="mt-0.5"
+                  aria-label={t("mcp.removeHeader")}
+                  title={t("mcp.removeHeader")}
+                  onClick={() =>
+                    setRows((r) => r.filter((x) => x.id !== row.id))
+                  }
+                >
+                  <XIcon />
+                </Button>
+              </div>
+            )
+          })}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-fit"
+            onClick={add}
+          >
+            <PlusIcon />
+            {t("mcp.addHeader")}
+          </Button>
+          <FieldDescription>{t("mcp.headersHint")}</FieldDescription>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // Body of a stdio connection: command and args from the JSON, variable values from the
 // password fields (empty when editing = keep the current one).
 function stdioBody(form: FormData, config: StdioConfig) {
@@ -176,10 +296,13 @@ function stdioBody(form: FormData, config: StdioConfig) {
 function StdioFields({
   connection,
   onChange,
+  onRemote,
   vault,
 }: {
   connection?: Connection
   onChange: (config: StdioConfig | undefined) => void
+  // The pasted JSON is a remote server: switch to a remote MCP connection.
+  onRemote?: (config: RemoteConfig) => void
   vault: Vault
 }) {
   const { t } = useI18n()
@@ -201,10 +324,15 @@ function StdioFields({
     try {
       return { config: parseStdioConfig(text) }
     } catch (err) {
+      if (err instanceof RemoteServerError) return { remote: err.config }
       return { error: (err as Error).message }
     }
   }, [text])
-  const { config, error } = parsed as { config?: StdioConfig; error?: string }
+  const { config, error, remote } = parsed as {
+    config?: StdioConfig
+    error?: string
+    remote?: RemoteConfig
+  }
 
   return (
     <>
@@ -235,6 +363,20 @@ function StdioFields({
               : t("stdio.hint"))}
         </FieldDescription>
       </Field>
+      {remote && onRemote && (
+        <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/50 px-3 py-2 text-sm ring-1 ring-border ring-inset">
+          <span>{t("stdio.isRemote")}</span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => onRemote(remote)}
+          >
+            <GlobeIcon />
+            {t("stdio.useRemote")}
+          </Button>
+        </div>
+      )}
       {config && secretLikeArgs(config.args).length > 0 && (
         <p className="rounded-xl bg-warning/12 px-3 py-2 text-amber-800 text-xs dark:text-warning">
           {t("stdio.secretInArgs")}
@@ -520,6 +662,8 @@ export function Connections({
   const [kind, setKind] = useState<Kind>("mcp")
   const [editing, setEditing] = useState<Connection>()
   const [stdio, setStdio] = useState<StdioConfig>()
+  // Remote server pasted in the Local tab: fills the remote MCP form.
+  const [draft, setDraft] = useState<RemoteConfig>()
   const [naming, setNaming] = useState<NameRequest>()
   const [busy, setBusy] = useState<string>()
   // What the instance allows (KEYHALL_ALLOW_STDIO).
@@ -558,6 +702,7 @@ export function Connections({
   function openCreate() {
     setName("")
     setStdio(undefined)
+    setDraft(undefined)
     setKind("mcp")
     setProjectId(projects[0]?.id ?? "")
     setCreating(true)
@@ -603,6 +748,7 @@ export function Connections({
           name: form.get("name"),
           slug: form.get("slug"),
           ...(kind !== "stdio" && { url: form.get("url") }),
+          ...(kind === "mcp" && { headers: headersBody(form) }),
           ...(kind === "api" && apiBody(form)),
           ...(kind === "stdio" && stdio && stdioBody(form, stdio)),
         },
@@ -629,7 +775,9 @@ export function Connections({
         body:
           editing.kind === "stdio"
             ? stdio && stdioBody(form, stdio)
-            : apiBody(form),
+            : editing.kind === "mcp"
+              ? { headers: headersBody(form) }
+              : apiBody(form),
       })
       if (updated.status === "error" && updated.lastError)
         toast.error(updated.lastError)
@@ -795,12 +943,10 @@ export function Connections({
                       <PencilIcon />
                       {t("common.rename")}
                     </DropdownMenuItem>
-                    {conn.kind !== "mcp" && (
-                      <DropdownMenuItem onClick={() => edit(conn)}>
-                        <SettingsIcon />
-                        {t("connections.configure")}
-                      </DropdownMenuItem>
-                    )}
+                    <DropdownMenuItem onClick={() => edit(conn)}>
+                      <SettingsIcon />
+                      {t("connections.configure")}
+                    </DropdownMenuItem>
                     {conn.kind !== "api" && (
                       <DropdownMenuItem onClick={() => connect(conn)}>
                         <RefreshCwIcon />
@@ -957,9 +1103,11 @@ export function Connections({
                     {kind === "mcp" ? t("connections.url") : t("api.baseUrl")}
                   </FieldLabel>
                   <Input
+                    key={draft?.url}
                     id="c-url"
                     name="url"
                     type="url"
+                    defaultValue={kind === "mcp" ? draft?.url : undefined}
                     placeholder={
                       kind === "mcp"
                         ? "https://mcp.cloudflare.com/mcp"
@@ -969,6 +1117,13 @@ export function Connections({
                   />
                 </Field>
               )}
+              {kind === "mcp" && (
+                <HeaderFields
+                  key={draft?.url}
+                  initial={draft?.headers}
+                  vault={vaultFor(targetProject)}
+                />
+              )}
               {kind === "api" && <ApiFields vault={vaultFor(targetProject)} />}
               {kind === "stdio" && (
                 <StdioFields
@@ -977,6 +1132,11 @@ export function Connections({
                     setStdio(config)
                     // The server name in the JSON becomes the connection name, if there's none yet.
                     if (config?.name && !name) setName(config.name)
+                  }}
+                  onRemote={(config) => {
+                    setDraft(config)
+                    if (config.name && !name) setName(config.name)
+                    setKind("mcp")
                   }}
                 />
               )}
@@ -1062,7 +1222,9 @@ export function Connections({
             <DialogDescription>
               {editing?.kind === "stdio"
                 ? t("stdio.editHint")
-                : t("api.editHint")}
+                : editing?.kind === "mcp"
+                  ? t("mcp.editHint")
+                  : t("api.editHint")}
             </DialogDescription>
           </DialogHeader>
           {editing && (
@@ -1072,6 +1234,11 @@ export function Connections({
                   <StdioFields
                     connection={editing}
                     onChange={setStdio}
+                    vault={vaultFor(editing.projectId)}
+                  />
+                ) : editing.kind === "mcp" ? (
+                  <HeaderFields
+                    connection={editing}
                     vault={vaultFor(editing.projectId)}
                   />
                 ) : (

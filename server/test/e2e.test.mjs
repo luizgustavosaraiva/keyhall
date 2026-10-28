@@ -9,6 +9,8 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { after, before, describe, test } from "node:test"
 import { fileURLToPath } from "node:url"
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js"
 
 const serverDir = fileURLToPath(new URL("..", import.meta.url))
 const fixture = fileURLToPath(new URL("fixtures/echo-mcp.mjs", import.meta.url))
@@ -33,6 +35,31 @@ const upstream = createServer((req, res) => {
   }
   res.setHeader("content-type", "application/json")
   res.end(JSON.stringify({ ok: true, path: req.url }))
+})
+
+// Remote MCP server that takes a fixed key instead of OAuth, and tells which headers reached it.
+const REMOTE_KEY = "remote-key-1"
+const remote = createServer(async (req, res) => {
+  if (req.headers.authorization !== `Bearer ${REMOTE_KEY}`) {
+    res.statusCode = 401
+    return res.end()
+  }
+  const server = new McpServer({ name: "remote", version: "1.0.0" })
+  server.registerTool(
+    "whoami",
+    { description: "Returns the client header" },
+    async () => ({
+      content: [{ type: "text", text: `client=${req.headers["x-client"]}` }],
+    })
+  )
+  // Stateless: one server and transport per request.
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: undefined,
+    enableJsonResponse: true,
+  })
+  res.on("close", () => transport.close())
+  await server.connect(transport)
+  await transport.handleRequest(req, res)
 })
 
 async function call(
@@ -103,6 +130,7 @@ const waitFor = async (check, what, ms = 15_000) => {
 
 before(async () => {
   await new Promise((r) => upstream.listen(0, "127.0.0.1", r))
+  await new Promise((r) => remote.listen(0, "127.0.0.1", r))
   proc = spawn(process.execPath, ["dist/index.js"], {
     cwd: serverDir,
     env: {
@@ -125,6 +153,7 @@ before(async () => {
 after(() => {
   proc?.kill()
   upstream.close()
+  remote.close()
   rmSync(dataDir, { recursive: true, force: true })
 })
 
@@ -545,5 +574,79 @@ describe("keyhall", () => {
     })
     assert.ok(del.status < 300, del.text)
     assert.equal((await mcp(tokens.scope, "tools/list")).status, 403)
+  })
+
+  test("a remote MCP server with fixed headers instead of OAuth", async () => {
+    const remoteUrl = `http://127.0.0.1:${remote.address().port}/mcp`
+    const secret = await call("/api/admin/secrets", {
+      method: "POST",
+      admin: true,
+      body: { projectId: "prj-default", name: "REMOTE_KEY", value: REMOTE_KEY },
+    })
+    assert.equal(secret.status, 201, secret.text)
+
+    const body = (headers) => ({
+      kind: "mcp",
+      projectId: "prj-default",
+      name: "Remote",
+      slug: "remote",
+      url: remoteUrl,
+      headers,
+    })
+    const missing = await call("/api/admin/connections", {
+      method: "POST",
+      admin: true,
+      body: body({ Authorization: "Bearer {{secret:NOPE}}" }),
+    })
+    assert.equal(missing.status, 400)
+
+    const created = await call("/api/admin/connections", {
+      method: "POST",
+      admin: true,
+      body: body({
+        Authorization: "Bearer {{secret:REMOTE_KEY}}",
+        "X-Client": "grok",
+      }),
+    })
+    assert.equal(created.status, 201, created.text)
+    assert.equal(created.json.status, "connected", created.text)
+    assert.deepEqual(created.json.headerNames, ["Authorization", "X-Client"])
+    // The reference goes back to the panel; the literal value doesn't.
+    assert.deepEqual(created.json.headerRefs, {
+      Authorization: "Bearer {{secret:REMOTE_KEY}}",
+    })
+    assert.ok(!created.text.includes(REMOTE_KEY))
+    const id = created.json.id
+
+    const token = (
+      await call("/api/admin/tokens", {
+        method: "POST",
+        admin: true,
+        body: {
+          name: "remote",
+          target: { kind: "project", id: "prj-default" },
+        },
+      })
+    ).json.key
+    const whoami = () =>
+      mcp(token, "tools/call", { name: "remote__whoami", arguments: {} })
+    assert.equal((await whoami()).result.content[0].text, "client=grok")
+
+    // An empty value keeps the current key; a header left out is removed.
+    const kept = await call(`/api/admin/connections/${id}`, {
+      method: "PATCH",
+      admin: true,
+      body: { headers: { Authorization: "" } },
+    })
+    assert.equal(kept.json.status, "connected", kept.text)
+    assert.deepEqual(kept.json.headerNames, ["Authorization"])
+    assert.equal((await whoami()).result.content[0].text, "client=undefined")
+
+    const wrong = await call(`/api/admin/connections/${id}`, {
+      method: "PATCH",
+      admin: true,
+      body: { headers: { Authorization: "Bearer nope" } },
+    })
+    assert.equal(wrong.json.status, "error", wrong.text)
   })
 })

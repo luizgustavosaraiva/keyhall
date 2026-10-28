@@ -19,7 +19,7 @@ import {
 } from "../db/schema.js"
 import { ConnectionOAuthProvider } from "../mcp/oauth-provider.js"
 import { stdioAllowed, stopStdio } from "../mcp/stdio.js"
-import { withUpstream } from "../mcp/upstream.js"
+import { hasAuthHeader, withUpstream } from "../mcp/upstream.js"
 import { missingRefs, refsIn } from "../secrets/store.js"
 import { type AdminEnv, requireAdmin } from "./middleware.js"
 
@@ -50,6 +50,11 @@ const WHOLE_REF = /^\{\{\s*secret:[^}]+\}\}$/
 const asRef = (value: string | undefined) =>
   value && WHOLE_REF.test(value.trim()) ? value.trim() : null
 
+// A header value that is a reference, optionally after an auth scheme ("Bearer {{secret:KEY}}").
+const SCHEME_REF = /^(?:[A-Za-z]+ )?\{\{\s*secret:[^}]+\}\}$/
+const asSchemeRef = (value: string) =>
+  SCHEME_REF.test(value.trim()) ? value.trim() : null
+
 // API connection fields that can change later (the key never goes back to the panel).
 const apiFields = z.object({
   authHeader: z.string().min(1).default("Authorization"),
@@ -68,6 +73,20 @@ const stdioFields = z.object({
     .default({}),
 })
 
+// Fixed headers sent to a remote MCP server on every request, e.g. a key in Authorization
+// for servers that don't use OAuth. Values are encrypted and may hold vault references.
+const headerName = z
+  .string()
+  .regex(/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/, "invalid header name")
+const remoteHeaders = z
+  .record(headerName, z.string())
+  .refine(
+    (h) =>
+      new Set(Object.keys(h).map((k) => k.toLowerCase())).size ===
+      Object.keys(h).length,
+    "duplicate header"
+  )
+
 // Display line: the command as it would be typed.
 const commandLine = (command: string, args: string[]) =>
   [command, ...args].join(" ")
@@ -79,6 +98,9 @@ const connectionInput = z.discriminatedUnion("kind", [
     name: z.string().min(1),
     slug: connectionSlug,
     url: httpUrl,
+    headers: remoteHeaders
+      .refine((h) => Object.values(h).every(Boolean), "header without a value")
+      .default({}),
   }),
   apiFields.extend({
     kind: z.literal("api"),
@@ -127,44 +149,53 @@ const rename = z.object({ name: z.string().trim().min(1) })
 // Stored connection texts that may hold {{secret:…}} references.
 function storedRefs(c: typeof connection.$inferSelect) {
   if (c.kind === "api") return [decrypt<string>(c.secretEnc) ?? ""]
-  if (c.kind === "stdio")
-    return Object.values(decrypt<Record<string, string>>(c.secretEnc) ?? {})
-  return []
+  return Object.values(decrypt<Record<string, string>>(c.secretEnc) ?? {})
 }
 
-const publicConnection = (c: typeof connection.$inferSelect) => ({
-  id: c.id,
-  slug: c.slug,
-  name: c.name,
-  kind: c.kind,
-  projectId: c.projectId,
-  url: c.url,
-  authHeader: c.authHeader,
-  authPrefix: c.authPrefix,
-  specUrl: c.specUrl,
-  hasSecret: !!c.secretEnc,
-  // Vault references aren't secret: they go back to the panel to fill the edit form.
-  secretRef:
-    c.kind === "api" ? asRef(decrypt<string>(c.secretEnc) ?? undefined) : null,
-  envRefs:
-    c.kind === "stdio"
-      ? Object.fromEntries(
-          Object.entries(decrypt<Record<string, string>>(c.secretEnc) ?? {})
-            .map(([k, v]) => [k, asRef(v)])
-            .filter(([, v]) => v)
-        )
-      : {},
-  command: c.command,
-  args: c.args,
-  // Variable names only; values never go back to the panel.
-  envNames:
-    c.kind === "stdio"
-      ? Object.keys(decrypt<Record<string, string>>(c.secretEnc) ?? {})
-      : [],
-  status: c.status,
-  lastError: c.lastError,
-  createdAt: c.createdAt,
-})
+// stdio env or remote MCP headers: names, and the values that are only a vault reference.
+function namedValues(c: typeof connection.$inferSelect) {
+  const values =
+    c.kind === "api" ? {} : (decrypt<Record<string, string>>(c.secretEnc) ?? {})
+  return {
+    names: Object.keys(values),
+    refs: Object.fromEntries(
+      Object.entries(values)
+        .map(([k, v]) => [k, c.kind === "mcp" ? asSchemeRef(v) : asRef(v)])
+        .filter(([, v]) => v)
+    ),
+  }
+}
+
+const publicConnection = (c: typeof connection.$inferSelect) => {
+  const named = namedValues(c)
+  return {
+    id: c.id,
+    slug: c.slug,
+    name: c.name,
+    kind: c.kind,
+    projectId: c.projectId,
+    url: c.url,
+    authHeader: c.authHeader,
+    authPrefix: c.authPrefix,
+    specUrl: c.specUrl,
+    hasSecret: !!c.secretEnc,
+    // Vault references aren't secret: they go back to the panel to fill the edit form.
+    secretRef:
+      c.kind === "api"
+        ? asRef(decrypt<string>(c.secretEnc) ?? undefined)
+        : null,
+    envRefs: c.kind === "stdio" ? named.refs : {},
+    command: c.command,
+    args: c.args,
+    // Variable and header names only; values never go back to the panel.
+    envNames: c.kind === "stdio" ? named.names : [],
+    headerNames: c.kind === "mcp" ? named.names : [],
+    headerRefs: c.kind === "mcp" ? named.refs : {},
+    status: c.status,
+    lastError: c.lastError,
+    createdAt: c.createdAt,
+  }
+}
 
 // Connections a scope may include: its project's, or any project's in the organization.
 async function outOfReach(
@@ -480,9 +511,7 @@ export const admin = new Hono<AdminEnv>()
     const refs =
       data.kind === "api"
         ? [data.secret]
-        : data.kind === "stdio"
-          ? Object.values(data.env)
-          : []
+        : Object.values(data.kind === "stdio" ? data.env : data.headers)
     const missing = badRefs(refs, data.projectId)
     if (missing.length) return c.json({ error: refError(missing) }, 400)
     const values =
@@ -496,13 +525,21 @@ export const admin = new Hono<AdminEnv>()
               url: commandLine(rest.command, rest.args),
               secretEnc: encrypt(env),
             }))(data)
-          : data
+          : (({ headers, ...rest }) => ({
+              ...rest,
+              secretEnc: Object.keys(headers).length ? encrypt(headers) : null,
+            }))(data)
     const [row] = await db
       .insert(connection)
       .values({ id: randomUUID(), ...values })
       .returning()
-    // API with a spec and stdio come out connected (or with the error).
-    if (row.kind !== "mcp") await connect(row)
+    // API with a spec, stdio and remote MCP with a fixed key come out connected (or with the
+    // error). Remote MCP with OAuth waits for the administrator to authorize.
+    if (
+      row.kind !== "mcp" ||
+      (data.kind === "mcp" && hasAuthHeader(data.headers))
+    )
+      await connect(row)
     return c.json(publicConnection((await getConnection(row.id)) ?? row), 201)
   })
   // Changes the key, header or spec of an API connection, or the command and env of a
@@ -541,17 +578,48 @@ export const admin = new Hono<AdminEnv>()
       await connect(row)
       return c.json(publicConnection((await getConnection(row.id)) ?? row))
     }
-    // Remote MCP: only the name changes; URL and authorization come from OAuth.
+    // Remote MCP: the name and the fixed headers change; the URL stays.
     if (conn.kind === "mcp") {
-      const input = rename.safeParse(await c.req.json())
+      const input = z
+        .object({
+          name: z.string().trim().min(1).optional(),
+          headers: remoteHeaders.optional(),
+        })
+        .safeParse(await c.req.json())
       if (!input.success)
         return c.json({ error: z.prettifyError(input.error) }, 400)
+      const { headers, ...rest } = input.data
+      if (!headers) {
+        const [row] = await db
+          .update(connection)
+          .set(rest)
+          .where(eq(connection.id, conn.id))
+          .returning()
+        return c.json(publicConnection(row))
+      }
+      // An empty value keeps the current one; a missing header is removed.
+      const current = decrypt<Record<string, string>>(conn.secretEnc) ?? {}
+      const next = Object.fromEntries(
+        Object.entries(headers).map(([k, v]) => [k, v || current[k] || ""])
+      )
+      const empty = Object.keys(next).filter((k) => !next[k])
+      if (empty.length)
+        return c.json(
+          { error: `header without a value: ${empty.join(", ")}` },
+          400
+        )
+      const missing = badRefs(Object.values(next), conn.projectId ?? "")
+      if (missing.length) return c.json({ error: refError(missing) }, 400)
       const [row] = await db
         .update(connection)
-        .set(input.data)
+        .set({
+          ...rest,
+          secretEnc: Object.keys(next).length ? encrypt(next) : null,
+        })
         .where(eq(connection.id, conn.id))
         .returning()
-      return c.json(publicConnection(row))
+      await connect(row)
+      return c.json(publicConnection((await getConnection(row.id)) ?? row))
     }
     const input = apiFields
       .partial()

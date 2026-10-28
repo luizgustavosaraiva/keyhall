@@ -91,7 +91,7 @@ export const pt: Record<keyof typeof en, string> = {
     "API HTTP com chave fixa. A chave fica cifrada no keyhall e nunca chega aos consumidores.",
   "kind.mcp": "MCP remoto",
   "kind.mcpDescription":
-    "Servidor MCP remoto (Streamable HTTP), autorizado por OAuth logo depois de criado.",
+    "Servidor MCP remoto (Streamable HTTP), autorizado por OAuth logo depois de criado, ou por uma chave em Avançado.",
   "kind.stdio": "Local",
   "kind.stdioDescription":
     "Servidor MCP local (npx, node) que o keyhall roda e repassa. Use só pacotes em que você confia: o processo roda dentro do servidor do keyhall.",
@@ -101,6 +101,16 @@ export const pt: Record<keyof typeof en, string> = {
   "login.pending": "Entrando…",
   "login.submit": "Entrar",
   "login.title": "Bem-vindo de volta",
+
+  "mcp.addHeader": "Adicionar cabeçalho",
+  "mcp.advanced": "Avançado",
+  "mcp.editHint":
+    "Valores em branco mantêm o atual; remover uma linha apaga o cabeçalho. Salvar reconecta.",
+  "mcp.headerName": "Nome do cabeçalho",
+  "mcp.headers": "Cabeçalhos",
+  "mcp.headersHint":
+    "Enviados em toda chamada ao servidor e cifrados no keyhall. Um Authorization fixo substitui o OAuth, para servidores que usam chave.",
+  "mcp.removeHeader": "Remover cabeçalho",
 
   "nav.connections": "Conexões",
   "nav.manage": "Gerenciar",
@@ -218,9 +228,11 @@ export const pt: Record<keyof typeof en, string> = {
     "As variáveis ficam cifradas no keyhall e só o processo do servidor as recebe.",
   "stdio.hint":
     "Cole o trecho mcpServers que a documentação do servidor mostra para Claude Code, Claude Desktop ou Cursor.",
+  "stdio.isRemote": "Este JSON descreve um servidor remoto.",
   "stdio.runs": "O keyhall roda: {command}",
   "stdio.secretInArgs":
     'Um argumento parece conter uma chave. Argumentos ficam sem cifra e aparecem no painel; passe a chave por uma variável em "env".',
+  "stdio.useRemote": "Usar como MCP remoto",
 
   "theme.dark": "Escuro",
   "theme.light": "Claro",

@@ -7,7 +7,7 @@ doesn't. To report a vulnerability, see [SECURITY.md](../SECURITY.md).
 
 | Data | How it's stored |
 |---|---|
-| OAuth tokens and client registrations of remote MCP connections | AES-256-GCM |
+| OAuth tokens, client registrations and fixed headers of remote MCP connections | AES-256-GCM |
 | Keys of HTTP API connections | AES-256-GCM |
 | `env` of local (command) connections | AES-256-GCM |
 | Secrets | Envelope encryption: each version has its own random data key (AES-256-GCM), and that key is encrypted with the master key |

@@ -26,7 +26,7 @@
 Every agent and every machine ends up with its own copy of every API key, its own OAuth login to
 every MCP server, and access to all of their tools. keyhall puts them in one place:
 
-- **Connect once.** Remote MCP servers (with OAuth), local MCP servers started by command (paste
+- **Connect once.** Remote MCP servers (with OAuth or a fixed key), local MCP servers started by command (paste
   the same `mcpServers` JSON you'd give Claude Desktop or Cursor), and any HTTP API, turned into
   MCP tools from its OpenAPI spec.
 - **Hand out narrow tokens.** A token reaches a whole organization, one project, or a scope with

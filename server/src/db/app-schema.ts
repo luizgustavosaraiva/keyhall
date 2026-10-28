@@ -39,7 +39,7 @@ export const project = sqliteTable(
   (t) => [uniqueIndex("project_org_slug_unique").on(t.orgId, t.slug)]
 )
 
-// An upstream: remote MCP server (OAuth), HTTP API (fixed key) or local MCP server
+// An upstream: remote MCP server (OAuth or fixed headers), HTTP API (fixed key) or local MCP server
 // (stdio, a process keyhall starts). *Enc fields are encrypted with crypto.ts.
 export const connection = sqliteTable(
   "connection",
@@ -67,6 +67,8 @@ export const connection = sqliteTable(
     // kind = api only: header that carries the key (e.g. Authorization) and prefix (e.g. "Bearer ").
     authHeader: text("auth_header"),
     authPrefix: text("auth_prefix"),
+    // api: the key. stdio: the environment { NAME: value }. mcp: fixed headers
+    // { Name: value } sent on every request (a fixed Authorization replaces OAuth).
     secretEnc: text("secret_enc"),
     // OpenAPI 3 spec (JSON): each operation becomes an MCP tool.
     specUrl: text("spec_url"),

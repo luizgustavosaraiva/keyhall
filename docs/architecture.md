@@ -94,7 +94,8 @@ and each `call()` from the code goes through step 3.
 - **Remote MCP:** keyhall is an OAuth client of each upstream (dynamic client registration,
   PKCE). Client info, tokens and discovery state live on the connection row, encrypted. When
   the upstream answers 401, the panel sends the administrator to authorize; the callback is
-  `/api/oauth/callback`.
+  `/api/oauth/callback`. A connection may instead carry fixed headers (encrypted, with
+  `{{secret:…}}` references resolved per request); a fixed `Authorization` turns OAuth off for it.
 - **Local:** the `mcpServers` JSON is parsed into command, args and env. The env is encrypted;
   `{{secret:…}}` references are resolved when the process starts. One long-lived process per
   connection; the pool key is a hash of command, args and resolved env, so changing any of them

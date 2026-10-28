@@ -28,6 +28,10 @@ export type Connection = {
   command: string | null
   args: string[] | null
   envNames: string[]
+  // Remote MCP: names of the fixed headers, and the values that are vault references
+  // (optionally after a scheme: "Bearer {{secret:KEY}}").
+  headerNames: string[]
+  headerRefs: Record<string, string>
   status: "pending" | "connected" | "error"
   lastError: string | null
 }
