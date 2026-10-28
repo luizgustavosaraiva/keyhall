@@ -20,6 +20,11 @@ All notable changes to keyhall are documented here. The format is based on
 - **Sign in on a phone** with a QR code. Each code works once and expires in 60 seconds. The
   phone gets a session of its own, and the same dialog lists signed-in devices so each can be
   signed out.
+- **Fixed headers on remote MCP connections**, under **Advanced** in the connection form, for
+  servers that take a key instead of OAuth. Values are encrypted and may reference the vault
+  (`Bearer {{secret:KEY}}`); a fixed `Authorization` turns OAuth off for that connection. A
+  remote server's `mcpServers` snippet (`url` and `headers`) pasted in the Local tab can be
+  turned into such a connection.
 
 ### Changed
 

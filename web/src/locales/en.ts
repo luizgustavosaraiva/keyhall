@@ -88,7 +88,7 @@ export const en = {
     "An HTTP API with a fixed key. The key stays encrypted in keyhall and never reaches consumers.",
   "kind.mcp": "Remote MCP",
   "kind.mcpDescription":
-    "A remote MCP server (Streamable HTTP), authorized with OAuth right after you create it.",
+    "A remote MCP server (Streamable HTTP), authorized with OAuth right after you create it, or with a key under Advanced.",
   "kind.stdio": "Local",
   "kind.stdioDescription":
     "A local MCP server (npx, node) that keyhall runs and proxies. Use only packages you trust: the process runs inside the keyhall server.",
@@ -98,6 +98,16 @@ export const en = {
   "login.pending": "Signing in…",
   "login.submit": "Sign in",
   "login.title": "Welcome back",
+
+  "mcp.addHeader": "Add header",
+  "mcp.advanced": "Advanced",
+  "mcp.editHint":
+    "Blank values keep the current one; removing a row deletes the header. Saving reconnects.",
+  "mcp.headerName": "Header name",
+  "mcp.headers": "Headers",
+  "mcp.headersHint":
+    "Sent on every request to the server and encrypted in keyhall. A fixed Authorization replaces OAuth, for servers that take a key.",
+  "mcp.removeHeader": "Remove header",
 
   "nav.connections": "Connections",
   "nav.manage": "Manage",
@@ -213,9 +223,11 @@ export const en = {
     "Variables are encrypted in keyhall and only the server process receives them.",
   "stdio.hint":
     "Paste the mcpServers snippet the server's docs show for Claude Code, Claude Desktop or Cursor.",
+  "stdio.isRemote": "This JSON describes a remote server.",
   "stdio.runs": "keyhall runs: {command}",
   "stdio.secretInArgs":
     'An argument looks like a key. Arguments are stored unencrypted and shown in the panel; pass the key through a variable in "env".',
+  "stdio.useRemote": "Use as remote MCP",
 
   "theme.dark": "Dark",
   "theme.light": "Light",

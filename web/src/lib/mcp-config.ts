@@ -6,14 +6,68 @@ export type StdioConfig = {
   env: Record<string, string>
 }
 
+// A remote server pasted where a local one was expected: { url, headers }.
+export type RemoteConfig = {
+  name?: string
+  url: string
+  headers: Record<string, string>
+}
+
+// Thrown by parseStdioConfig when the JSON describes a remote server; the panel offers to
+// create a remote MCP connection from it instead.
+export class RemoteServerError extends Error {
+  config: RemoteConfig
+  constructor(config: RemoteConfig) {
+    super("this is a remote server")
+    this.config = config
+  }
+}
+
 type Json = Record<string, unknown>
 
 const isObject = (v: unknown): v is Json =>
   typeof v === "object" && v !== null && !Array.isArray(v)
 
+// Clients spell the endpoint differently: url (Claude Code, Cursor, VS Code), serverUrl
+// (Antigravity, Windsurf), httpUrl (Gemini CLI).
+const URL_KEYS = ["url", "serverUrl", "httpUrl"] as const
+
+// "${NAME}" and "${env:NAME}" read an environment variable in those clients; in keyhall the
+// vault plays that role, so they become {{secret:NAME}}.
+const envToRef = (value: string) =>
+  value.replace(
+    /\$\{(?:env:)?([A-Za-z_][A-Za-z0-9_]*)\}/g,
+    (_, name: string) => `{{secret:${name}}}`
+  )
+
+function remote(value: Json, name?: string): RemoteConfig {
+  const url = URL_KEYS.map((k) => value[k]).find((v) => typeof v === "string")
+  if (!url) throw new Error('"url" must be a string')
+  const headers = value.headers ?? {}
+  if (
+    !isObject(headers) ||
+    Object.values(headers).some((v) => typeof v !== "string")
+  )
+    throw new Error('"headers" must be an object { Name: "value" }')
+  return {
+    name,
+    url: url as string,
+    headers: Object.fromEntries(
+      Object.entries(headers as Record<string, string>).map(([k, v]) => [
+        k,
+        envToRef(v),
+      ])
+    ),
+  }
+}
+
 function server(value: unknown, name?: string): StdioConfig {
-  if (isObject(value) && "url" in value && !("command" in value))
-    throw new Error("this is a remote server: use the Remote MCP type")
+  if (
+    isObject(value) &&
+    !("command" in value) &&
+    URL_KEYS.some((k) => k in value)
+  )
+    throw new RemoteServerError(remote(value, name))
   if (!isObject(value) || typeof value.command !== "string" || !value.command)
     throw new Error('missing "command"')
   const args = value.args ?? []
@@ -41,7 +95,8 @@ export function parseStdioConfig(text: string): StdioConfig {
     throw new Error("invalid JSON")
   }
   if (!isObject(doc)) throw new Error("expected a JSON object")
-  if ("command" in doc) return server(doc)
+  if ("command" in doc || URL_KEYS.some((k) => typeof doc[k] === "string"))
+    return server(doc)
   const map = isObject(doc.mcpServers)
     ? doc.mcpServers
     : isObject(doc.servers)

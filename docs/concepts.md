@@ -28,9 +28,14 @@ Something keyhall reaches on behalf of your consumers. Three kinds:
 
 | Kind | What it is | Credential |
 |---|---|---|
-| **Remote MCP** | An MCP server over Streamable HTTP, e.g. `https://mcp.example.com/mcp`. | OAuth, done once in the browser from the panel, or none. keyhall refreshes tokens. |
+| **Remote MCP** | An MCP server over Streamable HTTP, e.g. `https://mcp.example.com/mcp`. | OAuth, done once in the browser from the panel; or fixed headers under **Advanced**, e.g. `Authorization: Bearer {{secret:KEY}}`, encrypted; or none. keyhall refreshes OAuth tokens. |
 | **Local** | An MCP server started by a command (`npx -y some-mcp-server`), pasted as the `mcpServers` JSON that READMEs show for Claude Desktop or Cursor. | Environment variables, encrypted. |
 | **HTTP API** | Any HTTP API with a fixed key. With an OpenAPI 3 spec, each operation becomes an MCP tool. | A header (e.g. `Authorization: Bearer …`), encrypted. |
+
+A remote server's `mcpServers` snippet (`url` or `serverUrl` with `headers`) pasted in the
+**Local** tab is recognized: the panel offers to create it as a remote MCP connection with
+those headers. `${NAME}` and `${env:NAME}` in a header become `{{secret:NAME}}`, since the vault
+plays the role the environment plays in those clients.
 
 Every tool is exposed to consumers with the connection's name as a prefix:
 `github__create_issue`. When a token reaches several projects, the project is added too:

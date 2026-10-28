@@ -14,7 +14,12 @@ import type { Project, Secret } from "@/lib/api"
 import { useI18n } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 
-const isRef = (value: string) => /^\{\{\s*secret:[^}]+\}\}$/.test(value.trim())
+// A reference, optionally after an auth scheme: "Bearer {{secret:KEY}}" in a header.
+const isRef = (value: string) =>
+  /^(?:[A-Za-z]+ )?\{\{\s*secret:[^}]+\}\}$/.test(value.trim())
+// Choosing a secret keeps a scheme already typed ("Bearer ").
+const schemeOf = (value: string) =>
+  value.match(/^([A-Za-z]+ )(?:\{\{[^}]*\}\})?$/)?.[1] ?? ""
 
 // Key field that takes a typed value or a vault reference ({{secret:NAME}}).
 // A reference stays visible (it's not secret); a typed value is masked.
@@ -92,7 +97,9 @@ export function SecretInput({
               {local.map((s) => (
                 <DropdownMenuItem
                   key={s.id}
-                  onClick={() => setValue(`{{secret:${s.name}}}`)}
+                  onClick={() =>
+                    setValue(`${schemeOf(value)}{{secret:${s.name}}}`)
+                  }
                 >
                   <span className="truncate font-mono text-xs">{s.name}</span>
                 </DropdownMenuItem>
@@ -109,7 +116,9 @@ export function SecretInput({
                     <DropdownMenuItem
                       key={s.id}
                       onClick={() =>
-                        setValue(`{{secret:${slugOf(s.projectId)}/${s.name}}}`)
+                        setValue(
+                          `${schemeOf(value)}{{secret:${slugOf(s.projectId)}/${s.name}}}`
+                        )
                       }
                     >
                       <span className="truncate font-mono text-xs">
