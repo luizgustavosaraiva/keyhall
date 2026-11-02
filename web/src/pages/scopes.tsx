@@ -74,7 +74,7 @@ function ToolPanel({
       <div className="flex items-center gap-3">
         <Monogram name={connection.name} className="size-9 rounded-lg" />
         <div className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate font-semibold">{connection.name}</span>
+          <span className="truncate font-medium">{connection.name}</span>
           <span className="truncate font-mono text-muted-foreground text-xs">
             {connection.slug}__…
           </span>
@@ -345,14 +345,14 @@ export function Scopes({
           {scopes.map((s) => (
             <article
               key={s.id}
-              className="surface flex min-w-0 flex-col gap-4 p-5 transition-shadow hover:shadow-[var(--shadow-raised)]"
+              className="surface flex min-w-0 flex-col gap-4 p-5 transition-colors hover:border-foreground/15"
             >
               <div className="flex items-start gap-3">
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-foreground/[0.06] text-foreground/70">
                   <LayersIcon className="size-5" />
                 </span>
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <h3 className="truncate font-semibold">{s.name}</h3>
+                  <h3 className="truncate font-medium">{s.name}</h3>
                   <p className="truncate text-muted-foreground text-xs">
                     {s.projectId
                       ? t("scopes.levelProject", {
@@ -409,7 +409,7 @@ export function Scopes({
                   </span>
                 ))}
                 {s.secretIds.length > 0 && (
-                  <span className="inline-flex h-6 items-center gap-1 rounded-full bg-primary/12 px-2.5 text-amber-800 text-xs dark:text-primary">
+                  <span className="inline-flex h-6 items-center gap-1 rounded-full bg-muted px-2.5 text-muted-foreground text-xs">
                     <LockKeyholeIcon className="size-3" />
                     {t("scopes.secretCount", { n: s.secretIds.length })}
                   </span>
@@ -474,7 +474,7 @@ export function Scopes({
             <div className="flex flex-col gap-4 md:grid md:min-h-0 md:flex-1 md:grid-cols-[minmax(240px,300px)_1fr]">
               {/* Connections */}
               <div className="flex max-h-48 flex-col gap-1 overflow-y-auto rounded-2xl bg-muted/40 p-2 ring-1 ring-border ring-inset md:max-h-none md:min-h-0">
-                <span className="px-2 pt-1 pb-1.5 font-medium text-[0.7rem] text-muted-foreground uppercase tracking-wider">
+                <span className="px-2 pt-1 pb-1.5 font-medium text-muted-foreground text-xs">
                   {t("scopes.connections")}
                 </span>
                 {available.length === 0 && (
@@ -523,7 +523,7 @@ export function Scopes({
                 })}
                 {availableSecrets.length > 0 && (
                   <>
-                    <span className="mt-3 px-2 pt-1 pb-1.5 font-medium text-[0.7rem] text-muted-foreground uppercase tracking-wider">
+                    <span className="mt-3 px-2 pt-1 pb-1.5 font-medium text-muted-foreground text-xs">
                       {t("scopes.secrets")}
                     </span>
                     {availableSecrets.map((x) => (

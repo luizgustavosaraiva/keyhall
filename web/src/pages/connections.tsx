@@ -439,7 +439,7 @@ function ToolDetail({ tool, onClose }: { tool?: Tool; onClose: () => void }) {
           {tool?.description || t("tools.noDescription")}
         </p>
         <section className="flex flex-col gap-2">
-          <h3 className="font-medium text-[0.7rem] text-muted-foreground uppercase tracking-wider">
+          <h3 className="font-medium text-muted-foreground text-xs">
             {t("tools.params")}
           </h3>
           {params.length === 0 ? (
@@ -913,12 +913,12 @@ export function Connections({
           {connections.map((conn) => (
             <article
               key={conn.id}
-              className="surface flex min-w-0 flex-col gap-4 p-5 transition-shadow hover:shadow-[var(--shadow-raised)]"
+              className="surface flex min-w-0 flex-col gap-4 p-5 transition-colors hover:border-foreground/15"
             >
               <div className="flex items-start gap-3">
                 <Monogram name={conn.name} />
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <h3 className="truncate font-semibold">{conn.name}</h3>
+                  <h3 className="truncate font-medium">{conn.name}</h3>
                   <p className="truncate font-mono text-muted-foreground text-xs">
                     {view.project ? "" : `${projectName(conn.projectId)} · `}
                     {conn.slug}

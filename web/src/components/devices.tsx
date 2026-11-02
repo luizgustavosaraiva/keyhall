@@ -197,7 +197,7 @@ export function DevicesDialog({
         </div>
 
         <section className="flex flex-col gap-2">
-          <h3 className="font-medium text-[0.7rem] text-muted-foreground uppercase tracking-wider">
+          <h3 className="font-medium text-muted-foreground text-xs">
             {t("devices.signedIn")}
           </h3>
           <ul className="divide-y rounded-xl ring-1 ring-border ring-inset">

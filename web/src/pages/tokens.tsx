@@ -221,7 +221,7 @@ export function Tokens({
               className="flex flex-wrap items-center gap-3 px-5 py-4 sm:flex-nowrap"
             >
               <div className="flex min-w-0 flex-1 items-center gap-3">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-amber-700 dark:text-primary">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                   <KeyRoundIcon className="size-5" />
                 </span>
                 <div className="flex min-w-0 flex-col gap-0.5">
@@ -233,14 +233,11 @@ export function Tokens({
               </div>
               {/* On a phone the details drop to their own line, under the name. */}
               <div className="order-last flex basis-full flex-wrap items-center gap-x-6 gap-y-2 text-xs max-sm:pl-13 sm:order-none sm:basis-auto sm:justify-end">
-                <StatusPill
-                  tone={tk.target.kind === "scope" ? "neutral" : "warning"}
-                  dot={false}
-                >
+                <StatusPill tone="neutral" dot={false}>
                   {describe(tk.target)}
                 </StatusPill>
                 {tk.mode === "code" && (
-                  <StatusPill tone="success" dot={false}>
+                  <StatusPill tone="neutral" dot={false}>
                     <BracesIcon className="size-3" />
                     {t("tokens.modeCode")}
                   </StatusPill>

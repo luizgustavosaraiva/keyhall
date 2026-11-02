@@ -1,14 +1,16 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
+@import "@fontsource-variable/figtree";
+@import "@fontsource-variable/geist-mono";
 @import "@fontsource/varela-round";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-heading: "Geist Variable", sans-serif;
-  --font-sans: "Geist Variable", sans-serif;
+  --font-heading: "Figtree Variable", sans-serif;
+  --font-sans: "Figtree Variable", sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
   --font-brand: "Varela Round", sans-serif;
   --color-success: var(--success);
   --color-warning: var(--warning);
@@ -80,7 +82,7 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0.75rem;
+  --radius: 0.625rem;
   --sidebar: oklch(0.968 0.004 85);
   --sidebar-foreground: oklch(0.205 0.006 275);
   --sidebar-primary: oklch(0.79 0.16 75);
@@ -135,24 +137,19 @@
   --sidebar-ring: oklch(0.8 0.16 75);
   --scrollbar: oklch(1 0 0 / 0.16);
   --scrollbar-hover: oklch(1 0 0 / 0.3);
-  --shadow-surface: 0 1px 2px oklch(0 0 0 / 0.3), 0 0 0 1px oklch(1 0 0 / 0.02);
+  /* On dark, depth comes from surface steps and hairlines, not shadows. */
+  --shadow-surface: none;
   --shadow-raised:
     0 1px 2px oklch(0 0 0 / 0.4), 0 16px 40px -8px oklch(0 0 0 / 0.55);
 }
 
-/* Base card: card background, subtle border and layered shadow. */
+/* Base card: card background, hairline border and, on light, a small shadow. */
 @utility surface {
   background-color: var(--card);
   color: var(--card-foreground);
-  border-radius: var(--radius-2xl);
+  border-radius: var(--radius-xl);
   box-shadow: var(--shadow-surface);
   border: 1px solid var(--border);
-}
-
-/* Glass bars: translucent background with blur. */
-@utility glass {
-  background-color: color-mix(in oklch, var(--background) 72%, transparent);
-  backdrop-filter: saturate(180%) blur(20px);
 }
 
 @layer base {
@@ -161,15 +158,9 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
-    font-feature-settings: "cv11", "ss01";
   }
   html {
     @apply font-sans;
-  }
-  h1,
-  h2,
-  h3 {
-    @apply tracking-tight;
   }
 }
 

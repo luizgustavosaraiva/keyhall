@@ -28,6 +28,15 @@ All notable changes to keyhall are documented here. The format is based on
 
 ### Changed
 
+- **Sign-in and first-run screens** split in two: the form on one side, and on the other the
+  brand's arched doorway drawn live in WebGL and dithered into the brand colors. It shows a
+  still frame when the system asks for reduced motion.
+- **Panel type and details:**
+  - Figtree for the interface and Geist Mono for code; the wordmark keeps Varela Round;
+  - section labels in sentence case;
+  - neutral connection initials and token icons, so amber marks only actions and selection;
+  - no blur on the top bar and no shadows on dark surfaces;
+  - smaller radii and lighter heading weights.
 - Panel layout on phones:
   - secret and token rows keep their menu next to the name;
   - code samples wrap;

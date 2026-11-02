@@ -113,7 +113,7 @@ function SectionLabel({
 }) {
   return (
     <div className="flex h-8 items-center justify-between px-2.5">
-      <span className="font-medium text-[0.7rem] text-muted-foreground uppercase tracking-wider">
+      <span className="font-medium text-muted-foreground text-xs">
         {children}
       </span>
       {action}
@@ -160,7 +160,7 @@ export function AppSidebar({
           className="flex w-full items-center gap-2.5 rounded-xl bg-card p-2 text-left shadow-[var(--shadow-surface)] outline-none ring-1 ring-sidebar-border transition-colors hover:bg-accent/40 focus-visible:ring-3 focus-visible:ring-ring/50"
           aria-label={t("org.switch")}
         >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-foreground font-semibold text-background text-sm">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-foreground font-medium text-background text-sm">
             {org.name[0]?.toUpperCase()}
           </span>
           <span className="flex min-w-0 flex-1 flex-col">
@@ -300,7 +300,7 @@ export function AppSidebar({
       <div className="mt-auto">
         <DropdownMenu>
           <DropdownMenuTrigger className="flex w-full items-center gap-2.5 rounded-xl p-2 text-left outline-none transition-colors hover:bg-sidebar-accent/70 focus-visible:ring-3 focus-visible:ring-ring/50 aria-expanded:bg-sidebar-accent/70">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-300 to-amber-500 font-semibold text-amber-950 text-sm">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted font-medium text-foreground text-sm">
               {(user.name || user.email)[0]?.toUpperCase()}
             </span>
             <span className="flex min-w-0 flex-1 flex-col">

@@ -335,7 +335,7 @@ export function Dashboard({
       </Sheet>
 
       <div className="lg:pl-68">
-        <header className="glass sticky top-0 z-20 flex h-14 items-center gap-2 border-b px-4 lg:px-10">
+        <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b bg-background px-4 lg:px-10">
           <Button
             variant="ghost"
             size="icon"

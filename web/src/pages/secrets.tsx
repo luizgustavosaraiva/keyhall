@@ -168,7 +168,7 @@ function HistoryDialog({
         ) : (
           <div className="grid gap-6 md:grid-cols-[220px_1fr]">
             <section className="flex flex-col gap-2">
-              <h3 className="font-medium text-[0.7rem] text-muted-foreground uppercase tracking-wider">
+              <h3 className="font-medium text-muted-foreground text-xs">
                 {t("vault.versions")}
               </h3>
               <ul className="flex flex-col gap-1.5">
@@ -198,7 +198,7 @@ function HistoryDialog({
               </ul>
             </section>
             <section className="flex min-w-0 flex-col gap-2">
-              <h3 className="font-medium text-[0.7rem] text-muted-foreground uppercase tracking-wider">
+              <h3 className="font-medium text-muted-foreground text-xs">
                 {t("vault.reads")}
               </h3>
               {history.reads.length === 0 ? (
@@ -408,7 +408,7 @@ export function Secrets({
                     <LockKeyholeIcon className="size-5" />
                   </span>
                   <div className="flex min-w-0 flex-col gap-0.5">
-                    <span className="truncate font-mono font-semibold text-sm">
+                    <span className="truncate font-medium font-mono text-sm">
                       {s.name}
                     </span>
                     <span className="truncate text-muted-foreground text-xs">
@@ -509,7 +509,7 @@ export function Secrets({
 
       <section className="surface flex flex-col gap-4 p-5">
         <div className="flex flex-col gap-1">
-          <h2 className="font-semibold text-base">{t("vault.usageTitle")}</h2>
+          <h2 className="font-medium text-base">{t("vault.usageTitle")}</h2>
           <p className="text-muted-foreground text-sm">
             {t("vault.usageDescription")}
           </p>

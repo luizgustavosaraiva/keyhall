@@ -19,6 +19,9 @@ export const pt: Record<keyof typeof en, string> = {
   "api.specHint":
     "Cada operação vira uma ferramenta MCP que pode ser liberada por escopo. Sem especificação, a API só passa pela rota /api/proxy, inteira.",
 
+  "auth.tagline":
+    "Uma porta para cada servidor MCP, API e segredo que seus agentes usam",
+
   "common.cancel": "Cancelar",
   "common.copied": "Copiado",
   "common.copy": "Copiar",
@@ -96,11 +99,11 @@ export const pt: Record<keyof typeof en, string> = {
   "kind.stdioDescription":
     "Servidor MCP local (npx, node) que o keyhall roda e repassa. Use só pacotes em que você confia: o processo roda dentro do servidor do keyhall.",
 
-  "login.description": "Entre com a sua conta de administrador.",
+  "login.description": "Use a sua conta de administrador",
   "login.failed": "Não foi possível entrar",
   "login.pending": "Entrando…",
   "login.submit": "Entrar",
-  "login.title": "Bem-vindo de volta",
+  "login.title": "Entrar",
 
   "mcp.addHeader": "Adicionar cabeçalho",
   "mcp.advanced": "Avançado",
@@ -211,7 +214,7 @@ export const pt: Record<keyof typeof en, string> = {
   "setup.name": "Seu nome",
   "setup.signInFailed": "Conta criada, mas o login falhou",
   "setup.submit": "Criar conta",
-  "setup.title": "Bem-vindo ao keyhall",
+  "setup.title": "Configure o keyhall",
 
   "slug.label": "Identificador",
   "slug.placeholder": "gerado a partir do nome",

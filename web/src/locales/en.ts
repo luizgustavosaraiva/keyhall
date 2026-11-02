@@ -17,6 +17,9 @@ export const en = {
   "api.specHint":
     "Each operation becomes an MCP tool you can allow per scope. Without a spec, the API is only reachable through /api/proxy, as a whole.",
 
+  "auth.tagline":
+    "One door to every MCP server, API and secret your agents use",
+
   "common.cancel": "Cancel",
   "common.copied": "Copied",
   "common.copy": "Copy",
@@ -93,11 +96,11 @@ export const en = {
   "kind.stdioDescription":
     "A local MCP server (npx, node) that keyhall runs and proxies. Use only packages you trust: the process runs inside the keyhall server.",
 
-  "login.description": "Sign in with your administrator account.",
+  "login.description": "Use your administrator account",
   "login.failed": "Could not sign in",
   "login.pending": "Signing in…",
   "login.submit": "Sign in",
-  "login.title": "Welcome back",
+  "login.title": "Sign in",
 
   "mcp.addHeader": "Add header",
   "mcp.advanced": "Advanced",
@@ -206,7 +209,7 @@ export const en = {
   "setup.name": "Your name",
   "setup.signInFailed": "Account created, but signing in failed",
   "setup.submit": "Create account",
-  "setup.title": "Welcome to keyhall",
+  "setup.title": "Set up keyhall",
 
   "slug.label": "Identifier",
   "slug.placeholder": "generated from the name",
