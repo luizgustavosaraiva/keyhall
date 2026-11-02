@@ -17,7 +17,7 @@ uniform float uBeam;
 
 const vec3 DEEP = vec3(0.86, 0.52, 0.10);
 const vec3 AMBER = vec3(0.961, 0.647, 0.141);
-const vec3 GLOW = vec3(1.0, 0.851, 0.471);
+const vec3 GLOW = vec3(0.98, 0.78, 0.38);
 
 // Arch outline: a rectangle from y = 0 to h with a half circle of radius w on top.
 float sdArch(vec2 p, float w, float h) {
@@ -42,7 +42,7 @@ void main() {
     // The lit room: pale at the heart, amber toward the jambs, brighter low and where the beam
     // leans.
     float lean = 0.12 * (1.0 - abs(p.x - uAim * 0.5));
-    float v = (0.5 + 2.2 * min(-d, 0.3) + lean - 0.04 * p.y) * uLight;
+    float v = (0.45 + 1.6 * min(-d, 0.3) + lean - 0.04 * p.y) * uLight;
     float x = clamp(v, 0.0, 1.0) * 2.0;
     float i = floor(x) + step(th, fract(x));
     col = i < 0.5 ? DEEP : i < 1.5 ? AMBER : GLOW;
@@ -58,7 +58,7 @@ void main() {
       beam = uBeam * smoothstep(edge + 0.12, edge - 0.12, abs(x)) * (1.0 - 0.3 * abs(x) / edge) *
         exp(-dy * 0.6 / uSpread);
     }
-    float light = uLight * max(halo * 0.62, beam * 0.85);
+    float light = uLight * max(halo * 0.5, beam * 0.75);
     // Far from the door there is no dither at all, only the page and its warm gradient.
     light = max(light - 0.05, 0.0) / 0.95;
     float wide = uLight * exp(-d * 0.3 / uSpread);

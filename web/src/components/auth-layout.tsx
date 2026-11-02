@@ -24,7 +24,8 @@ export function AuthLayout({
       <header className="relative flex h-16 items-center justify-between px-4 sm:px-8">
         <span className="flex items-center gap-2">
           <img src="/favicon.svg" alt="" className="size-7 rounded-lg" />
-          <span className="font-brand text-lg">keyhall</span>
+          {/* On wide screens the name stands above the doorway instead. */}
+          <span className="font-brand text-lg lg:hidden">keyhall</span>
         </span>
         <div className="flex gap-1 text-sm">
           {locales.map((l) => (
@@ -45,15 +46,18 @@ export function AuthLayout({
           ))}
         </div>
       </header>
-      {/* Where the arch is drawn; the canvas behind the page reads its position. */}
-      <div className="flex h-48 items-end justify-center lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-auto lg:items-center">
-        <div
-          ref={slot}
-          className="h-36 w-20 lg:mt-[14vh] lg:h-[46vh] lg:w-[26vh]"
-        />
+      <div className="relative flex flex-col items-center gap-12 pt-8 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:flex-col-reverse lg:justify-center lg:gap-36 lg:pt-0">
+        {/* Where the arch is drawn; the canvas behind the page reads its position. */}
+        <div ref={slot} className="h-36 w-20 lg:h-[46vh] lg:w-[26vh]" />
+        <div className="flex max-w-md flex-col items-center gap-3 px-4 text-center">
+          <span className="hidden font-brand text-5xl lg:block">keyhall</span>
+          <p className="text-muted-foreground text-sm lg:text-lg">
+            {t("auth.tagline")}
+          </p>
+        </div>
       </div>
       <main
-        className="relative flex flex-col items-center gap-16 px-4 pt-12 pb-8 sm:px-8 lg:justify-center lg:pt-0"
+        className="relative flex flex-col items-center px-4 pt-10 pb-8 sm:px-8 lg:justify-center lg:pt-0"
         onFocusCapture={(e) => isField(e) && door.focus(true)}
         onBlurCapture={(e) => isField(e) && door.focus(false)}
         onKeyDown={(e) => {
@@ -68,9 +72,6 @@ export function AuthLayout({
           </div>
           {children}
         </div>
-        <p className="w-full max-w-sm text-muted-foreground text-sm lg:absolute lg:bottom-8">
-          {t("auth.tagline")}
-        </p>
       </main>
     </div>
   )
