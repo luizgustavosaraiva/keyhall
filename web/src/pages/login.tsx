@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from "react"
 import { AuthLayout } from "@/components/auth-layout"
+import { door } from "@/components/doorway"
 import { Button } from "@/components/ui/button"
 import {
   Field,
@@ -21,12 +22,16 @@ export function Login() {
     const form = new FormData(e.currentTarget)
     setPending(true)
     setError(undefined)
+    door.open()
     const { error } = await authClient.signIn.email({
       email: String(form.get("email")),
       password: String(form.get("password")),
     })
     setPending(false)
-    if (error) setError(error.message ?? t("login.failed"))
+    if (error) {
+      door.fail()
+      setError(error.message ?? t("login.failed"))
+    }
   }
 
   return (

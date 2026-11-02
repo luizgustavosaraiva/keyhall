@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from "react"
 import { AuthLayout } from "@/components/auth-layout"
+import { door } from "@/components/doorway"
 import { Button } from "@/components/ui/button"
 import {
   Field,
@@ -27,6 +28,7 @@ export function Setup() {
     const orgName = String(form.get("organization"))
     setPending(true)
     setError(undefined)
+    door.open()
     const res = await fetch("/api/setup", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -41,12 +43,16 @@ export function Setup() {
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
       setPending(false)
+      door.fail()
       setError(data.error ?? `HTTP ${res.status}`)
       return
     }
     const { error } = await authClient.signIn.email({ email, password })
     setPending(false)
-    if (error) setError(error.message ?? t("setup.signInFailed"))
+    if (error) {
+      door.fail()
+      setError(error.message ?? t("setup.signInFailed"))
+    }
   }
 
   return (
