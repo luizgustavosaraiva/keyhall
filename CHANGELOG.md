@@ -28,9 +28,14 @@ All notable changes to keyhall are documented here. The format is based on
 
 ### Changed
 
-- **Sign-in and first-run screens** split in two: the form on one side, and on the other the
-  brand's arched doorway drawn live in WebGL and dithered into the brand colors. It shows a
-  still frame when the system asks for reduced motion.
+- **Sign-in and first-run screens:** the page is the wall, and the brand's arched doorway is cut
+  into it beside the form (above it on phones), drawn live in WebGL. Its light is dithered into
+  the brand ambers around the arch and fades into the page color. The light answers the form:
+  - it grows when a field has focus and flares on each key;
+  - it floods the page while signing in, and falters when sign-in fails;
+  - the floor light leans toward the pointer.
+
+  A still frame replaces the motion when the system asks for reduced motion.
 - **Panel type and details:**
   - Figtree for the interface and Geist Mono for code; the wordmark keeps Varela Round;
   - section labels in sentence case;

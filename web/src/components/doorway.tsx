@@ -1,135 +1,103 @@
-import { useEffect, useRef } from "react"
-import { cn } from "@/lib/utils"
+import { type RefObject, useEffect, useRef } from "react"
 
-// The brand's arched doorway at night, drawn in 3D by a fragment shader (raymarched distance
-// fields) and ordered-dithered into the brand colors. The beam on the floor is the light from
-// the room behind, shadowed by the wall and the door leaf. No images, no 3D library.
+// The brand's arched doorway, cut into the page itself: light from the room behind fills the
+// arch and leaks onto the page around it and onto the floor. The page color stays flat far from
+// the door, a faint warm gradient comes closer, and only the light near the arch is
+// ordered-dithered into the brand ambers. The sign-in form drives the light through `door`.
 
 const FRAGMENT = `
 precision highp float;
 uniform vec2 uRes;
-uniform float uTime;
-uniform vec2 uPointer;
-uniform float uZoom;
+uniform vec4 uArch;
+uniform vec3 uBg;
+uniform float uLight;
+uniform float uSpread;
+uniform float uAim;
+uniform float uBeam;
 
-const vec3 INK = vec3(0.090, 0.094, 0.110);
-const vec3 EMBER = vec3(0.30, 0.19, 0.06);
+const vec3 DEEP = vec3(0.86, 0.52, 0.10);
 const vec3 AMBER = vec3(0.961, 0.647, 0.141);
-const vec3 GLOW = vec3(1.0, 0.851, 0.471);
-const vec3 STONE = vec3(0.26, 0.255, 0.245);
-const vec3 BONE = vec3(0.925, 0.918, 0.894);
-const vec3 LIGHT = vec3(0.45, 1.05, 1.6);
-const vec3 MOUTH = vec3(0.0, 0.9, -0.3);
+const vec3 GLOW = vec3(0.98, 0.78, 0.38);
 
-mat2 rot(float a) { float c = cos(a), s = sin(a); return mat2(c, -s, s, c); }
-
-float sdBox(vec3 p, vec3 b) {
-  vec3 q = abs(p) - b;
-  return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0);
-}
-
-// Arch outline in the xy plane: a rectangle from y = 0 to h with a half circle on top.
+// Arch outline: a rectangle from y = 0 to h with a half circle of radius w on top.
 float sdArch(vec2 p, float w, float h) {
   vec2 d = abs(p - vec2(0.0, h * 0.5)) - vec2(w, h * 0.5);
   float rect = length(max(d, 0.0)) + min(max(d.x, d.y), 0.0);
   return min(rect, length(p - vec2(0.0, h)) - w);
 }
 
-float slab(vec3 p, float d2, float t) {
-  vec2 q = vec2(d2, abs(p.z) - t);
-  return min(max(q.x, q.y), 0.0) + length(max(q, 0.0));
-}
-
-// x: distance, y: material (1 floor, 2 wall, 3 room behind, 4 door leaf).
-vec2 map(vec3 p) {
-  vec2 r = vec2(p.y, 1.0);
-  float wall = sdBox(p - vec3(0.0, 3.0, 0.0), vec3(8.0, 3.0, 0.15));
-  wall = max(wall, -slab(p, sdArch(p.xy, 0.5, 1.2), 1.0));
-  if (wall < r.x) r = vec2(wall, 2.0);
-  float room = max(min(2.6 - p.z, 1.4 - abs(p.x)), 0.15 - p.z);
-  if (room < r.x) r = vec2(room, 3.0);
-  vec3 q = p - vec3(0.5, 0.0, -0.16);
-  q.xz = rot(-1.75 - 0.05 * sin(uTime * 0.35)) * q.xz;
-  q -= vec3(-0.5, 0.0, -0.03);
-  float leaf = slab(q, sdArch(q.xy, 0.49, 1.21), 0.03);
-  if (leaf < r.x) r = vec2(leaf, 4.0);
-  return r;
-}
-
-vec3 normalAt(vec3 p) {
-  vec2 e = vec2(0.002, 0.0);
-  return normalize(vec3(
-    map(p + e.xyy).x - map(p - e.xyy).x,
-    map(p + e.yxy).x - map(p - e.yxy).x,
-    map(p + e.yyx).x - map(p - e.yyx).x));
-}
-
-float shadow(vec3 ro, vec3 rd, float far) {
-  float res = 1.0, t = 0.02;
-  for (int i = 0; i < 48; i++) {
-    float h = map(ro + rd * t).x;
-    res = min(res, 10.0 * h / t);
-    t += clamp(h, 0.01, 0.25);
-    if (res < 0.001 || t > far) break;
-  }
-  return clamp(res, 0.0, 1.0);
-}
-
 float bayer2(vec2 a) { a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }
 float bayer4(vec2 a) { return bayer2(0.5 * a) * 0.25 + bayer2(a); }
 float bayer8(vec2 a) { return bayer4(0.5 * a) * 0.25 + bayer2(a); }
 
-vec3 warm(float v, float th) {
-  float x = clamp(v, 0.0, 1.0) * 3.0;
-  float i = floor(x) + step(th, fract(x));
-  return i < 0.5 ? INK : i < 1.5 ? EMBER : i < 2.5 ? AMBER : GLOW;
-}
-vec3 pale(float v, float th) {
-  float x = clamp(v, 0.0, 1.0) * 2.0;
-  float i = floor(x) + step(th, fract(x));
-  return i < 0.5 ? INK : i < 1.5 ? STONE : BONE;
-}
-
 void main() {
-  vec2 uv = (gl_FragCoord.xy - 0.5 * uRes) / uRes.y;
-  vec3 ro = vec3(0.0, 1.5 + uPointer.y * 0.1, -6.8);
-  ro.xz = rot(0.4 + 0.1 * sin(uTime * 0.12) + uPointer.x * 0.08) * ro.xz;
-  vec3 fw = normalize(vec3(0.1, 0.95, 0.0) - ro);
-  vec3 rt = normalize(cross(vec3(0.0, 1.0, 0.0), fw));
-  vec3 rd = normalize(fw * uZoom + uv.x * rt + uv.y * cross(fw, rt));
-
-  float t = 0.0;
-  vec2 hit = vec2(0.0);
-  for (int i = 0; i < 110; i++) {
-    hit = map(ro + rd * t);
-    if (hit.x < 0.001 || t > 30.0) break;
-    t += hit.x;
-  }
-  float th = bayer8(gl_FragCoord.xy);
-  // Light scattered in the air at the doorway.
-  vec3 near = ro + rd * max(dot(MOUTH - ro, rd), 0.0);
-  float haze = 0.012 / (0.12 + dot(near - MOUTH, near - MOUTH));
-  if (t > 30.0) { gl_FragColor = vec4(warm(haze, th), 1.0); return; }
-
-  vec3 p = ro + rd * t;
-  vec3 n = normalAt(p);
-  vec3 l = LIGHT - p;
-  float dist = length(l);
-  l /= dist;
-  float lit = max(dot(n, l), 0.0) * shadow(p + n * 0.01, l, dist) / (1.0 + 0.35 * dist * dist);
-
+  float w = uArch.z;
+  // Origin at the middle of the threshold; distances in arch half-widths.
+  vec2 p = (gl_FragCoord.xy - uArch.xy) / w;
+  float d = sdArch(p, 1.0, uArch.w / w);
+  // Thresholds centered in their cells, so no light means no dot.
+  float th = bayer8(gl_FragCoord.xy) + 0.5 / 64.0;
   vec3 col;
-  if (hit.y == 3.0) col = warm(0.75 + 1.2 * lit + 0.25 * smoothstep(2.6, 0.2, dist), th);
-  else if (hit.y == 4.0) col = pale(sqrt(0.16 + 3.4 * lit), th);
-  else col = warm(sqrt(2.8 * lit + haze + (hit.y == 1.0 ? 0.004 : 0.0)) * 0.95, th);
+  if (d < 0.0) {
+    // The lit room: pale at the heart, amber toward the jambs, brighter low and where the beam
+    // leans.
+    float lean = 0.12 * (1.0 - abs(p.x - uAim * 0.5));
+    float v = (0.45 + 1.6 * min(-d, 0.3) + lean - 0.04 * p.y) * uLight;
+    float x = clamp(v, 0.0, 1.0) * 2.0;
+    float i = floor(x) + step(th, fract(x));
+    col = i < 0.5 ? DEEP : i < 1.5 ? AMBER : GLOW;
+  } else {
+    float halo = exp(-d * 2.4 / uSpread);
+    // Light on the floor, from the threshold toward the viewer, leaning to uAim.
+    float beam = 0.0;
+    if (p.y < 0.0) {
+      float dy = -p.y;
+      // As wide as the doorway at the threshold, opening out toward the viewer.
+      float edge = 1.0 + dy * 0.75;
+      float x = p.x - uAim * dy * 0.8;
+      beam = uBeam * smoothstep(edge + 0.12, edge - 0.12, abs(x)) * (1.0 - 0.3 * abs(x) / edge) *
+        exp(-dy * 0.6 / uSpread);
+    }
+    float light = uLight * max(halo * 0.5, beam * 0.75);
+    // Far from the door there is no dither at all, only the page and its warm gradient.
+    light = max(light - 0.05, 0.0) / 0.95;
+    float wide = uLight * exp(-d * 0.3 / uSpread);
+    // The 1/255 nudge breaks the 8-bit bands a gradient this dark would show.
+    vec3 base = mix(uBg, AMBER, wide * 0.09) + (th - 0.5) / 255.0;
+    float x = clamp(light, 0.0, 1.0) * 3.0;
+    float i = floor(x) + step(th, fract(x));
+    col = i < 0.5 ? base : i < 1.5 ? mix(uBg, AMBER, 0.3) : i < 2.5 ? AMBER : GLOW;
+  }
   gl_FragColor = vec4(col, 1.0);
 }
 `
 
 const VERTEX = "attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}"
-// Size of one dither dot in CSS pixels: finer in a short band, where the doorway is small.
-const dot = (height: number) => (height < 480 ? 2 : 3)
+// One dither dot, in CSS pixels.
+const DOT = 2
 const FPS = 30
+
+// What the form tells the light. Each value eases toward its target in the frame loop.
+const target = { focus: 0, open: 0, dim: 0 }
+const state = { focus: 0, open: 0, pulse: 0, dim: 0 }
+export const door = {
+  // A field has focus: the light grows a little.
+  focus(on: boolean) {
+    target.focus = on ? 1 : 0
+  },
+  // A key press: a short flare.
+  key() {
+    state.pulse = Math.min(1, state.pulse + 0.3)
+  },
+  // Signing in: the light floods the page; on failure it sinks, wavers and comes back.
+  open() {
+    target.open = 1
+  },
+  fail() {
+    target.open = 0
+    target.dim = 1
+  },
+}
 
 function start(canvas: HTMLCanvasElement) {
   const gl = canvas.getContext("webgl", { antialias: false, alpha: false })
@@ -158,30 +126,58 @@ function start(canvas: HTMLCanvasElement) {
   )
   gl.enableVertexAttribArray(0)
   gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0)
-  const res = gl.getUniformLocation(program, "uRes")
-  const time = gl.getUniformLocation(program, "uTime")
-  const pointer = gl.getUniformLocation(program, "uPointer")
-  const zoom = gl.getUniformLocation(program, "uZoom")
+  const u = (name: string) => gl.getUniformLocation(program, name)
+  const res = u("uRes")
+  const arch = u("uArch")
+  const bg = u("uBg")
+  const light = u("uLight")
+  const spread = u("uSpread")
+  const aim = u("uAim")
+  const beam = u("uBeam")
 
-  return (seconds: number, x: number, y: number) => {
-    const size = dot(canvas.clientHeight)
-    const width = Math.max(1, Math.round(canvas.clientWidth / size))
-    const height = Math.max(1, Math.round(canvas.clientHeight / size))
+  return (
+    slot: DOMRect,
+    color: [number, number, number],
+    v: { light: number; spread: number; aim: number }
+  ) => {
+    const width = Math.max(1, Math.round(canvas.clientWidth / DOT))
+    const height = Math.max(1, Math.round(canvas.clientHeight / DOT))
     if (canvas.width !== width || canvas.height !== height) {
       canvas.width = width
       canvas.height = height
       gl.viewport(0, 0, width, height)
     }
+    const half = slot.width / 2 / DOT
     gl.uniform2f(res, width, height)
-    gl.uniform1f(time, seconds)
-    gl.uniform2f(pointer, x, y)
-    // A wide, short band frames the doorway closer.
-    gl.uniform1f(zoom, width / height > 1.2 ? 2.4 : 1.7)
+    gl.uniform4f(
+      arch,
+      (slot.left + slot.width / 2) / DOT,
+      (canvas.clientHeight - slot.bottom) / DOT,
+      half,
+      slot.height / DOT - half
+    )
+    gl.uniform3f(bg, ...color)
+    gl.uniform1f(light, v.light)
+    gl.uniform1f(spread, v.spread)
+    gl.uniform1f(aim, v.aim)
+    // A doorway at the top of a phone screen casts no floor light over the form below it.
+    gl.uniform1f(beam, slot.bottom < canvas.clientHeight * 0.45 ? 0 : 1)
     gl.drawArrays(gl.TRIANGLES, 0, 3)
   }
 }
 
-export function Doorway({ className }: { className?: string }) {
+// The page background as RGB in 0–1, whatever color syntax the theme uses.
+function pageColor(): [number, number, number] {
+  const probe = document.createElement("canvas").getContext("2d")
+  if (!probe) return [0.09, 0.094, 0.11]
+  probe.fillStyle = getComputedStyle(document.body).backgroundColor
+  probe.fillRect(0, 0, 1, 1)
+  const [r, g, b] = probe.getImageData(0, 0, 1, 1).data
+  return [r / 255, g / 255, b / 255]
+}
+
+// Fills the screen behind the page; the arch is drawn where `slot` sits in the layout.
+export function Doorway({ slot }: { slot: RefObject<HTMLElement | null> }) {
   const ref = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -189,52 +185,82 @@ export function Doorway({ className }: { className?: string }) {
     const draw = canvas && start(canvas)
     if (!canvas || !draw) return
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    // The camera leans a little toward the pointer, eased so it never jumps.
-    const aim = { x: 0, y: 0 }
-    const lean = { x: 0, y: 0 }
-    const onPointer = (e: PointerEvent) => {
-      aim.x = (e.clientX / window.innerWidth) * 2 - 1
-      aim.y = (e.clientY / window.innerHeight) * 2 - 1
-    }
-    let visible = true
-    const observer = new IntersectionObserver(([entry]) => {
-      visible = entry.isIntersecting
+    let color = pageColor()
+    const theme = new MutationObserver(() => {
+      color = pageColor()
     })
-    observer.observe(canvas)
+    theme.observe(document.documentElement, { attributes: true })
+
+    // The floor light falls to the left, as in the logo, and leans toward the pointer, slowly.
+    const REST = -0.5
+    let aimAt = REST
+    let aim = REST
+    const onPointer = (e: PointerEvent) => {
+      const box = slot.current?.getBoundingClientRect()
+      if (!box) return
+      const center = box.left + box.width / 2
+      const toward = (e.clientX - center) / (window.innerWidth / 2)
+      aimAt = Math.max(-1, Math.min(1, REST + 0.7 * toward))
+    }
+
+    const render = (now: number, dt: number) => {
+      const box = slot.current?.getBoundingClientRect()
+      if (!box) return
+      const ease = (from: number, to: number, rate: number) =>
+        from + (to - from) * Math.min(1, dt * rate)
+      state.focus = ease(state.focus, target.focus, 4)
+      state.open = ease(state.open, target.open, target.open ? 1.6 : 2)
+      state.pulse *= Math.exp(-dt * 5)
+      // The dim target fades on its own; the light follows it, easing in and out.
+      target.dim *= Math.exp(-dt * 0.9)
+      state.dim = ease(state.dim, target.dim, 5)
+      aim = ease(aim, aimAt, 1.5)
+      const t = now / 1000
+      // A slow, uneven breath, like a lamp in another room.
+      const breath = 0.04 * Math.sin(t * 0.9) + 0.025 * Math.sin(t * 2.3 + 1.7)
+      const falter = state.dim * (0.85 + 0.15 * Math.sin(t * 6))
+      draw(box, color, {
+        light:
+          (0.86 + breath) *
+          (1 + 0.12 * state.focus + 0.22 * state.pulse + 0.3 * state.open) *
+          (1 - 0.5 * falter),
+        spread: 1 + 0.15 * state.focus + 9 * state.open * state.open,
+        aim,
+      })
+    }
+
     let frame = 0
     let last = 0
     const loop = (now: number) => {
       frame = requestAnimationFrame(loop)
-      if (!visible || document.hidden || now - last < 1000 / FPS) return
+      if (document.hidden || now - last < 1000 / FPS) return
+      render(now, last ? (now - last) / 1000 : 0)
       last = now
-      lean.x += (aim.x - lean.x) * 0.05
-      lean.y += (aim.y - lean.y) * 0.05
-      draw(now / 1000, lean.x, lean.y)
     }
-    const onResize = () => draw(0, 0, 0)
+    const once = () => render(0, 1)
     if (still) {
-      draw(0, 0, 0)
-      window.addEventListener("resize", onResize)
+      once()
+      window.addEventListener("resize", once)
     } else {
       window.addEventListener("pointermove", onPointer)
       frame = requestAnimationFrame(loop)
     }
     return () => {
       cancelAnimationFrame(frame)
-      observer.disconnect()
+      theme.disconnect()
       window.removeEventListener("pointermove", onPointer)
-      window.removeEventListener("resize", onResize)
+      window.removeEventListener("resize", once)
+      target.focus = 0
+      target.open = 0
+      target.dim = 0
     }
-  }, [])
+  }, [slot])
 
   return (
     <canvas
       ref={ref}
       aria-hidden
-      className={cn(
-        "block bg-[#17181c] [image-rendering:pixelated]",
-        className
-      )}
+      className="fixed inset-0 size-full bg-background [image-rendering:pixelated]"
     />
   )
 }
