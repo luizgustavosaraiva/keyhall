@@ -78,7 +78,7 @@ const DOT = 2
 const FPS = 30
 
 // What the form tells the light. Each value eases toward its target in the frame loop.
-const target = { focus: 0, open: 0 }
+const target = { focus: 0, open: 0, dim: 0 }
 const state = { focus: 0, open: 0, pulse: 0, dim: 0 }
 export const door = {
   // A field has focus: the light grows a little.
@@ -89,13 +89,13 @@ export const door = {
   key() {
     state.pulse = Math.min(1, state.pulse + 0.3)
   },
-  // Signing in: the light floods the page; on failure it falters and comes back.
+  // Signing in: the light floods the page; on failure it sinks, wavers and comes back.
   open() {
     target.open = 1
   },
   fail() {
     target.open = 0
-    state.dim = 1
+    target.dim = 1
   },
 }
 
@@ -209,19 +209,21 @@ export function Doorway({ slot }: { slot: RefObject<HTMLElement | null> }) {
       const ease = (from: number, to: number, rate: number) =>
         from + (to - from) * Math.min(1, dt * rate)
       state.focus = ease(state.focus, target.focus, 4)
-      state.open = ease(state.open, target.open, target.open ? 1.6 : 3)
+      state.open = ease(state.open, target.open, target.open ? 1.6 : 2)
       state.pulse *= Math.exp(-dt * 5)
-      state.dim *= Math.exp(-dt * 1.4)
+      // The dim target fades on its own; the light follows it, easing in and out.
+      target.dim *= Math.exp(-dt * 0.9)
+      state.dim = ease(state.dim, target.dim, 5)
       aim = ease(aim, aimAt, 1.5)
       const t = now / 1000
       // A slow, uneven breath, like a lamp in another room.
       const breath = 0.04 * Math.sin(t * 0.9) + 0.025 * Math.sin(t * 2.3 + 1.7)
-      const falter = state.dim * (0.55 + 0.45 * Math.sin(t * 38))
+      const falter = state.dim * (0.85 + 0.15 * Math.sin(t * 6))
       draw(box, color, {
         light:
           (0.86 + breath) *
           (1 + 0.12 * state.focus + 0.22 * state.pulse + 0.3 * state.open) *
-          (1 - 0.6 * falter),
+          (1 - 0.5 * falter),
         spread: 1 + 0.15 * state.focus + 9 * state.open * state.open,
         aim,
       })
@@ -250,6 +252,7 @@ export function Doorway({ slot }: { slot: RefObject<HTMLElement | null> }) {
       window.removeEventListener("resize", once)
       target.focus = 0
       target.open = 0
+      target.dim = 0
     }
   }, [slot])
 
