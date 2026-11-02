@@ -49,7 +49,7 @@ export function AuthLayout({
       <div className="flex h-48 items-end justify-center lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-auto lg:items-center">
         <div
           ref={slot}
-          className="h-36 w-18 lg:mt-[14vh] lg:h-[46vh] lg:w-[18vh]"
+          className="h-36 w-20 lg:mt-[14vh] lg:h-[46vh] lg:w-[26vh]"
         />
       </div>
       <main

@@ -52,11 +52,13 @@ void main() {
     float beam = 0.0;
     if (p.y < 0.0) {
       float dy = -p.y;
-      float edge = 1.0 + dy * 0.5;
+      // As wide as the doorway at the threshold, opening out toward the viewer.
+      float edge = 1.0 + dy * 0.75;
       float x = p.x - uAim * dy * 0.8;
-      beam = uBeam * smoothstep(edge, edge - 0.5, abs(x)) * exp(-dy * 0.6 / uSpread);
+      beam = uBeam * smoothstep(edge + 0.12, edge - 0.12, abs(x)) * (1.0 - 0.3 * abs(x) / edge) *
+        exp(-dy * 0.6 / uSpread);
     }
-    float light = uLight * max(halo * 0.62, beam * 0.6);
+    float light = uLight * max(halo * 0.62, beam * 0.85);
     // Far from the door there is no dither at all, only the page and its warm gradient.
     light = max(light - 0.05, 0.0) / 0.95;
     float wide = uLight * exp(-d * 0.3 / uSpread);
@@ -189,17 +191,16 @@ export function Doorway({ slot }: { slot: RefObject<HTMLElement | null> }) {
     })
     theme.observe(document.documentElement, { attributes: true })
 
-    // The floor light leans toward the pointer, slowly.
-    let aimAt = 0
-    let aim = 0
+    // The floor light falls to the left, as in the logo, and leans toward the pointer, slowly.
+    const REST = -0.5
+    let aimAt = REST
+    let aim = REST
     const onPointer = (e: PointerEvent) => {
       const box = slot.current?.getBoundingClientRect()
       if (!box) return
       const center = box.left + box.width / 2
-      aimAt = Math.max(
-        -1,
-        Math.min(1, (e.clientX - center) / (window.innerWidth / 2))
-      )
+      const toward = (e.clientX - center) / (window.innerWidth / 2)
+      aimAt = Math.max(-1, Math.min(1, REST + 0.7 * toward))
     }
 
     const render = (now: number, dt: number) => {
