@@ -319,14 +319,14 @@ export function Dashboard({
 
   return (
     <div className="min-h-svh">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-68 border-sidebar-border border-r bg-sidebar lg:block">
+      <aside className="border-sidebar-border bg-sidebar fixed inset-y-0 left-0 z-30 hidden w-68 border-r lg:block">
         {sidebar}
       </aside>
 
       <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
         <SheetContent
           side="left"
-          className="w-72 bg-sidebar p-0"
+          className="bg-sidebar w-72 p-0"
           showCloseButton={false}
         >
           <SheetTitle className="sr-only">keyhall</SheetTitle>
@@ -335,7 +335,7 @@ export function Dashboard({
       </Sheet>
 
       <div className="lg:pl-68">
-        <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b bg-background px-4 lg:px-10">
+        <header className="bg-background sticky top-0 z-20 flex h-14 items-center gap-2 border-b px-4 lg:px-10">
           <Button
             variant="ghost"
             size="icon"
@@ -349,10 +349,10 @@ export function Dashboard({
             aria-label="breadcrumb"
             className="flex min-w-0 items-center gap-1.5 text-sm"
           >
-            <span className="truncate text-muted-foreground">
+            <span className="text-muted-foreground truncate">
               {view.org.name}
             </span>
-            <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground/60" />
+            <ChevronRightIcon className="text-muted-foreground/60 size-3.5 shrink-0" />
             <span className="truncate font-medium">
               {view.project?.name ?? t("project.all")}
             </span>

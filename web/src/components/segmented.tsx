@@ -20,7 +20,7 @@ export function Segmented<T extends string>({
       role="radiogroup"
       aria-label={label}
       className={cn(
-        "grid auto-cols-fr grid-flow-col gap-1 rounded-xl bg-muted p-1 ring-1 ring-border/60 ring-inset",
+        "bg-muted ring-border/60 grid auto-cols-fr grid-flow-col gap-1 rounded-xl p-1 ring-1 ring-inset",
         className
       )}
     >
@@ -36,7 +36,7 @@ export function Segmented<T extends string>({
             onClick={() => onChange(o.value)}
             className={cn(
               // Phones drop the icons and padding so the labels fit.
-              "flex min-h-8 min-w-0 items-center justify-center gap-1.5 rounded-lg px-1.5 py-1.5 font-medium text-[0.8rem] text-muted-foreground outline-none transition-all focus-visible:ring-3 focus-visible:ring-ring/50 sm:px-3 [&_svg]:size-4 max-sm:[&_svg]:hidden",
+              "text-muted-foreground focus-visible:ring-ring/50 flex min-h-8 min-w-0 items-center justify-center gap-1.5 rounded-lg px-1.5 py-1.5 text-[0.8rem] font-medium transition-all outline-none focus-visible:ring-3 sm:px-3 [&_svg]:size-4 max-sm:[&_svg]:hidden",
               active
                 ? "bg-card text-foreground shadow-[var(--shadow-surface)]"
                 : "hover:text-foreground"

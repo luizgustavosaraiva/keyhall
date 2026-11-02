@@ -63,14 +63,14 @@ export function SecretInput({
         required={required}
         className={cn(
           "pr-18",
-          ref && "font-mono text-amber-700 dark:text-primary"
+          ref && "dark:text-primary font-mono text-amber-700"
         )}
       />
       <div className="absolute top-1/2 right-1 flex -translate-y-1/2 items-center">
         {ref && (
           <button
             type="button"
-            className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="text-muted-foreground hover:bg-muted hover:text-foreground flex size-7 items-center justify-center rounded-md"
             onClick={() => setValue("")}
             aria-label={t("vault.clearRef")}
             title={t("vault.clearRef")}
@@ -80,7 +80,7 @@ export function SecretInput({
         )}
         <DropdownMenu>
           <DropdownMenuTrigger
-            className="flex h-7 items-center gap-1 rounded-md px-2 text-muted-foreground text-xs hover:bg-muted hover:text-foreground aria-expanded:bg-muted"
+            className="text-muted-foreground hover:bg-muted hover:text-foreground aria-expanded:bg-muted flex h-7 items-center gap-1 rounded-md px-2 text-xs"
             aria-label={t("vault.useSecret")}
             title={t("vault.useSecret")}
           >

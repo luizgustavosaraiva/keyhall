@@ -66,7 +66,7 @@ export function Setup() {
               name="code"
               autoComplete="off"
               placeholder="XXXX-XXXX"
-              className="font-mono uppercase tracking-widest"
+              className="font-mono tracking-widest uppercase"
               autoFocus
               required
             />

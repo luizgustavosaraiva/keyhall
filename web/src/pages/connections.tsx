@@ -200,7 +200,7 @@ function HeaderFields({
     <div className="flex flex-col gap-3">
       <button
         type="button"
-        className="flex w-fit items-center gap-1.5 font-medium text-sm"
+        className="flex w-fit items-center gap-1.5 text-sm font-medium"
         aria-expanded={open}
         onClick={() => {
           setOpen(!open)
@@ -209,11 +209,11 @@ function HeaderFields({
       >
         {t("mcp.advanced")}
         <ChevronDownIcon
-          className={`size-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+          className={`text-muted-foreground size-4 transition-transform ${open ? "rotate-180" : ""}`}
         />
       </button>
       {open && (
-        <div className="flex flex-col gap-3 rounded-xl bg-muted/50 p-4 ring-1 ring-border ring-inset">
+        <div className="bg-muted/50 ring-border flex flex-col gap-3 rounded-xl p-4 ring-1 ring-inset">
           <FieldLabel>{t("mcp.headers")}</FieldLabel>
           {rows.map((row) => {
             const saved = connection?.headerNames.includes(row.name)
@@ -364,7 +364,7 @@ function StdioFields({
         </FieldDescription>
       </Field>
       {remote && onRemote && (
-        <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/50 px-3 py-2 text-sm ring-1 ring-border ring-inset">
+        <div className="bg-muted/50 ring-border flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm ring-1 ring-inset">
           <span>{t("stdio.isRemote")}</span>
           <Button
             type="button"
@@ -378,12 +378,12 @@ function StdioFields({
         </div>
       )}
       {config && secretLikeArgs(config.args).length > 0 && (
-        <p className="rounded-xl bg-warning/12 px-3 py-2 text-amber-800 text-xs dark:text-warning">
+        <p className="bg-warning/12 dark:text-warning rounded-xl px-3 py-2 text-xs text-amber-800">
           {t("stdio.secretInArgs")}
         </p>
       )}
       {config && Object.keys(config.env).length > 0 && (
-        <div className="flex flex-col gap-3 rounded-xl bg-muted/50 p-4 ring-1 ring-border ring-inset">
+        <div className="bg-muted/50 ring-border flex flex-col gap-3 rounded-xl p-4 ring-1 ring-inset">
           {Object.entries(config.env).map(([key, value]) => (
             <Field key={`${key}:${value}`}>
               <FieldLabel htmlFor={`env-${key}`} className="font-mono text-xs">
@@ -430,16 +430,16 @@ function ToolDetail({ tool, onClose }: { tool?: Tool; onClose: () => void }) {
     <Dialog open={!!tool} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[85svh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 break-all pr-8 font-mono">
+          <DialogTitle className="flex items-center gap-2 pr-8 font-mono break-all">
             {tool?.name}
             {tool && <CopyButton value={tool.name} />}
           </DialogTitle>
         </DialogHeader>
-        <p className="whitespace-pre-wrap text-sm leading-relaxed">
+        <p className="text-sm leading-relaxed whitespace-pre-wrap">
           {tool?.description || t("tools.noDescription")}
         </p>
         <section className="flex flex-col gap-2">
-          <h3 className="font-medium text-muted-foreground text-xs">
+          <h3 className="text-muted-foreground text-xs font-medium">
             {t("tools.params")}
           </h3>
           {params.length === 0 ? (
@@ -447,24 +447,24 @@ function ToolDetail({ tool, onClose }: { tool?: Tool; onClose: () => void }) {
               {t("tools.noParams")}
             </p>
           ) : (
-            <ul className="divide-y rounded-xl ring-1 ring-border ring-inset">
+            <ul className="ring-border divide-y rounded-xl ring-1 ring-inset">
               {params.map(([name, p]) => (
                 <li key={name} className="flex flex-col gap-1 px-4 py-3">
                   <div className="flex flex-wrap items-center gap-2">
-                    <code className="font-medium font-mono text-[0.8rem]">
+                    <code className="font-mono text-[0.8rem] font-medium">
                       {name}
                     </code>
-                    <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[0.7rem] text-muted-foreground">
+                    <span className="bg-muted text-muted-foreground rounded-md px-1.5 py-0.5 font-mono text-[0.7rem]">
                       {typeLabel(p)}
                     </span>
                     {required.has(name) && (
-                      <span className="text-[0.7rem] text-amber-700 dark:text-primary">
+                      <span className="dark:text-primary text-[0.7rem] text-amber-700">
                         {t("tools.required")}
                       </span>
                     )}
                   </div>
                   {p.description && (
-                    <p className="whitespace-pre-wrap text-muted-foreground text-xs leading-relaxed">
+                    <p className="text-muted-foreground text-xs leading-relaxed whitespace-pre-wrap">
                       {p.description}
                     </p>
                   )}
@@ -546,7 +546,7 @@ function ToolsDialog({
             </DialogDescription>
           </DialogHeader>
           <div className="relative">
-            <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+            <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
             <Input
               value={query}
               onChange={(e) => {
@@ -560,12 +560,12 @@ function ToolsDialog({
           </div>
           <div className="-mx-6 min-h-0 flex-1 overflow-y-auto px-6">
             {error ? (
-              <p className="py-10 text-center text-destructive text-sm">
+              <p className="text-destructive py-10 text-center text-sm">
                 {error}
               </p>
             ) : !tools ? (
               <div className="flex flex-col gap-4" aria-busy="true">
-                <p className="flex items-center gap-2 text-muted-foreground text-sm">
+                <p className="text-muted-foreground flex items-center gap-2 text-sm">
                   <Loader2Icon className="size-4 animate-spin" />
                   {t("tools.loadingHint")}
                 </p>
@@ -574,17 +574,17 @@ function ToolsDialog({
                     <li
                       // biome-ignore lint/suspicious/noArrayIndexKey: esqueleto fixo
                       key={i}
-                      className="flex h-[92px] flex-col gap-2 rounded-xl bg-muted/45 p-3 ring-1 ring-border/70 ring-inset"
+                      className="bg-muted/45 ring-border/70 flex h-[92px] flex-col gap-2 rounded-xl p-3 ring-1 ring-inset"
                     >
-                      <span className="h-3.5 w-1/3 animate-pulse rounded bg-muted-foreground/15" />
-                      <span className="h-3 w-full animate-pulse rounded bg-muted-foreground/10" />
-                      <span className="h-3 w-4/5 animate-pulse rounded bg-muted-foreground/10" />
+                      <span className="bg-muted-foreground/15 h-3.5 w-1/3 animate-pulse rounded" />
+                      <span className="bg-muted-foreground/10 h-3 w-full animate-pulse rounded" />
+                      <span className="bg-muted-foreground/10 h-3 w-4/5 animate-pulse rounded" />
                     </li>
                   ))}
                 </ul>
               </div>
             ) : shown.length === 0 ? (
-              <p className="py-10 text-center text-muted-foreground text-sm">
+              <p className="text-muted-foreground py-10 text-center text-sm">
                 {t("tools.none")}
               </p>
             ) : (
@@ -595,13 +595,13 @@ function ToolsDialog({
                       <button
                         type="button"
                         onClick={() => setDetail(tool)}
-                        className="flex h-full w-full flex-col gap-1 rounded-xl bg-muted/45 p-3 text-left outline-none ring-1 ring-border/70 ring-inset transition-colors hover:bg-muted hover:ring-border focus-visible:ring-2 focus-visible:ring-ring"
+                        className="bg-muted/45 ring-border/70 hover:bg-muted hover:ring-border focus-visible:ring-ring flex h-full w-full flex-col gap-1 rounded-xl p-3 text-left ring-1 transition-colors outline-none ring-inset focus-visible:ring-2"
                       >
-                        <span className="break-all font-medium font-mono text-[0.8rem]">
+                        <span className="font-mono text-[0.8rem] font-medium break-all">
                           {tool.name}
                         </span>
                         {tool.description && (
-                          <span className="line-clamp-3 text-muted-foreground text-xs leading-relaxed">
+                          <span className="text-muted-foreground line-clamp-3 text-xs leading-relaxed">
                             {tool.description}
                           </span>
                         )}
@@ -612,7 +612,7 @@ function ToolsDialog({
                 {shown.length < matching.length && (
                   <div
                     ref={setSentinel}
-                    className="flex justify-center py-4 text-muted-foreground"
+                    className="text-muted-foreground flex justify-center py-4"
                   >
                     <Loader2Icon className="size-4 animate-spin" />
                   </div>
@@ -913,13 +913,13 @@ export function Connections({
           {connections.map((conn) => (
             <article
               key={conn.id}
-              className="surface flex min-w-0 flex-col gap-4 p-5 transition-colors hover:border-foreground/15"
+              className="surface hover:border-foreground/15 flex min-w-0 flex-col gap-4 p-5 transition-colors"
             >
               <div className="flex items-start gap-3">
                 <Monogram name={conn.name} />
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <h3 className="truncate font-medium">{conn.name}</h3>
-                  <p className="truncate font-mono text-muted-foreground text-xs">
+                  <p className="text-muted-foreground truncate font-mono text-xs">
                     {view.project ? "" : `${projectName(conn.projectId)} · `}
                     {conn.slug}
                     <span className="font-sans"> · {kindLabel[conn.kind]}</span>
@@ -975,14 +975,14 @@ export function Connections({
 
               <div className="flex min-w-0 flex-col gap-1.5">
                 <p
-                  className="truncate font-mono text-muted-foreground text-xs"
+                  className="text-muted-foreground truncate font-mono text-xs"
                   title={conn.url}
                 >
                   {conn.url}
                 </p>
                 {conn.status === "error" && conn.lastError && (
                   <p
-                    className="line-clamp-2 text-destructive text-xs"
+                    className="text-destructive line-clamp-2 text-xs"
                     title={conn.lastError}
                   >
                     {conn.lastError}

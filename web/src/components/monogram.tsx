@@ -18,7 +18,7 @@ export function Monogram({
     <span
       aria-hidden
       className={cn(
-        "flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted font-medium text-muted-foreground text-sm",
+        "bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-lg text-sm font-medium",
         className
       )}
     >

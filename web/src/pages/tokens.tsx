@@ -190,12 +190,12 @@ export function Tokens({
 
       <div className="surface flex flex-col gap-3 p-5 sm:flex-row sm:items-center">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="font-medium text-sm">{t("tokens.endpoint")}</span>
+          <span className="text-sm font-medium">{t("tokens.endpoint")}</span>
           <span className="text-muted-foreground text-xs">
             {t("tokens.endpointHint")}
           </span>
         </div>
-        <div className="flex min-w-0 items-center gap-1 rounded-xl bg-muted/60 py-1 pr-1 pl-3 ring-1 ring-border ring-inset">
+        <div className="bg-muted/60 ring-border flex min-w-0 items-center gap-1 rounded-xl py-1 pr-1 pl-3 ring-1 ring-inset">
           <code className="truncate font-mono text-xs">{endpoint}</code>
           <CopyButton value={endpoint} />
         </div>
@@ -221,12 +221,12 @@ export function Tokens({
               className="flex flex-wrap items-center gap-3 px-5 py-4 sm:flex-nowrap"
             >
               <div className="flex min-w-0 flex-1 items-center gap-3">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                <span className="bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-lg">
                   <KeyRoundIcon className="size-5" />
                 </span>
                 <div className="flex min-w-0 flex-col gap-0.5">
                   <span className="truncate font-medium">{tk.name}</span>
-                  <span className="truncate font-mono text-muted-foreground text-xs">
+                  <span className="text-muted-foreground truncate font-mono text-xs">
                     {tk.start}…
                   </span>
                 </div>
@@ -311,14 +311,14 @@ export function Tokens({
           </DialogHeader>
           {created ? (
             <div className="flex flex-col gap-5">
-              <div className="flex items-center gap-2 rounded-xl bg-primary/10 p-3 ring-1 ring-primary/30 ring-inset">
-                <code className="min-w-0 flex-1 break-all font-mono text-xs">
+              <div className="bg-primary/10 ring-primary/30 flex items-center gap-2 rounded-xl p-3 ring-1 ring-inset">
+                <code className="min-w-0 flex-1 font-mono text-xs break-all">
                   {created.key}
                 </code>
                 <CopyButton value={created.key} />
               </div>
               <div className="flex flex-col gap-3">
-                <span className="font-medium text-sm">{t("tokens.useIt")}</span>
+                <span className="text-sm font-medium">{t("tokens.useIt")}</span>
                 <Segmented
                   value={shown}
                   onChange={setShown}
@@ -377,7 +377,7 @@ export function Tokens({
                   </FieldDescription>
                 </Field>
                 {level !== "scope" && (
-                  <p className="flex gap-2 rounded-xl bg-warning/12 px-3 py-2 text-amber-800 text-xs dark:text-warning">
+                  <p className="bg-warning/12 dark:text-warning flex gap-2 rounded-xl px-3 py-2 text-xs text-amber-800">
                     <ShieldAlertIcon className="size-4 shrink-0" />
                     {t("tokens.broadWarning")}
                   </p>

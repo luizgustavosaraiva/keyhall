@@ -75,18 +75,18 @@ function ToolPanel({
         <Monogram name={connection.name} className="size-9 rounded-lg" />
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="truncate font-medium">{connection.name}</span>
-          <span className="truncate font-mono text-muted-foreground text-xs">
+          <span className="text-muted-foreground truncate font-mono text-xs">
             {connection.slug}__…
           </span>
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-4 rounded-xl bg-muted/50 px-4 py-3 ring-1 ring-border ring-inset">
+      <div className="bg-muted/50 ring-border flex items-center justify-between gap-4 rounded-xl px-4 py-3 ring-1 ring-inset">
         <label
           htmlFor="scope-all-tools"
           className="flex cursor-pointer flex-col gap-0.5"
         >
-          <span className="font-medium text-sm">{t("scopes.allTools")}</span>
+          <span className="text-sm font-medium">{t("scopes.allTools")}</span>
           <span className="text-muted-foreground text-xs">
             {t("scopes.allToolsHint")}
           </span>
@@ -111,7 +111,7 @@ function ToolPanel({
         <>
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative min-w-48 flex-1">
-              <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+              <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -136,7 +136,7 @@ function ToolPanel({
               {t("scopes.clear")}
             </Button>
           </div>
-          <p className="-mt-2 text-muted-foreground text-xs">
+          <p className="text-muted-foreground -mt-2 text-xs">
             {value.length === 0
               ? t("scopes.noneSelected")
               : t("scopes.selectedOf", {
@@ -345,15 +345,15 @@ export function Scopes({
           {scopes.map((s) => (
             <article
               key={s.id}
-              className="surface flex min-w-0 flex-col gap-4 p-5 transition-colors hover:border-foreground/15"
+              className="surface hover:border-foreground/15 flex min-w-0 flex-col gap-4 p-5 transition-colors"
             >
               <div className="flex items-start gap-3">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-foreground/[0.06] text-foreground/70">
+                <span className="bg-foreground/[0.06] text-foreground/70 flex size-10 shrink-0 items-center justify-center rounded-xl">
                   <LayersIcon className="size-5" />
                 </span>
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <h3 className="truncate font-medium">{s.name}</h3>
-                  <p className="truncate text-muted-foreground text-xs">
+                  <p className="text-muted-foreground truncate text-xs">
                     {s.projectId
                       ? t("scopes.levelProject", {
                           project: projectName(s.projectId) ?? "?",
@@ -400,7 +400,7 @@ export function Scopes({
                 {s.connectionIds.map((id) => (
                   <span
                     key={id}
-                    className="inline-flex h-6 max-w-full items-center gap-1 truncate rounded-full bg-muted px-2.5 text-xs"
+                    className="bg-muted inline-flex h-6 max-w-full items-center gap-1 truncate rounded-full px-2.5 text-xs"
                   >
                     <span className="truncate font-medium">{connName(id)}</span>
                     <span className="text-muted-foreground">
@@ -409,7 +409,7 @@ export function Scopes({
                   </span>
                 ))}
                 {s.secretIds.length > 0 && (
-                  <span className="inline-flex h-6 items-center gap-1 rounded-full bg-muted px-2.5 text-muted-foreground text-xs">
+                  <span className="bg-muted text-muted-foreground inline-flex h-6 items-center gap-1 rounded-full px-2.5 text-xs">
                     <LockKeyholeIcon className="size-3" />
                     {t("scopes.secretCount", { n: s.secretIds.length })}
                   </span>
@@ -473,12 +473,12 @@ export function Scopes({
 
             <div className="flex flex-col gap-4 md:grid md:min-h-0 md:flex-1 md:grid-cols-[minmax(240px,300px)_1fr]">
               {/* Connections */}
-              <div className="flex max-h-48 flex-col gap-1 overflow-y-auto rounded-2xl bg-muted/40 p-2 ring-1 ring-border ring-inset md:max-h-none md:min-h-0">
-                <span className="px-2 pt-1 pb-1.5 font-medium text-muted-foreground text-xs">
+              <div className="bg-muted/40 ring-border flex max-h-48 flex-col gap-1 overflow-y-auto rounded-2xl p-2 ring-1 ring-inset md:max-h-none md:min-h-0">
+                <span className="text-muted-foreground px-2 pt-1 pb-1.5 text-xs font-medium">
                   {t("scopes.connections")}
                 </span>
                 {available.length === 0 && (
-                  <p className="px-2 text-muted-foreground text-sm">
+                  <p className="text-muted-foreground px-2 text-sm">
                     {t("scopes.createConnectionFirst")}
                   </p>
                 )}
@@ -491,7 +491,7 @@ export function Scopes({
                       className={cn(
                         "flex items-center gap-2.5 rounded-xl px-2 py-2 transition-colors",
                         active === c.id
-                          ? "bg-card shadow-[var(--shadow-surface)] ring-1 ring-border"
+                          ? "bg-card ring-border shadow-[var(--shadow-surface)] ring-1"
                           : "hover:bg-card/60"
                       )}
                     >
@@ -507,12 +507,12 @@ export function Scopes({
                         className="flex min-w-0 flex-1 flex-col text-left outline-none"
                         onClick={() => setActive(c.id)}
                       >
-                        <span className="truncate font-medium text-sm">
+                        <span className="truncate text-sm font-medium">
                           {scopeProject
                             ? c.name
                             : `${projectName(c.projectId) ?? "?"} / ${c.name}`}
                         </span>
-                        <span className="truncate text-muted-foreground text-xs">
+                        <span className="text-muted-foreground truncate text-xs">
                           {included
                             ? toolSummary(list)
                             : t("scopes.notIncluded")}
@@ -523,13 +523,13 @@ export function Scopes({
                 })}
                 {availableSecrets.length > 0 && (
                   <>
-                    <span className="mt-3 px-2 pt-1 pb-1.5 font-medium text-muted-foreground text-xs">
+                    <span className="text-muted-foreground mt-3 px-2 pt-1 pb-1.5 text-xs font-medium">
                       {t("scopes.secrets")}
                     </span>
                     {availableSecrets.map((x) => (
                       <div
                         key={x.id}
-                        className="flex items-center gap-2.5 rounded-xl px-2 py-2 hover:bg-card/60"
+                        className="hover:bg-card/60 flex items-center gap-2.5 rounded-xl px-2 py-2"
                       >
                         <Checkbox
                           id={`sec-${x.id}`}
@@ -546,12 +546,12 @@ export function Scopes({
                           htmlFor={`sec-${x.id}`}
                           className="flex min-w-0 flex-1 cursor-pointer flex-col"
                         >
-                          <span className="truncate font-medium font-mono text-xs">
+                          <span className="truncate font-mono text-xs font-medium">
                             {scopeProject
                               ? x.name
                               : `${projectName(x.projectId) ?? "?"} / ${x.name}`}
                           </span>
-                          <span className="truncate text-muted-foreground text-xs">
+                          <span className="text-muted-foreground truncate text-xs">
                             {x.agentAccess
                               ? t("scopes.secretAgents")
                               : t("scopes.secretRest")}
@@ -564,9 +564,9 @@ export function Scopes({
               </div>
 
               {/* Tools */}
-              <div className="flex min-h-64 flex-col rounded-2xl p-4 ring-1 ring-border ring-inset md:min-h-0">
+              <div className="ring-border flex min-h-64 flex-col rounded-2xl p-4 ring-1 ring-inset md:min-h-0">
                 {!activeConn ? (
-                  <div className="m-auto flex max-w-xs flex-col items-center gap-2 text-center text-muted-foreground text-sm">
+                  <div className="text-muted-foreground m-auto flex max-w-xs flex-col items-center gap-2 text-center text-sm">
                     <SlidersHorizontalIcon className="size-6" />
                     {t("scopes.pickConnection")}
                   </div>
@@ -600,7 +600,7 @@ export function Scopes({
             </div>
 
             <DialogFooter>
-              <span className="mr-auto hidden text-muted-foreground text-xs sm:block">
+              <span className="text-muted-foreground mr-auto hidden text-xs sm:block">
                 {t("scopes.summary", { n: picked.length })}
               </span>
               <Button
