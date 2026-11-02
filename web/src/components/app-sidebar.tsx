@@ -75,9 +75,9 @@ function NavItem({
         onClick={onClick}
         aria-current={active ? "page" : undefined}
         className={cn(
-          "flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 [&_svg]:size-4 [&_svg]:shrink-0",
+          "focus-visible:ring-ring/50 flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-sm transition-colors outline-none focus-visible:ring-3 [&_svg]:size-4 [&_svg]:shrink-0",
           active
-            ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground [&_svg]:text-amber-600 dark:[&_svg]:text-primary"
+            ? "bg-sidebar-accent text-sidebar-accent-foreground dark:[&_svg]:text-primary font-medium [&_svg]:text-amber-600"
             : "text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground [&_svg]:text-muted-foreground"
         )}
       >
@@ -87,7 +87,7 @@ function NavItem({
           <span
             className={cn(
               "text-muted-foreground text-xs tabular-nums",
-              menu && "pointer-coarse:hidden group-hover/item:opacity-0"
+              menu && "group-hover/item:opacity-0 pointer-coarse:hidden"
             )}
           >
             {count}
@@ -96,7 +96,7 @@ function NavItem({
       </button>
       {/* Hover reveals the menu; touch screens have no hover, so it stays visible there. */}
       {menu && (
-        <div className="absolute top-1/2 right-1 -translate-y-1/2 opacity-0 pointer-coarse:opacity-100 transition-opacity focus-within:opacity-100 group-hover/item:opacity-100 has-aria-expanded:opacity-100">
+        <div className="absolute top-1/2 right-1 -translate-y-1/2 opacity-0 transition-opacity group-hover/item:opacity-100 focus-within:opacity-100 has-aria-expanded:opacity-100 pointer-coarse:opacity-100">
           {menu}
         </div>
       )}
@@ -113,7 +113,7 @@ function SectionLabel({
 }) {
   return (
     <div className="flex h-8 items-center justify-between px-2.5">
-      <span className="font-medium text-muted-foreground text-xs">
+      <span className="text-muted-foreground text-xs font-medium">
         {children}
       </span>
       {action}
@@ -157,19 +157,19 @@ export function AppSidebar({
       {/* Organization */}
       <DropdownMenu>
         <DropdownMenuTrigger
-          className="flex w-full items-center gap-2.5 rounded-xl bg-card p-2 text-left shadow-[var(--shadow-surface)] outline-none ring-1 ring-sidebar-border transition-colors hover:bg-accent/40 focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="bg-card ring-sidebar-border hover:bg-accent/40 focus-visible:ring-ring/50 flex w-full items-center gap-2.5 rounded-xl p-2 text-left shadow-[var(--shadow-surface)] ring-1 transition-colors outline-none focus-visible:ring-3"
           aria-label={t("org.switch")}
         >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-foreground font-medium text-background text-sm">
+          <span className="bg-foreground text-background flex size-8 shrink-0 items-center justify-center rounded-lg text-sm font-medium">
             {org.name[0]?.toUpperCase()}
           </span>
           <span className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate font-medium text-sm">{org.name}</span>
+            <span className="truncate text-sm font-medium">{org.name}</span>
             <span className="text-muted-foreground text-xs">
               {t("org.label")}
             </span>
           </span>
-          <ChevronsUpDownIcon className="size-4 shrink-0 text-muted-foreground" />
+          <ChevronsUpDownIcon className="text-muted-foreground size-4 shrink-0" />
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-64">
           <DropdownMenuGroup>
@@ -299,19 +299,19 @@ export function AppSidebar({
       {/* Account */}
       <div className="mt-auto">
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex w-full items-center gap-2.5 rounded-xl p-2 text-left outline-none transition-colors hover:bg-sidebar-accent/70 focus-visible:ring-3 focus-visible:ring-ring/50 aria-expanded:bg-sidebar-accent/70">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted font-medium text-foreground text-sm">
+          <DropdownMenuTrigger className="hover:bg-sidebar-accent/70 focus-visible:ring-ring/50 aria-expanded:bg-sidebar-accent/70 flex w-full items-center gap-2.5 rounded-xl p-2 text-left transition-colors outline-none focus-visible:ring-3">
+            <span className="bg-muted text-foreground flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-medium">
               {(user.name || user.email)[0]?.toUpperCase()}
             </span>
             <span className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate font-medium text-sm">
+              <span className="truncate text-sm font-medium">
                 {user.name || user.email}
               </span>
-              <span className="truncate text-muted-foreground text-xs">
+              <span className="text-muted-foreground truncate text-xs">
                 {user.email}
               </span>
             </span>
-            <ChevronsUpDownIcon className="size-4 shrink-0 text-muted-foreground" />
+            <ChevronsUpDownIcon className="text-muted-foreground size-4 shrink-0" />
           </DropdownMenuTrigger>
           <DropdownMenuContent side="top" className="w-60">
             <DropdownMenuItem onClick={actions.devices}>
@@ -378,7 +378,7 @@ export function AppSidebar({
               href={`https://github.com/luizgustavosaraiva/keyhall/releases/tag/v${__APP_VERSION__}`}
               target="_blank"
               rel="noreferrer"
-              className="block px-2 py-1 text-muted-foreground text-xs hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground block px-2 py-1 text-xs"
             >
               keyhall v{__APP_VERSION__}
             </a>

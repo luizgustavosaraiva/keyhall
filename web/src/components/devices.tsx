@@ -170,26 +170,26 @@ export function DevicesDialog({
           <DialogDescription>{t("devices.description")}</DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col items-center gap-3 rounded-2xl bg-muted/50 p-5 ring-1 ring-border ring-inset">
+        <div className="bg-muted/50 ring-border flex flex-col items-center gap-3 rounded-2xl p-5 ring-1 ring-inset">
           {link && left > 0 ? (
             <QrCode value={link.url} />
           ) : (
             <button
               type="button"
               onClick={newLink}
-              className="flex size-52 flex-col items-center justify-center gap-2 rounded-xl bg-card text-muted-foreground text-sm ring-1 ring-border ring-inset hover:text-foreground"
+              className="bg-card text-muted-foreground ring-border hover:text-foreground flex size-52 flex-col items-center justify-center gap-2 rounded-xl text-sm ring-1 ring-inset"
             >
               <RefreshCwIcon className="size-5" />
               {link ? t("devices.expired") : t("common.loading")}
             </button>
           )}
-          <p className="text-center text-muted-foreground text-xs tabular-nums">
+          <p className="text-muted-foreground text-center text-xs tabular-nums">
             {link && left > 0
               ? t("devices.expiresIn", { n: left })
               : t("devices.oneUse")}
           </p>
           {local && (
-            <p className="flex gap-2 rounded-xl bg-warning/12 px-3 py-2 text-amber-800 text-xs dark:text-warning">
+            <p className="bg-warning/12 dark:text-warning flex gap-2 rounded-xl px-3 py-2 text-xs text-amber-800">
               <TriangleAlertIcon className="size-4 shrink-0" />
               {t("devices.localhost")}
             </p>
@@ -197,25 +197,25 @@ export function DevicesDialog({
         </div>
 
         <section className="flex flex-col gap-2">
-          <h3 className="font-medium text-muted-foreground text-xs">
+          <h3 className="text-muted-foreground text-xs font-medium">
             {t("devices.signedIn")}
           </h3>
-          <ul className="divide-y rounded-xl ring-1 ring-border ring-inset">
+          <ul className="ring-border divide-y rounded-xl ring-1 ring-inset">
             {sessions.map((s) => {
               const agent = describeAgent(s.userAgent ?? "")
               const current = s.token === currentToken
               return (
                 <li key={s.id} className="flex items-center gap-3 px-3 py-2.5">
                   {agent.mobile ? (
-                    <SmartphoneIcon className="size-4 shrink-0 text-muted-foreground" />
+                    <SmartphoneIcon className="text-muted-foreground size-4 shrink-0" />
                   ) : (
-                    <LaptopIcon className="size-4 shrink-0 text-muted-foreground" />
+                    <LaptopIcon className="text-muted-foreground size-4 shrink-0" />
                   )}
                   <div className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate font-medium text-sm">
+                    <span className="truncate text-sm font-medium">
                       {agent.label}
                     </span>
-                    <span className="truncate text-muted-foreground text-xs">
+                    <span className="text-muted-foreground truncate text-xs">
                       {current
                         ? t("devices.thisDevice")
                         : t("devices.since", {

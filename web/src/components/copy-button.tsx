@@ -43,12 +43,12 @@ export function CopyButton({
 // Code block with a copy button in the corner.
 export function CodeBlock({ value }: { value: string }) {
   return (
-    <div className="relative rounded-xl bg-muted/70 ring-1 ring-border ring-inset">
+    <div className="bg-muted/70 ring-border relative rounded-xl ring-1 ring-inset">
       {/* Wraps on a phone: copying still takes the exact value. */}
-      <pre className="overflow-x-auto px-4 py-3 pr-12 font-mono text-xs leading-relaxed max-sm:whitespace-pre-wrap max-sm:break-all">
+      <pre className="overflow-x-auto px-4 py-3 pr-12 font-mono text-xs leading-relaxed max-sm:break-all max-sm:whitespace-pre-wrap">
         {value}
       </pre>
-      <div className="absolute top-1.5 right-1.5 rounded-lg bg-muted">
+      <div className="bg-muted absolute top-1.5 right-1.5 rounded-lg">
         <CopyButton value={value} />
       </div>
     </div>

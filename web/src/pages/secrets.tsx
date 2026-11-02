@@ -78,7 +78,7 @@ function ValueField({
         <button
           type="button"
           onClick={() => setShown((v) => !v)}
-          className="flex items-center gap-1 text-muted-foreground text-xs hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs"
         >
           {shown ? (
             <EyeOffIcon className="size-3.5" />
@@ -114,12 +114,12 @@ function AgentSwitch({
   const { t } = useI18n()
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between gap-4 rounded-xl bg-muted/50 px-4 py-3 ring-1 ring-border ring-inset">
+      <div className="bg-muted/50 ring-border flex items-center justify-between gap-4 rounded-xl px-4 py-3 ring-1 ring-inset">
         <label
           htmlFor="v-agents"
           className="flex cursor-pointer flex-col gap-0.5"
         >
-          <span className="font-medium text-sm">{t("vault.agents")}</span>
+          <span className="text-sm font-medium">{t("vault.agents")}</span>
           <span className="text-muted-foreground text-xs">
             {t("vault.agentsHint")}
           </span>
@@ -127,7 +127,7 @@ function AgentSwitch({
         <Switch id="v-agents" checked={checked} onCheckedChange={onChange} />
       </div>
       {checked && (
-        <p className="rounded-xl bg-warning/12 px-3 py-2 text-amber-800 text-xs dark:text-warning">
+        <p className="bg-warning/12 dark:text-warning rounded-xl px-3 py-2 text-xs text-amber-800">
           {t("vault.agentsWarning")}
         </p>
       )}
@@ -168,19 +168,19 @@ function HistoryDialog({
         ) : (
           <div className="grid gap-6 md:grid-cols-[220px_1fr]">
             <section className="flex flex-col gap-2">
-              <h3 className="font-medium text-muted-foreground text-xs">
+              <h3 className="text-muted-foreground text-xs font-medium">
                 {t("vault.versions")}
               </h3>
               <ul className="flex flex-col gap-1.5">
                 {history.versions.map((v) => (
                   <li
                     key={v.version}
-                    className="flex flex-col rounded-xl bg-muted/50 px-3 py-2 text-xs"
+                    className="bg-muted/50 flex flex-col rounded-xl px-3 py-2 text-xs"
                   >
                     <span className="font-medium">
                       v{v.version}
                       {v.version === secret?.version && (
-                        <span className="ml-1.5 text-success">
+                        <span className="text-success ml-1.5">
                           · {t("vault.current")}
                         </span>
                       )}
@@ -189,7 +189,7 @@ function HistoryDialog({
                       {date(v.createdAt)}
                     </span>
                     {v.createdBy && (
-                      <span className="truncate text-muted-foreground">
+                      <span className="text-muted-foreground truncate">
                         {v.createdBy}
                       </span>
                     )}
@@ -198,7 +198,7 @@ function HistoryDialog({
               </ul>
             </section>
             <section className="flex min-w-0 flex-col gap-2">
-              <h3 className="font-medium text-muted-foreground text-xs">
+              <h3 className="text-muted-foreground text-xs font-medium">
                 {t("vault.reads")}
               </h3>
               {history.reads.length === 0 ? (
@@ -206,7 +206,7 @@ function HistoryDialog({
                   {t("vault.noReads")}
                 </p>
               ) : (
-                <ul className="divide-y rounded-xl ring-1 ring-border ring-inset">
+                <ul className="ring-border divide-y rounded-xl ring-1 ring-inset">
                   {history.reads.map((r) => (
                     <li
                       key={`${r.createdAt}-${r.actor}-${r.via}`}
@@ -219,7 +219,7 @@ function HistoryDialog({
                         {via[r.via]}
                       </StatusPill>
                       <span className="min-w-0 flex-1 truncate">{r.actor}</span>
-                      <span className="shrink-0 text-muted-foreground tabular-nums">
+                      <span className="text-muted-foreground shrink-0 tabular-nums">
                         v{r.version} · {date(r.createdAt)}
                       </span>
                     </li>
@@ -404,14 +404,14 @@ export function Secrets({
             <li key={s.id} className="flex flex-col gap-3 px-5 py-4">
               <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
                 <div className="flex min-w-0 flex-1 items-center gap-3">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-foreground/[0.06] text-foreground/70">
+                  <span className="bg-foreground/[0.06] text-foreground/70 flex size-10 shrink-0 items-center justify-center rounded-xl">
                     <LockKeyholeIcon className="size-5" />
                   </span>
                   <div className="flex min-w-0 flex-col gap-0.5">
-                    <span className="truncate font-medium font-mono text-sm">
+                    <span className="truncate font-mono text-sm font-medium">
                       {s.name}
                     </span>
-                    <span className="truncate text-muted-foreground text-xs">
+                    <span className="text-muted-foreground truncate text-xs">
                       {[
                         view.project ? null : projectOf(s.projectId)?.name,
                         s.description,
@@ -438,7 +438,7 @@ export function Secrets({
                       {t("vault.usedBy", { n: s.usedBy.length })}
                     </StatusPill>
                   )}
-                  <span className="px-1 text-muted-foreground tabular-nums">
+                  <span className="text-muted-foreground px-1 tabular-nums">
                     v{s.version} · {date(s.updatedAt)}
                   </span>
                   <Button size="sm" variant="outline" onClick={() => reveal(s)}>
@@ -495,8 +495,8 @@ export function Secrets({
                 </DropdownMenu>
               </div>
               {revealed[s.id] !== undefined && (
-                <div className="flex items-start gap-2 rounded-xl bg-muted/60 py-1 pr-1 pl-3 ring-1 ring-border ring-inset sm:ml-13">
-                  <code className="min-w-0 flex-1 whitespace-pre-wrap break-all py-1.5 font-mono text-xs">
+                <div className="bg-muted/60 ring-border flex items-start gap-2 rounded-xl py-1 pr-1 pl-3 ring-1 ring-inset sm:ml-13">
+                  <code className="min-w-0 flex-1 py-1.5 font-mono text-xs break-all whitespace-pre-wrap">
                     {revealed[s.id]}
                   </code>
                   <CopyButton value={revealed[s.id]} />
@@ -509,7 +509,7 @@ export function Secrets({
 
       <section className="surface flex flex-col gap-4 p-5">
         <div className="flex flex-col gap-1">
-          <h2 className="font-medium text-base">{t("vault.usageTitle")}</h2>
+          <h2 className="text-base font-medium">{t("vault.usageTitle")}</h2>
           <p className="text-muted-foreground text-sm">
             {t("vault.usageDescription")}
           </p>
@@ -525,7 +525,7 @@ export function Secrets({
           className="sm:max-w-md"
         />
         {usage === "mcp" ? (
-          <p className="rounded-xl bg-muted/70 px-4 py-3 text-sm leading-relaxed ring-1 ring-border ring-inset">
+          <p className="bg-muted/70 ring-border rounded-xl px-4 py-3 text-sm leading-relaxed ring-1 ring-inset">
             {usageCode.mcp}
           </p>
         ) : (

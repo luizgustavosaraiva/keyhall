@@ -141,7 +141,7 @@ export function ToolTree({
           const expanded = !!q || open.has(node.id)
           return (
             <li key={node.id}>
-              <div className="flex min-h-8 items-center gap-2 rounded-lg px-1 hover:bg-muted/70">
+              <div className="hover:bg-muted/70 flex min-h-8 items-center gap-2 rounded-lg px-1">
                 {node.tool ? (
                   <span className="size-5 shrink-0" />
                 ) : (
@@ -149,7 +149,7 @@ export function ToolTree({
                     type="button"
                     aria-label={expanded ? "Collapse" : "Expand"}
                     aria-expanded={expanded}
-                    className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted"
+                    className="text-muted-foreground hover:bg-muted flex size-5 shrink-0 items-center justify-center rounded"
                     onClick={() =>
                       setOpen((prev) => {
                         const next = new Set(prev)
@@ -175,7 +175,7 @@ export function ToolTree({
                 />
                 <span
                   className={cn(
-                    "min-w-0 flex-1 break-all font-mono text-xs",
+                    "min-w-0 flex-1 font-mono text-xs break-all",
                     !node.tool && "font-medium"
                   )}
                   title={node.tool?.description ?? node.names.join("\n")}
@@ -183,7 +183,7 @@ export function ToolTree({
                   {node.label}
                 </span>
                 {!node.tool && (
-                  <span className="shrink-0 rounded-full bg-muted px-1.5 text-[0.7rem] text-muted-foreground tabular-nums">
+                  <span className="bg-muted text-muted-foreground shrink-0 rounded-full px-1.5 text-[0.7rem] tabular-nums">
                     {count}/{node.names.length}
                   </span>
                 )}

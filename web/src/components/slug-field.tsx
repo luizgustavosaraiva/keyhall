@@ -31,7 +31,7 @@ export function SlugField({
         tabIndex={-1}
         aria-invalid={taken || undefined}
         placeholder={t("slug.placeholder")}
-        className="bg-muted/50 font-mono text-muted-foreground"
+        className="bg-muted/50 text-muted-foreground font-mono"
       />
       {taken ? (
         <FieldError>{t("slug.taken")}</FieldError>

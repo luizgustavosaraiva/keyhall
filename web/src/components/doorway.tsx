@@ -260,7 +260,7 @@ export function Doorway({ slot }: { slot: RefObject<HTMLElement | null> }) {
     <canvas
       ref={ref}
       aria-hidden
-      className="fixed inset-0 size-full bg-background [image-rendering:pixelated]"
+      className="bg-background fixed inset-0 size-full [image-rendering:pixelated]"
     />
   )
 }

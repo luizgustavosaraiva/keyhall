@@ -50,7 +50,7 @@ export function AuthLayout({
         {/* Where the arch is drawn; the canvas behind the page reads its position. */}
         <div ref={slot} className="h-36 w-20 lg:h-[46vh] lg:w-[26vh]" />
         <div className="flex max-w-md flex-col items-center gap-3 px-4 text-center">
-          <span className="hidden font-brand text-5xl lg:block">keyhall</span>
+          <span className="font-brand hidden text-5xl lg:block">keyhall</span>
           <p className="text-muted-foreground text-sm lg:text-lg">
             {t("auth.tagline")}
           </p>
@@ -67,7 +67,7 @@ export function AuthLayout({
       >
         <div className="flex w-full max-w-sm flex-col gap-8">
           <div className="flex flex-col gap-2">
-            <h1 className="font-medium text-3xl tracking-[-0.01em]">{title}</h1>
+            <h1 className="text-3xl font-medium tracking-[-0.01em]">{title}</h1>
             <p className="text-muted-foreground">{description}</p>
           </div>
           {children}
