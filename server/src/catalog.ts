@@ -21,7 +21,14 @@ export type CatalogConnect =
   | {
       kind: "mcp"
       url: string
-      key: CatalogKey & { header: string; prefix: string }
+      // optional: the server signs in with OAuth when no key is given, and takes the key on the
+      // same address (or on endpoint, when the vendor uses another one for keys).
+      key: CatalogKey & {
+        header: string
+        prefix: string
+        optional?: boolean
+        endpoint?: string
+      }
     }
   | {
       kind: "stdio"
@@ -67,6 +74,33 @@ const bearer = (
     label,
     url: keyUrl,
     placeholder,
+  },
+})
+
+const API_KEY: Text = { en: "API key", pt: "Chave da API" }
+
+// OAuth by default; a key in a header instead, for accounts or setups without a browser sign-in.
+const oauthOrKey = (
+  url: string,
+  keyUrl: string,
+  options: {
+    label?: Text
+    placeholder?: string
+    header?: string
+    prefix?: string
+    endpoint?: string
+  } = {}
+): CatalogConnect => ({
+  kind: "mcp",
+  url,
+  key: {
+    header: options.header ?? "Authorization",
+    prefix: options.prefix ?? "Bearer ",
+    label: options.label ?? API_KEY,
+    url: keyUrl,
+    placeholder: options.placeholder,
+    optional: true,
+    endpoint: options.endpoint,
   },
 })
 
@@ -181,7 +215,11 @@ export const catalog: CatalogEntry[] = [
       pt: "Issues, projetos e triagem",
     },
     website: "https://linear.app",
-    connect: oauth("https://mcp.linear.app/mcp"),
+    connect: oauthOrKey(
+      "https://mcp.linear.app/mcp",
+      "https://linear.app/docs/mcp",
+      { placeholder: "lin_api_…" }
+    ),
   },
   {
     slug: "atlassian",
@@ -240,7 +278,14 @@ export const catalog: CatalogEntry[] = [
       pt: "Bases, tabelas e registros",
     },
     website: "https://airtable.com",
-    connect: oauth("https://mcp.airtable.com/mcp"),
+    connect: oauthOrKey(
+      "https://mcp.airtable.com/mcp",
+      "https://support.airtable.com/articles/9934989703-creating-personal-access-tokens",
+      {
+        label: { en: "Personal access token", pt: "Token de acesso pessoal" },
+        placeholder: "pat…",
+      }
+    ),
   },
   {
     slug: "cloudflare",
@@ -252,7 +297,11 @@ export const catalog: CatalogEntry[] = [
       pt: "DNS, Workers e toda a API da Cloudflare",
     },
     website: "https://www.cloudflare.com",
-    connect: oauth("https://mcp.cloudflare.com/mcp"),
+    connect: oauthOrKey(
+      "https://mcp.cloudflare.com/mcp",
+      "https://dash.cloudflare.com/profile/api-tokens",
+      { label: { en: "API token", pt: "Token da API" } }
+    ),
   },
   {
     slug: "vercel",
@@ -314,7 +363,14 @@ export const catalog: CatalogEntry[] = [
       pt: "Projetos com Postgres, auth e storage",
     },
     website: "https://supabase.com",
-    connect: oauth("https://mcp.supabase.com/mcp"),
+    connect: oauthOrKey(
+      "https://mcp.supabase.com/mcp",
+      "https://supabase.com/docs/guides/ai-tools/mcp",
+      {
+        label: { en: "Personal access token", pt: "Token de acesso pessoal" },
+        placeholder: "sbp_…",
+      }
+    ),
   },
   {
     slug: "neon",
@@ -326,7 +382,10 @@ export const catalog: CatalogEntry[] = [
       pt: "Postgres serverless e branches",
     },
     website: "https://neon.com",
-    connect: oauth("https://mcp.neon.tech/mcp"),
+    connect: oauthOrKey(
+      "https://mcp.neon.tech/mcp",
+      "https://neon.com/docs/ai/neon-mcp-server"
+    ),
   },
   {
     slug: "prisma",
@@ -362,7 +421,14 @@ export const catalog: CatalogEntry[] = [
       pt: "Analytics de produto, flags e insights",
     },
     website: "https://posthog.com",
-    connect: oauth("https://mcp.posthog.com/mcp"),
+    connect: oauthOrKey(
+      "https://mcp.posthog.com/mcp",
+      "https://posthog.com/docs/model-context-protocol/faq",
+      {
+        label: { en: "Personal API key", pt: "Chave pessoal da API" },
+        placeholder: "phx_…",
+      }
+    ),
   },
   {
     slug: "stripe",
@@ -374,7 +440,14 @@ export const catalog: CatalogEntry[] = [
       pt: "Clientes, pagamentos e documentação",
     },
     website: "https://stripe.com",
-    connect: oauth("https://mcp.stripe.com"),
+    connect: oauthOrKey(
+      "https://mcp.stripe.com",
+      "https://docs.stripe.com/mcp",
+      {
+        label: { en: "Restricted key", pt: "Chave restrita" },
+        placeholder: "rk_…",
+      }
+    ),
   },
   {
     slug: "resend",
@@ -386,7 +459,11 @@ export const catalog: CatalogEntry[] = [
       pt: "Enviar e-mails e gerenciar domínios",
     },
     website: "https://resend.com",
-    connect: oauth("https://mcp.resend.com/mcp"),
+    connect: oauthOrKey(
+      "https://mcp.resend.com/mcp",
+      "https://resend.com/changelog/remote-mcp-server",
+      { placeholder: "re_…" }
+    ),
   },
   {
     slug: "context7",
@@ -398,7 +475,11 @@ export const catalog: CatalogEntry[] = [
       pt: "Documentação atualizada de bibliotecas",
     },
     website: "https://context7.com",
-    connect: oauth("https://mcp.context7.com/mcp"),
+    connect: oauthOrKey(
+      "https://mcp.context7.com/mcp",
+      "https://context7.com/docs/installation",
+      { header: "CONTEXT7_API_KEY", prefix: "" }
+    ),
   },
   {
     slug: "huggingface",
@@ -410,7 +491,14 @@ export const catalog: CatalogEntry[] = [
       pt: "Modelos, datasets e Spaces",
     },
     website: "https://huggingface.co",
-    connect: oauth("https://huggingface.co/mcp"),
+    connect: oauthOrKey(
+      "https://huggingface.co/mcp",
+      "https://huggingface.co/settings/tokens",
+      {
+        label: { en: "Access token", pt: "Token de acesso" },
+        placeholder: "hf_…",
+      }
+    ),
   },
   {
     slug: "brave-search",
@@ -435,7 +523,11 @@ export const catalog: CatalogEntry[] = [
       pt: "Extrair e rastrear sites",
     },
     website: "https://www.firecrawl.dev",
-    connect: oauth("https://mcp.firecrawl.dev/v2/mcp-oauth"),
+    connect: oauthOrKey(
+      "https://mcp.firecrawl.dev/v2/mcp-oauth",
+      "https://docs.firecrawl.dev/mcp-server/connect",
+      { placeholder: "fc-…", endpoint: "https://mcp.firecrawl.dev/v2/mcp" }
+    ),
   },
 ]
 

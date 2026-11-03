@@ -406,16 +406,27 @@ function EntryKeyField({
       </p>
     )
   const key = connect.key
+  // Optional key: OAuth sign-in when left empty.
+  const optional = "optional" in key && key.optional
   return (
     <Field>
-      <FieldLabel htmlFor="e-key">{key.label[locale]}</FieldLabel>
+      <FieldLabel htmlFor="e-key">
+        {optional
+          ? t("catalog.optionalKey", { label: key.label[locale] })
+          : key.label[locale]}
+      </FieldLabel>
       <SecretInput
         id="e-key"
         name="key"
         placeholder={key.placeholder ?? t("vault.keyHint")}
-        required
+        required={!optional}
         {...vault}
       />
+      {optional && (
+        <FieldDescription>
+          {t("catalog.optionalKeyHint", { name: entry.name })}
+        </FieldDescription>
+      )}
       {key.url && (
         <FieldDescription>
           <a
@@ -442,14 +453,18 @@ function entryBody(
 ) {
   const { connect } = entry
   const key = String(form.get("key") ?? "")
-  if (connect.kind === "mcp")
+  if (connect.kind === "mcp") {
+    // An optional key left empty means OAuth, with no header.
+    const withKey = connect.key && key.trim() !== ""
     return {
       kind: "mcp",
-      url: connect.url,
-      headers: connect.key
-        ? { [connect.key.header]: connect.key.prefix + key }
-        : {},
+      url: (withKey && connect.key?.endpoint) || connect.url,
+      headers:
+        withKey && connect.key
+          ? { [connect.key.header]: connect.key.prefix + key.trim() }
+          : {},
     }
+  }
   if (connect.kind === "stdio")
     return {
       kind: "stdio",

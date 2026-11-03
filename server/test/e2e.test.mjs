@@ -722,6 +722,10 @@ describe("keyhall", () => {
     assert.equal(res.status, 200)
     const linear = res.json.entries.find((e) => e.slug === "linear")
     assert.equal(linear.connect.url, "https://mcp.linear.app/mcp")
+    // OAuth by default, with an optional key on the same address.
+    assert.equal(linear.connect.key.optional, true)
+    const render = res.json.entries.find((e) => e.slug === "render")
+    assert.ok(!render.connect.key.optional, "Render needs its key")
     // Icons come from keyhall itself; the vendor's address stays on the server.
     assert.equal(linear.icon, "/api/admin/catalog/linear/icon")
     assert.ok(!("iconUrl" in linear))

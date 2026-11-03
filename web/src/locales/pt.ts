@@ -35,6 +35,9 @@ export const pt: Record<keyof typeof en, string> = {
   "catalog.getKey": "Onde pegar a chave",
   "catalog.oauthHint":
     "Ao criar a conexão, o {name} abre para você entrar e autorizar o keyhall.",
+  "catalog.optionalKey": "{label} (opcional)",
+  "catalog.optionalKeyHint":
+    "Deixe vazio para entrar com a sua conta {name}. A chave serve para contas ou ambientes sem login pelo navegador.",
   "catalog.pending": "{n} pendentes",
   "catalog.pending_one": "1 pendente",
   "catalog.search": "Buscar serviços",
