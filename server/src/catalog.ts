@@ -1,5 +1,3 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises"
-import { dirname, join } from "node:path"
 import { plugins } from "./native/index.js"
 import type { NativeFeature, NativeField, Text } from "./native/types.js"
 
@@ -44,8 +42,8 @@ export type CatalogConnect =
 export type CatalogEntry = {
   slug: string
   name: string
-  // The vendor's own icon. keyhall downloads it once and serves it to the panel, so viewers
-  // never load images from third parties.
+  // The vendor's own icon. keyhall downloads it and serves it to the panel, so viewers never
+  // load images from third parties.
   iconUrl: string
   category: "productivity" | "dev" | "infra" | "data" | "search" | "design"
   tagline: Text
@@ -490,12 +488,10 @@ export function publicCatalog(stdio: boolean) {
   }
 }
 
-// Icons are kept next to the database. A failed download is retried after an hour.
-const ICON_DIR = join(
-  dirname(process.env.DATABASE_PATH ?? "../data/keyhall.db"),
-  "icons"
-)
+// Icons are kept in memory: each is downloaded once per process. A failed download is
+// retried after an hour.
 const MAX_ICON = 512 * 1024
+const icons = new Map<string, Icon>()
 const failed = new Map<string, number>()
 
 export type Icon = { body: Buffer; type: string }
@@ -503,14 +499,8 @@ export type Icon = { body: Buffer; type: string }
 export async function catalogIcon(slug: string): Promise<Icon | null> {
   const entry = catalogEntry(slug)
   if (!entry) return null
-  const file = join(ICON_DIR, slug)
-  try {
-    const [body, type] = await Promise.all([
-      readFile(file),
-      readFile(`${file}.type`, "utf8"),
-    ])
-    return { body, type }
-  } catch {}
+  const hit = icons.get(slug)
+  if (hit) return hit
   if ((failed.get(slug) ?? 0) > Date.now()) return null
   try {
     const res = await fetch(entry.iconUrl, {
@@ -523,10 +513,9 @@ export async function catalogIcon(slug: string): Promise<Icon | null> {
     const body = Buffer.from(await res.arrayBuffer())
     if (!res.ok || !type.startsWith("image/") || body.length > MAX_ICON)
       throw new Error(`icon ${slug}: ${res.status} ${type}`)
-    await mkdir(ICON_DIR, { recursive: true })
-    await writeFile(file, body)
-    await writeFile(`${file}.type`, type)
-    return { body, type }
+    const icon = { body, type }
+    icons.set(slug, icon)
+    return icon
   } catch {
     failed.set(slug, Date.now() + 3_600_000)
     return null

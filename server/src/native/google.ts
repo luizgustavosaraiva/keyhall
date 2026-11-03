@@ -71,19 +71,36 @@ const header = (part: GmailPart | undefined, name: string) =>
 const fromBase64Url = (data: string) =>
   Buffer.from(data, "base64url").toString("utf8")
 
-const stripHtml = (html: string) =>
-  html
-    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, "")
-    .replace(/<br\s*\/?>|<\/(p|div|tr|li|h\d)>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
+const ENTITIES: Record<string, string> = {
+  nbsp: " ",
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  "#39": "'",
+}
+
+// Plain text of an HTML body, for the model (never rendered as HTML). Entities are decoded
+// in one pass first, then tags are removed until none is left, so decoding can't bring a
+// tag back and nothing is unescaped twice.
+function stripHtml(html: string) {
+  let text = html.replace(
+    /&(nbsp|amp|lt|gt|quot|#39);/g,
+    (_, name: string) => ENTITIES[name] ?? ""
+  )
+  text = text.replace(/<br\s*\/?>|<\/(p|div|tr|li|h\d)>/gi, "\n")
+  let previous: string
+  do {
+    previous = text
+    text = text
+      .replace(/<(script|style)\b[\s\S]*?<\/\1\s*>/gi, "")
+      .replace(/<[^<>]*>/g, "")
+  } while (text !== previous)
+  return text
+    .replace(/[<>]/g, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim()
+}
 
 // Plain text of a message: the text/plain part, or the HTML one without tags.
 function bodyOf(part: GmailPart | undefined): { plain: string; html: string } {

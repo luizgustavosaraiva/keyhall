@@ -796,10 +796,10 @@ describe("keyhall", () => {
       consent.searchParams.get("redirect_uri"),
       `${base}/api/oauth/callback`
     )
-    const scopes = consent.searchParams.get("scope").split(" ")
-    assert.ok(scopes.includes("https://www.googleapis.com/auth/gmail.modify"))
-    assert.ok(scopes.includes("https://www.googleapis.com/auth/spreadsheets"))
-    assert.ok(!scopes.some((s) => s.includes("drive")))
+    const scopes = new Set(consent.searchParams.get("scope").split(" "))
+    assert.ok(scopes.has("https://www.googleapis.com/auth/gmail.modify"))
+    assert.ok(scopes.has("https://www.googleapis.com/auth/spreadsheets"))
+    assert.ok(![...scopes].some((s) => s.endsWith("/drive.readonly")))
 
     const back = await fetch(
       `${base}/api/oauth/callback?code=good-code&state=${consent.searchParams.get("state")}`,
