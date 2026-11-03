@@ -240,11 +240,7 @@ export const catalog: CatalogEntry[] = [
       pt: "Bases, tabelas e registros",
     },
     website: "https://airtable.com",
-    connect: npx(
-      "airtable-mcp-server",
-      "AIRTABLE_API_KEY",
-      "https://airtable.com/developers/web/api/introduction"
-    ),
+    connect: oauth("https://mcp.airtable.com/mcp"),
   },
   {
     slug: "cloudflare",
@@ -366,12 +362,7 @@ export const catalog: CatalogEntry[] = [
       pt: "Analytics de produto, flags e insights",
     },
     website: "https://posthog.com",
-    connect: bearer(
-      "https://mcp.posthog.com/mcp",
-      { en: "Personal API key", pt: "Chave pessoal da API" },
-      "https://posthog.com/docs/api",
-      "phx_…"
-    ),
+    connect: oauth("https://mcp.posthog.com/mcp"),
   },
   {
     slug: "stripe",
@@ -395,11 +386,7 @@ export const catalog: CatalogEntry[] = [
       pt: "Enviar e-mails e gerenciar domínios",
     },
     website: "https://resend.com",
-    connect: npx(
-      "resend-mcp",
-      "RESEND_API_KEY",
-      "https://resend.com/docs/dashboard/api-keys/introduction"
-    ),
+    connect: oauth("https://mcp.resend.com/mcp"),
   },
   {
     slug: "context7",
@@ -448,11 +435,7 @@ export const catalog: CatalogEntry[] = [
       pt: "Extrair e rastrear sites",
     },
     website: "https://www.firecrawl.dev",
-    connect: npx(
-      "firecrawl-mcp",
-      "FIRECRAWL_API_KEY",
-      "https://docs.firecrawl.dev"
-    ),
+    connect: oauth("https://mcp.firecrawl.dev/v2/mcp-oauth"),
   },
 ]
 
