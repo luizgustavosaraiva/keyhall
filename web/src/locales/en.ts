@@ -21,6 +21,8 @@ export const en = {
     "One door to every MCP server, API and secret your agents use",
 
   "catalog.back": "Back",
+  "catalog.connected": "{n} connected",
+  "catalog.connected_one": "1 connected",
   "catalog.custom": "Custom",
   "catalog.customDescription": "Any MCP server, HTTP API or local command",
   "catalog.description":
@@ -29,6 +31,8 @@ export const en = {
   "catalog.getKey": "Where to get the key",
   "catalog.oauthHint":
     "Creating the connection opens {name} to sign in and authorize keyhall.",
+  "catalog.pending": "{n} pending",
+  "catalog.pending_one": "1 pending",
   "catalog.search": "Search services",
   "common.cancel": "Cancel",
   "common.copied": "Copied",

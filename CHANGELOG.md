@@ -13,6 +13,9 @@ All notable changes to keyhall are documented here. The format is based on
   Supabase. One click fills in the address or command, and the form asks only for what that
   service needs: nothing for OAuth servers, a key for the others. **Custom** keeps the full
   form for anything else.
+  Entries already in use in the project show how many connections they have (green when
+  connected, amber while waiting for sign-in), also for connections made with the custom form
+  at the same address.
 - **Native plugins**: tools that keyhall implements itself, behind one interface (fields,
   features, OAuth 2.0 with the admin's own client, tools). The first is Google: Gmail, Drive
   and Sheets over the REST APIs. It works with personal Gmail accounts, which Google's own MCP
