@@ -80,6 +80,24 @@ const ENTITIES: Record<string, string> = {
   "#39": "'",
 }
 
+// Removes <tag ...>...</tag> blocks (their content is code, not text). An unclosed block
+// runs to the end.
+function dropBlocks(html: string, tag: string) {
+  const lower = html.toLowerCase()
+  let out = ""
+  let at = 0
+  for (;;) {
+    const start = lower.indexOf(`<${tag}`, at)
+    if (start === -1) return out + html.slice(at)
+    out += html.slice(at, start)
+    const close = lower.indexOf(`</${tag}`, start)
+    if (close === -1) return out
+    const end = lower.indexOf(">", close)
+    if (end === -1) return out
+    at = end + 1
+  }
+}
+
 // Plain text of an HTML body, for the model (never rendered as HTML). Entities are decoded
 // in one pass first, then tags are removed until none is left, so decoding can't bring a
 // tag back and nothing is unescaped twice.
@@ -88,13 +106,12 @@ function stripHtml(html: string) {
     /&(nbsp|amp|lt|gt|quot|#39);/g,
     (_, name: string) => ENTITIES[name] ?? ""
   )
+  text = dropBlocks(dropBlocks(text, "script"), "style")
   text = text.replace(/<br\s*\/?>|<\/(p|div|tr|li|h\d)>/gi, "\n")
   let previous: string
   do {
     previous = text
-    text = text
-      .replace(/<(script|style)\b[\s\S]*?<\/\1\s*>/gi, "")
-      .replace(/<[^<>]*>/g, "")
+    text = text.replace(/<[^<>]*>/g, "")
   } while (text !== previous)
   return text
     .replace(/[<>]/g, "")
