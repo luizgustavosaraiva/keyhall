@@ -10,12 +10,71 @@ export type Org = {
 // What the panel shows: the whole organization or one of its projects.
 export type View = { org: Org; project: Project | null }
 
+// Panel text in each language (catalog entries and native plugin fields).
+export type Text = { en: string; pt: string }
+
+export type CatalogConnect =
+  | {
+      kind: "mcp"
+      url: string
+      key?: {
+        header: string
+        prefix: string
+        label: Text
+        url?: string
+        placeholder?: string
+      }
+    }
+  | {
+      kind: "stdio"
+      command: string
+      args: string[]
+      key: { env: string; label: Text; url?: string; placeholder?: string }
+    }
+  | {
+      kind: "native"
+      plugin: string
+      features: string[]
+      guide?: string
+      links?: { label: Text; url: string }[]
+    }
+
+export type CatalogEntry = {
+  slug: string
+  name: string
+  icon: string | null
+  category: string
+  tagline: Text
+  website: string
+  connect: CatalogConnect
+}
+
+export type NativeSpec = {
+  fields: {
+    name: string
+    label: Text
+    secret?: boolean
+    placeholder?: string
+    // Suffix in the vault: <client name>_<vault>.
+    vault: string
+  }[]
+  features: { id: string; label: Text; hint: Text }[]
+  // Default client name, and where the provider's OAuth clients are created.
+  vaultName: string
+  consoleUrl: string
+}
+
+export type Catalog = {
+  entries: CatalogEntry[]
+  native: Record<string, NativeSpec>
+}
+
 export type Connection = {
   id: string
   projectId: string
   slug: string
   name: string
-  kind: "mcp" | "api" | "stdio"
+  kind: "mcp" | "api" | "stdio" | "native"
   url: string
   authHeader: string | null
   authPrefix: string | null
@@ -32,6 +91,16 @@ export type Connection = {
   // (optionally after a scheme: "Bearer {{secret:KEY}}").
   headerNames: string[]
   headerRefs: Record<string, string>
+  // Catalog entry the connection came from (null = custom).
+  plugin: string | null
+  // Native plugin: field values (secret ones only as vault references), features on, and the
+  // signed-in account.
+  native: {
+    native: string
+    fields: Record<string, string | null>
+    features: string[]
+    account: string | null
+  } | null
   status: "pending" | "connected" | "error"
   lastError: string | null
 }

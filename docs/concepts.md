@@ -24,13 +24,28 @@ A group of connections and secrets inside an organization, e.g. `personal`, `acm
 
 ## Connection
 
-Something keyhall reaches on behalf of your consumers. Three kinds:
+Something keyhall reaches on behalf of your consumers. Four kinds:
 
 | Kind | What it is | Credential |
 |---|---|---|
 | **Remote MCP** | An MCP server over Streamable HTTP, e.g. `https://mcp.example.com/mcp`. | OAuth, done once in the browser from the panel; or fixed headers under **Advanced**, e.g. `Authorization: Bearer {{secret:KEY}}`, encrypted; or none. keyhall refreshes OAuth tokens. |
 | **Local** | An MCP server started by a command (`npx -y some-mcp-server`), pasted as the `mcpServers` JSON that READMEs show for Claude Desktop or Cursor. | Environment variables, encrypted. |
 | **HTTP API** | Any HTTP API with a fixed key. With an OpenAPI 3 spec, each operation becomes an MCP tool. | A header (e.g. `Authorization: Bearer …`), encrypted. |
+| **Native** | Tools that keyhall implements itself, for services without a usable MCP server. Today: Gmail, Drive and Sheets ([Google](google.md)). | Your own OAuth client (ID and secret, encrypted), and a sign-in done once from the panel. keyhall refreshes the tokens. |
+
+### Catalog
+
+**New connection** opens a catalog of well-known services: Notion, Linear, Atlassian,
+Cloudflare, Sentry, Stripe, Gmail and others. Picking one fills in its address or command, and
+the form asks only for what that service needs:
+
+- nothing, for servers that sign in with OAuth;
+- a key, for servers that take one;
+- an OAuth client, for native plugins.
+
+The result is an ordinary connection of one of the kinds above. **Custom** opens the full form,
+for anything else. The catalog lives in `server/src/catalog.ts`. Each entry's icon is the
+vendor's own: keyhall downloads it once and serves it to the panel.
 
 A remote server's `mcpServers` snippet (`url` or `serverUrl` with `headers`) pasted in the
 **Local** tab is recognized: the panel offers to create it as a remote MCP connection with

@@ -9,6 +9,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js"
 import type { Access, Link, ToolMode } from "../access.js"
 import { callOperation, operations } from "../api/openapi.js"
+import { callNativeTool, nativeTools } from "../native/index.js"
 import {
   currentValue,
   logAccess,
@@ -45,6 +46,7 @@ async function upstreamTools(link: Link): Promise<Tool[]> {
       description,
       inputSchema,
     }))
+  if (link.conn.kind === "native") return nativeTools(link.conn)
   const key = link.conn.updatedAt.getTime()
   const hit = listCache.get(link.conn.id)
   if (hit && hit.key === key && Date.now() - hit.at < LIST_TTL_MS)
@@ -193,6 +195,7 @@ async function callTool(
     if (!op) return denied(name)
     return callOperation(link.conn, op, args)
   }
+  if (link.conn.kind === "native") return callNativeTool(link.conn, tool, args)
   return withUpstream(
     link.conn,
     (client) =>

@@ -1,6 +1,8 @@
 import {
+  ArrowLeftIcon,
   ArrowRightLeftIcon,
   ChevronDownIcon,
+  ExternalLinkIcon,
   GlobeIcon,
   Loader2Icon,
   MoreHorizontalIcon,
@@ -23,10 +25,10 @@ import {
   useState,
 } from "react"
 import { toast } from "sonner"
+import { BrandIcon } from "@/components/brand-icon"
 import { Choice } from "@/components/choice"
 import { useConfirm } from "@/components/confirm"
 import { CopyButton } from "@/components/copy-button"
-import { Monogram } from "@/components/monogram"
 import { NameDialog, type NameRequest } from "@/components/name-dialog"
 import { EmptyState, PageHeader } from "@/components/page-header"
 import { SecretInput } from "@/components/secret-input"
@@ -59,16 +61,20 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import {
   api,
+  type Catalog,
+  type CatalogEntry,
   type Connection,
   type ConnectResult,
+  type NativeSpec,
   type Project,
   type Scope,
   type Secret,
+  type Text,
   type Tool,
   type ToolParam,
   type View,
 } from "@/lib/api"
-import { useI18n } from "@/lib/i18n"
+import { type MessageKey, useI18n } from "@/lib/i18n"
 import {
   parseStdioConfig,
   type RemoteConfig,
@@ -157,6 +163,376 @@ function ApiFields({
         <FieldDescription>{t("api.specHint")}</FieldDescription>
       </Field>
     </>
+  )
+}
+
+// OAuth clients of a native plugin already in the project's vault: names N with every
+// N_<suffix> secret present (GOOGLE → GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET).
+function savedClients(spec: NativeSpec, projectId: string, secrets: Secret[]) {
+  const mine = secrets.filter((s) => s.projectId === projectId)
+  const [first, ...rest] = spec.fields
+  if (!first) return []
+  const suffix = `_${first.vault}`
+  return mine
+    .filter((s) => s.name.endsWith(suffix))
+    .map((s) => s.name.slice(0, -suffix.length))
+    .filter(
+      (n) =>
+        n && rest.every((f) => mine.some((s) => s.name === `${n}_${f.vault}`))
+    )
+    .map((name) => ({
+      name,
+      usedBy: [
+        ...new Set(
+          spec.fields.flatMap(
+            (f) =>
+              mine.find((s) => s.name === `${name}_${f.vault}`)?.usedBy ?? []
+          )
+        ),
+      ],
+    }))
+}
+
+const refOf = (name: string, suffix: string) => `{{secret:${name}_${suffix}}}`
+
+// Client name a connection points at, when all its fields reference one saved client.
+function clientOf(spec: NativeSpec, connection?: Connection) {
+  const fields = connection?.native?.fields
+  const [first] = spec.fields
+  if (!fields || !first) return undefined
+  const ref = fields[first.name]?.match(/^\{\{secret:([A-Za-z0-9_]+)\}\}$/)?.[1]
+  const name = ref?.slice(0, -(first.vault.length + 1))
+  return name &&
+    spec.fields.every((f) => fields[f.name] === refOf(name, f.vault))
+    ? name
+    : undefined
+}
+
+const VAULT_NAME = /^[A-Z][A-Z0-9_]*$/
+
+// Fields of a native connection, all as vault references. A new client is saved in the vault
+// first (one secret per field), so the next connection can pick it.
+async function nativeFieldsFrom(
+  form: FormData,
+  spec: NativeSpec,
+  projectId: string,
+  secrets: Secret[],
+  t: (key: MessageKey, vars?: Record<string, string>) => string
+) {
+  const isNew = form.get("client-mode") === "new"
+  const name = String(form.get(isNew ? "client-name" : "client") ?? "")
+    .trim()
+    .toUpperCase()
+  if (!VAULT_NAME.test(name)) throw new Error(t("native.badName"))
+  if (isNew) {
+    const taken = spec.fields
+      .map((f) => `${name}_${f.vault}`)
+      .filter((n) =>
+        secrets.some((s) => s.projectId === projectId && s.name === n)
+      )
+    if (taken.length)
+      throw new Error(t("native.nameTaken", { name: taken.join(", ") }))
+    for (const f of spec.fields)
+      await api("/secrets", {
+        body: {
+          projectId,
+          name: `${name}_${f.vault}`,
+          value: String(form.get(`field-${f.name}`) ?? "").trim(),
+          description: f.label.en,
+        },
+      })
+  }
+  return Object.fromEntries(
+    spec.fields.map((f) => [f.name, refOf(name, f.vault)])
+  )
+}
+
+// OAuth client of a native connection: one already saved in the vault, or a new one that is
+// saved there. Plus the redirect URI and the provider's setup links.
+function NativeFields({
+  spec,
+  connection,
+  projectId,
+  secrets,
+  guide,
+  links,
+}: {
+  spec: NativeSpec
+  connection?: Connection
+  projectId: string
+  secrets: Secret[]
+  guide?: string
+  links?: { label: Text; url: string }[]
+}) {
+  const { t, locale } = useI18n()
+  const saved = savedClients(spec, projectId, secrets)
+  const [mode, setMode] = useState<"saved" | "new">(
+    saved.length ? "saved" : "new"
+  )
+  const [client, setClient] = useState(
+    clientOf(spec, connection) ?? saved[0]?.name ?? ""
+  )
+  // A free default name: GOOGLE, then GOOGLE_2…
+  const suggested = (() => {
+    const taken = new Set(saved.map((c) => c.name))
+    if (!taken.has(spec.vaultName)) return spec.vaultName
+    let i = 2
+    while (taken.has(`${spec.vaultName}_${i}`)) i++
+    return `${spec.vaultName}_${i}`
+  })()
+  const redirect = `${window.location.origin}/api/oauth/callback`
+  const link = (href: string, label: string) => (
+    <a
+      key={href}
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="text-foreground inline-flex items-center gap-1 underline underline-offset-2"
+    >
+      {label}
+      <ExternalLinkIcon className="size-3" />
+    </a>
+  )
+  return (
+    <>
+      <input type="hidden" name="client-mode" value={mode} />
+      <Field>
+        <FieldLabel>{t("native.client")}</FieldLabel>
+        {saved.length > 0 && (
+          <Segmented
+            aria-label={t("native.client")}
+            value={mode}
+            onChange={setMode}
+            options={[
+              { value: "saved", label: t("native.savedClient") },
+              { value: "new", label: t("native.newClient") },
+            ]}
+          />
+        )}
+        {mode === "saved" ? (
+          <>
+            <Choice
+              id="n-client"
+              name="client"
+              value={client}
+              onChange={setClient}
+              options={saved.map((c) => ({
+                value: c.name,
+                label: c.usedBy.length
+                  ? t("native.usedBy", {
+                      name: c.name,
+                      by: c.usedBy.join(", "),
+                    })
+                  : c.name,
+              }))}
+            />
+            <FieldDescription>{t("native.savedHint")}</FieldDescription>
+          </>
+        ) : (
+          <FieldDescription>{t("native.newHint")}</FieldDescription>
+        )}
+      </Field>
+      {mode === "new" && (
+        <>
+          <Field>
+            <FieldLabel htmlFor="n-name">{t("native.clientName")}</FieldLabel>
+            <Input
+              id="n-name"
+              name="client-name"
+              className="font-mono text-xs uppercase"
+              defaultValue={suggested}
+              pattern="[A-Za-z][A-Za-z0-9_]*"
+              required
+            />
+            <FieldDescription>
+              {t("native.clientNameHint", {
+                names: spec.fields.map((f) => `_${f.vault}`).join(", "),
+              })}
+            </FieldDescription>
+          </Field>
+          {spec.fields.map((f) => (
+            <Field key={f.name}>
+              <FieldLabel htmlFor={`n-${f.name}`}>{f.label[locale]}</FieldLabel>
+              <Input
+                id={`n-${f.name}`}
+                name={`field-${f.name}`}
+                type={f.secret ? "password" : "text"}
+                autoComplete="off"
+                className="font-mono text-xs"
+                placeholder={f.placeholder}
+                required
+              />
+            </Field>
+          ))}
+        </>
+      )}
+      <Field>
+        <FieldLabel htmlFor="n-redirect">{t("native.redirect")}</FieldLabel>
+        <div className="flex items-center gap-2">
+          <Input
+            id="n-redirect"
+            readOnly
+            value={redirect}
+            className="font-mono text-xs"
+          />
+          <CopyButton value={redirect} />
+        </div>
+        <FieldDescription>{t("native.redirectHint")}</FieldDescription>
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          {link(spec.consoleUrl, t("native.console"))}
+          {links?.map((l) => link(l.url, l.label[locale]))}
+          {guide && link(guide, t("native.guide"))}
+        </div>
+      </Field>
+      {connection && <FieldDescription>{t("native.reauth")}</FieldDescription>}
+    </>
+  )
+}
+
+// The key a catalog entry asks for: a header of a remote server or a variable of a local one.
+function EntryKeyField({
+  entry,
+  vault,
+}: {
+  entry: CatalogEntry
+  vault: Vault
+}) {
+  const { t, locale } = useI18n()
+  const { connect } = entry
+  if (connect.kind === "native" || !("key" in connect) || !connect.key)
+    return (
+      <p className="text-muted-foreground text-sm">
+        {t("catalog.oauthHint", { name: entry.name })}
+      </p>
+    )
+  const key = connect.key
+  return (
+    <Field>
+      <FieldLabel htmlFor="e-key">{key.label[locale]}</FieldLabel>
+      <SecretInput
+        id="e-key"
+        name="key"
+        placeholder={key.placeholder ?? t("vault.keyHint")}
+        required
+        {...vault}
+      />
+      {key.url && (
+        <FieldDescription>
+          <a
+            href={key.url}
+            target="_blank"
+            rel="noreferrer"
+            className="text-foreground inline-flex items-center gap-1 underline underline-offset-2"
+          >
+            {t("catalog.getKey")}
+            <ExternalLinkIcon className="size-3" />
+          </a>
+        </FieldDescription>
+      )}
+    </Field>
+  )
+}
+
+// Body of a connection made from a catalog entry: the entry's address or command, plus what
+// the admin typed.
+function entryBody(
+  entry: CatalogEntry,
+  form: FormData,
+  fields: Record<string, string>
+) {
+  const { connect } = entry
+  const key = String(form.get("key") ?? "")
+  if (connect.kind === "mcp")
+    return {
+      kind: "mcp",
+      url: connect.url,
+      headers: connect.key
+        ? { [connect.key.header]: connect.key.prefix + key }
+        : {},
+    }
+  if (connect.kind === "stdio")
+    return {
+      kind: "stdio",
+      command: connect.command,
+      args: connect.args,
+      env: { [connect.key.env]: key },
+    }
+  return { kind: "native", native: connect.plugin, fields }
+}
+
+const nativeLinks = (entry?: CatalogEntry) =>
+  entry?.connect.kind === "native" ? entry.connect.links : undefined
+
+// Grid of catalog entries, with a search box and the custom connection first.
+function CatalogPicker({
+  entries,
+  onPick,
+  onCustom,
+}: {
+  entries: CatalogEntry[]
+  onPick: (entry: CatalogEntry) => void
+  onCustom: () => void
+}) {
+  const { t, locale } = useI18n()
+  const [query, setQuery] = useState("")
+  const q = query.trim().toLowerCase()
+  const shown = q
+    ? entries.filter((e) =>
+        `${e.name} ${e.tagline[locale]} ${e.slug}`.toLowerCase().includes(q)
+      )
+    : entries
+  const tile =
+    "hover:bg-muted/60 hover:border-foreground/15 flex min-w-0 items-center gap-3 rounded-xl border p-3 text-left transition-colors"
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="relative">
+        <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+        <Input
+          autoFocus
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t("catalog.search")}
+          className="pl-9"
+          aria-label={t("catalog.search")}
+        />
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <button type="button" className={tile} onClick={onCustom}>
+          <span className="bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-lg">
+            <PlusIcon className="size-5" />
+          </span>
+          <span className="flex min-w-0 flex-col">
+            <span className="truncate text-sm font-medium">
+              {t("catalog.custom")}
+            </span>
+            <span className="text-muted-foreground truncate text-xs">
+              {t("catalog.customDescription")}
+            </span>
+          </span>
+        </button>
+        {shown.map((e) => (
+          <button
+            key={e.slug}
+            type="button"
+            className={tile}
+            onClick={() => onPick(e)}
+          >
+            <BrandIcon icon={e.icon} name={e.name} />
+            <span className="flex min-w-0 flex-col">
+              <span className="truncate text-sm font-medium">{e.name}</span>
+              <span className="text-muted-foreground truncate text-xs">
+                {e.tagline[locale]}
+              </span>
+            </span>
+          </button>
+        ))}
+      </div>
+      {shown.length === 0 && (
+        <p className="text-muted-foreground text-center text-sm">
+          {t("catalog.empty")}
+        </p>
+      )}
+    </div>
   )
 }
 
@@ -643,7 +1019,7 @@ export function Connections({
   secrets: Secret[]
   reload: () => void
 }) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const confirm = useConfirm()
   const projects = view.org.projects
   const projectName = (id: string) =>
@@ -687,11 +1063,13 @@ export function Connections({
     mcp: t("kind.mcp"),
     api: t("kind.api"),
     stdio: t("kind.stdio"),
+    native: t("kind.native"),
   }
   const kindDescription: Record<Kind, string> = {
     mcp: t("kind.mcpDescription"),
     api: t("kind.apiDescription"),
     stdio: t("kind.stdioDescription"),
+    native: t("kind.nativeDescription"),
   }
   const statusLabel = {
     connected: t("status.connected"),
@@ -699,7 +1077,19 @@ export function Connections({
     error: t("status.error"),
   }
 
+  // Catalog of one-click connections; the dialog starts on it.
+  const [catalog, setCatalog] = useState<Catalog>({ entries: [], native: {} })
+  useEffect(() => {
+    api<Catalog>("/catalog").then(setCatalog, () => {})
+  }, [])
+  const entryOf = (slug: string | null) =>
+    catalog.entries.find((e) => e.slug === slug)
+  // undefined = picking from the catalog; "custom" = the full form.
+  const [pick, setPick] = useState<CatalogEntry | "custom">()
+  const entry = pick && pick !== "custom" ? pick : undefined
+
   function openCreate() {
+    setPick(undefined)
     setName("")
     setStdio(undefined)
     setDraft(undefined)
@@ -741,22 +1131,40 @@ export function Connections({
     const form = new FormData(e.currentTarget)
     setBusy("create")
     try {
+      const base = {
+        projectId: targetProject,
+        name: form.get("name"),
+        slug: form.get("slug"),
+      }
+      const spec =
+        entry?.connect.kind === "native"
+          ? catalog.native[entry.connect.plugin]
+          : undefined
+      const fields = spec
+        ? await nativeFieldsFrom(form, spec, targetProject, secrets, t)
+        : {}
       const created = await api<Connection>("/connections", {
-        body: {
-          kind,
-          projectId: targetProject,
-          name: form.get("name"),
-          slug: form.get("slug"),
-          ...(kind !== "stdio" && { url: form.get("url") }),
-          ...(kind === "mcp" && { headers: headersBody(form) }),
-          ...(kind === "api" && apiBody(form)),
-          ...(kind === "stdio" && stdio && stdioBody(form, stdio)),
-        },
+        body: entry
+          ? { ...base, plugin: entry.slug, ...entryBody(entry, form, fields) }
+          : {
+              ...base,
+              kind,
+              ...((kind === "mcp" || kind === "api") && {
+                url: form.get("url"),
+              }),
+              ...(kind === "mcp" && { headers: headersBody(form) }),
+              ...(kind === "api" && apiBody(form)),
+              ...(kind === "stdio" && stdio && stdioBody(form, stdio)),
+            },
       })
       if (created.status === "error" && created.lastError)
         toast.error(created.lastError)
       setCreating(false)
       reload()
+      // OAuth (remote MCP from the catalog, native plugins) asks for the account's consent
+      // right away.
+      if (created.status === "pending" && (entry || created.kind === "native"))
+        await connect(created)
     } catch (err) {
       toast.error((err as Error).message)
     } finally {
@@ -777,7 +1185,19 @@ export function Connections({
             ? stdio && stdioBody(form, stdio)
             : editing.kind === "mcp"
               ? { headers: headersBody(form) }
-              : apiBody(form),
+              : editing.kind === "native"
+                ? {
+                    fields: await nativeFieldsFrom(
+                      form,
+                      catalog.native[
+                        editing.native?.native ?? ""
+                      ] as NativeSpec,
+                      editing.projectId,
+                      secrets,
+                      t
+                    ),
+                  }
+                : apiBody(form),
       })
       if (updated.status === "error" && updated.lastError)
         toast.error(updated.lastError)
@@ -916,7 +1336,7 @@ export function Connections({
               className="surface hover:border-foreground/15 flex min-w-0 flex-col gap-4 p-5 transition-colors"
             >
               <div className="flex items-start gap-3">
-                <Monogram name={conn.name} />
+                <BrandIcon icon={entryOf(conn.plugin)?.icon} name={conn.name} />
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <h3 className="truncate font-medium">{conn.name}</h3>
                   <p className="text-muted-foreground truncate font-mono text-xs">
@@ -980,6 +1400,11 @@ export function Connections({
                 >
                   {conn.url}
                 </p>
+                {conn.native?.account && (
+                  <p className="text-muted-foreground truncate text-xs">
+                    {conn.native.account}
+                  </p>
+                )}
                 {conn.status === "error" && conn.lastError && (
                   <p
                     className="text-destructive line-clamp-2 text-xs"
@@ -1047,121 +1472,174 @@ export function Connections({
       <Dialog open={creating} onOpenChange={setCreating}>
         <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>
-              {view.project
-                ? t("connections.newIn", { project: view.project.name })
-                : t("connections.new")}
-            </DialogTitle>
-            <DialogDescription>{kindDescription[kind]}</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={create} className="flex flex-col gap-5">
-            <FieldGroup>
-              <Segmented
-                aria-label={t("connections.type")}
-                value={kind}
-                onChange={setKind}
-                options={kinds}
-              />
-              {!view.project && (
-                <Field>
-                  <FieldLabel htmlFor="c-project">
-                    {t("project.label")}
-                  </FieldLabel>
-                  <Choice
-                    id="c-project"
-                    value={projectId}
-                    onChange={setProjectId}
-                    options={projects.map((p) => ({
-                      value: p.id,
-                      label: p.name,
-                    }))}
-                  />
-                </Field>
+            <DialogTitle className="flex items-center gap-2">
+              {pick && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="-ml-2"
+                  aria-label={t("catalog.back")}
+                  title={t("catalog.back")}
+                  onClick={() => setPick(undefined)}
+                >
+                  <ArrowLeftIcon />
+                </Button>
               )}
-              <Field>
-                <FieldLabel htmlFor="c-name">{t("common.name")}</FieldLabel>
-                <Input
-                  id="c-name"
-                  name="name"
-                  placeholder="Cloudflare"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                />
-              </Field>
-              <SlugField
-                id="c-slug"
-                slug={slug}
-                taken={slugTaken}
-                hint={t("connections.slugHint", {
-                  slug: slug || "cloudflare",
-                })}
-              />
-              {kind !== "stdio" && (
+              {entry
+                ? entry.name
+                : view.project
+                  ? t("connections.newIn", { project: view.project.name })
+                  : t("connections.new")}
+            </DialogTitle>
+            <DialogDescription>
+              {entry
+                ? entry.tagline[locale]
+                : pick
+                  ? kindDescription[kind]
+                  : t("catalog.description")}
+            </DialogDescription>
+          </DialogHeader>
+          {!pick ? (
+            <CatalogPicker
+              entries={catalog.entries}
+              onPick={(e) => {
+                setName(e.name)
+                setPick(e)
+              }}
+              onCustom={() => setPick("custom")}
+            />
+          ) : (
+            <form onSubmit={create} className="flex flex-col gap-5">
+              <FieldGroup>
+                {!entry && (
+                  <Segmented
+                    aria-label={t("connections.type")}
+                    value={kind}
+                    onChange={setKind}
+                    options={kinds}
+                  />
+                )}
+                {!view.project && (
+                  <Field>
+                    <FieldLabel htmlFor="c-project">
+                      {t("project.label")}
+                    </FieldLabel>
+                    <Choice
+                      id="c-project"
+                      value={projectId}
+                      onChange={setProjectId}
+                      options={projects.map((p) => ({
+                        value: p.id,
+                        label: p.name,
+                      }))}
+                    />
+                  </Field>
+                )}
                 <Field>
-                  <FieldLabel htmlFor="c-url">
-                    {kind === "mcp" ? t("connections.url") : t("api.baseUrl")}
-                  </FieldLabel>
+                  <FieldLabel htmlFor="c-name">{t("common.name")}</FieldLabel>
                   <Input
-                    key={draft?.url}
-                    id="c-url"
-                    name="url"
-                    type="url"
-                    defaultValue={kind === "mcp" ? draft?.url : undefined}
-                    placeholder={
-                      kind === "mcp"
-                        ? "https://mcp.cloudflare.com/mcp"
-                        : "https://api.example.com"
-                    }
+                    id="c-name"
+                    name="name"
+                    placeholder={entry?.name ?? "Cloudflare"}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
                     required
                   />
                 </Field>
-              )}
-              {kind === "mcp" && (
-                <HeaderFields
-                  key={draft?.url}
-                  initial={draft?.headers}
-                  vault={vaultFor(targetProject)}
+                <SlugField
+                  id="c-slug"
+                  slug={slug}
+                  taken={slugTaken}
+                  hint={t("connections.slugHint", {
+                    slug: slug || "cloudflare",
+                  })}
                 />
-              )}
-              {kind === "api" && <ApiFields vault={vaultFor(targetProject)} />}
-              {kind === "stdio" && (
-                <StdioFields
-                  vault={vaultFor(targetProject)}
-                  onChange={(config) => {
-                    setStdio(config)
-                    // The server name in the JSON becomes the connection name, if there's none yet.
-                    if (config?.name && !name) setName(config.name)
-                  }}
-                  onRemote={(config) => {
-                    setDraft(config)
-                    if (config.name && !name) setName(config.name)
-                    setKind("mcp")
-                  }}
-                />
-              )}
-            </FieldGroup>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setCreating(false)}
-              >
-                {t("common.cancel")}
-              </Button>
-              <Button
-                type="submit"
-                disabled={
-                  busy === "create" ||
-                  !slug ||
-                  slugTaken ||
-                  (kind === "stdio" && !stdio)
-                }
-              >
-                {busy === "create" ? t("common.working") : t("common.create")}
-              </Button>
-            </DialogFooter>
-          </form>
+                {entry && entry.connect.kind !== "native" && (
+                  <EntryKeyField
+                    entry={entry}
+                    vault={vaultFor(targetProject)}
+                  />
+                )}
+                {entry?.connect.kind === "native" &&
+                  catalog.native[entry.connect.plugin] && (
+                    <NativeFields
+                      key={targetProject}
+                      spec={catalog.native[entry.connect.plugin] as NativeSpec}
+                      projectId={targetProject}
+                      secrets={secrets}
+                      guide={entry.connect.guide}
+                      links={entry.connect.links}
+                    />
+                  )}
+                {!entry && (kind === "mcp" || kind === "api") && (
+                  <Field>
+                    <FieldLabel htmlFor="c-url">
+                      {kind === "mcp" ? t("connections.url") : t("api.baseUrl")}
+                    </FieldLabel>
+                    <Input
+                      key={draft?.url}
+                      id="c-url"
+                      name="url"
+                      type="url"
+                      defaultValue={kind === "mcp" ? draft?.url : undefined}
+                      placeholder={
+                        kind === "mcp"
+                          ? "https://mcp.cloudflare.com/mcp"
+                          : "https://api.example.com"
+                      }
+                      required
+                    />
+                  </Field>
+                )}
+                {!entry && kind === "mcp" && (
+                  <HeaderFields
+                    key={draft?.url}
+                    initial={draft?.headers}
+                    vault={vaultFor(targetProject)}
+                  />
+                )}
+                {!entry && kind === "api" && (
+                  <ApiFields vault={vaultFor(targetProject)} />
+                )}
+                {!entry && kind === "stdio" && (
+                  <StdioFields
+                    vault={vaultFor(targetProject)}
+                    onChange={(config) => {
+                      setStdio(config)
+                      // The server name in the JSON becomes the connection name, if there's none yet.
+                      if (config?.name && !name) setName(config.name)
+                    }}
+                    onRemote={(config) => {
+                      setDraft(config)
+                      if (config.name && !name) setName(config.name)
+                      setKind("mcp")
+                    }}
+                  />
+                )}
+              </FieldGroup>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setCreating(false)}
+                >
+                  {t("common.cancel")}
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={
+                    busy === "create" ||
+                    !slug ||
+                    slugTaken ||
+                    (!entry && kind === "stdio" && !stdio)
+                  }
+                >
+                  {busy === "create" ? t("common.working") : t("common.create")}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -1224,7 +1702,9 @@ export function Connections({
                 ? t("stdio.editHint")
                 : editing?.kind === "mcp"
                   ? t("mcp.editHint")
-                  : t("api.editHint")}
+                  : editing?.kind === "native"
+                    ? t("native.editHint")
+                    : t("api.editHint")}
             </DialogDescription>
           </DialogHeader>
           {editing && (
@@ -1236,6 +1716,20 @@ export function Connections({
                     onChange={setStdio}
                     vault={vaultFor(editing.projectId)}
                   />
+                ) : editing.kind === "native" ? (
+                  catalog.native[editing.native?.native ?? ""] && (
+                    <NativeFields
+                      spec={
+                        catalog.native[
+                          editing.native?.native ?? ""
+                        ] as NativeSpec
+                      }
+                      connection={editing}
+                      projectId={editing.projectId}
+                      secrets={secrets}
+                      links={nativeLinks(entryOf(editing.plugin))}
+                    />
+                  )
                 ) : editing.kind === "mcp" ? (
                   <HeaderFields
                     connection={editing}

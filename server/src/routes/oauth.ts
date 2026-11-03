@@ -4,6 +4,8 @@ import { Hono } from "hono"
 import { db } from "../db/index.js"
 import { connection } from "../db/schema.js"
 import { ConnectionOAuthProvider } from "../mcp/oauth-provider.js"
+import { pluginOf } from "../native/index.js"
+import { exchangeCode } from "../native/oauth2.js"
 import { type AdminEnv, requireAdmin } from "./middleware.js"
 
 // Browser callback after the admin authorizes keyhall at the upstream.
@@ -28,8 +30,12 @@ export const oauth = new Hono<AdminEnv>().get(
     }
     if (error || !code) return fail(error ?? "no authorization code")
     try {
-      const provider = new ConnectionOAuthProvider(conn)
-      await auth(provider, { serverUrl: conn.url, authorizationCode: code })
+      if (conn.kind === "native") await exchangeCode(conn, pluginOf(conn), code)
+      else
+        await auth(new ConnectionOAuthProvider(conn), {
+          serverUrl: conn.url,
+          authorizationCode: code,
+        })
       await db
         .update(connection)
         .set({

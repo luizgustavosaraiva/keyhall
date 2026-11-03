@@ -39,8 +39,9 @@ export const project = sqliteTable(
   (t) => [uniqueIndex("project_org_slug_unique").on(t.orgId, t.slug)]
 )
 
-// An upstream: remote MCP server (OAuth or fixed headers), HTTP API (fixed key) or local MCP server
-// (stdio, a process keyhall starts). *Enc fields are encrypted with crypto.ts.
+// An upstream: remote MCP server (OAuth or fixed headers), HTTP API (fixed key), local MCP server
+// (stdio, a process keyhall starts) or native (a plugin whose tools keyhall implements, signed in
+// with the admin's own OAuth client). *Enc fields are encrypted with crypto.ts.
 export const connection = sqliteTable(
   "connection",
   {
@@ -49,11 +50,11 @@ export const connection = sqliteTable(
     projectId: text("project_id").references(() => project.id),
     slug: text("slug").notNull(),
     name: text("name").notNull(),
-    kind: text("kind", { enum: ["mcp", "api", "stdio"] })
+    kind: text("kind", { enum: ["mcp", "api", "stdio", "native"] })
       .default("mcp")
       .notNull(),
     // mcp: server endpoint. api: base URL, prepended to the spec's paths.
-    // stdio: display only (command and arguments).
+    // stdio and native: display only (command and arguments; the plugin's features).
     url: text("url").notNull(),
     status: text("status", { enum: ["pending", "connected", "error"] })
       .default("pending")
@@ -69,14 +70,23 @@ export const connection = sqliteTable(
     authPrefix: text("auth_prefix"),
     // api: the key. stdio: the environment { NAME: value }. mcp: fixed headers
     // { Name: value } sent on every request (a fixed Authorization replaces OAuth).
+    // native: the plugin's field values { name: value } (e.g. the OAuth client); vault
+    // references allowed.
     secretEnc: text("secret_enc"),
     // OpenAPI 3 spec (JSON): each operation becomes an MCP tool.
     specUrl: text("spec_url"),
     spec: text("spec", { mode: "json" }).$type<unknown>(),
-    // kind = stdio only: command and arguments (mcpServers format). The environment
+    // kind = stdio: command and arguments (mcpServers format). The environment
     // variables are encrypted in secretEnc, as an object { NAME: value }.
     command: text("command"),
     args: text("args", { mode: "json" }).$type<string[]>(),
+    // Catalog entry the connection was created from (null = custom); the panel shows its icon.
+    plugin: text("plugin"),
+    // kind = native: the plugin that implements the tools and the features turned on.
+    config: text("config", { mode: "json" }).$type<{
+      native?: string
+      features?: string[]
+    }>(),
     ...timestamps,
   },
   (t) => [uniqueIndex("connection_project_slug_unique").on(t.projectId, t.slug)]
