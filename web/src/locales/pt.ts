@@ -23,6 +23,8 @@ export const pt: Record<keyof typeof en, string> = {
     "Uma porta para cada servidor MCP, API e segredo que seus agentes usam",
 
   "catalog.back": "Voltar",
+  "catalog.connected": "{n} conectadas",
+  "catalog.connected_one": "1 conectada",
   "catalog.custom": "Personalizada",
   "catalog.customDescription":
     "Qualquer servidor MCP, API HTTP ou comando local",
@@ -33,6 +35,8 @@ export const pt: Record<keyof typeof en, string> = {
   "catalog.getKey": "Onde pegar a chave",
   "catalog.oauthHint":
     "Ao criar a conexão, o {name} abre para você entrar e autorizar o keyhall.",
+  "catalog.pending": "{n} pendentes",
+  "catalog.pending_one": "1 pendente",
   "catalog.search": "Buscar serviços",
   "common.cancel": "Cancelar",
   "common.copied": "Copiado",

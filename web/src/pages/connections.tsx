@@ -463,13 +463,52 @@ function entryBody(
 const nativeLinks = (entry?: CatalogEntry) =>
   entry?.connect.kind === "native" ? entry.connect.links : undefined
 
+const PILL = "h-5 shrink-0 gap-1 px-2 text-[11px]"
+
+// How many connections of the project use an entry: connected ones in green, the rest
+// (waiting for sign-in, or with an error) in amber.
+function InUse({
+  entry,
+  connections,
+}: {
+  entry: CatalogEntry
+  connections: Connection[]
+}) {
+  const { t } = useI18n()
+  const mine = connections.filter((c) => fromEntry(entry, c))
+  if (!mine.length) return null
+  const ok = mine.filter((c) => c.status === "connected").length
+  const names = mine.map((c) => c.name).join(", ")
+  return ok ? (
+    <StatusPill tone="success" title={names} className={PILL}>
+      {t("catalog.connected", { n: ok })}
+    </StatusPill>
+  ) : (
+    <StatusPill tone="warning" title={names} className={PILL}>
+      {t("catalog.pending", { n: mine.length })}
+    </StatusPill>
+  )
+}
+
 // Grid of catalog entries, with a search box and the custom connection first.
+// Connections that came from a catalog entry: created from it, or, for those made with the
+// custom form before the catalog existed, the same remote MCP address.
+const fromEntry = (entry: CatalogEntry, conn: Connection) =>
+  conn.plugin === entry.slug ||
+  (!conn.plugin &&
+    conn.kind === "mcp" &&
+    entry.connect.kind === "mcp" &&
+    conn.url.replace(/\/$/, "") === entry.connect.url.replace(/\/$/, ""))
+
 function CatalogPicker({
   entries,
+  connections,
   onPick,
   onCustom,
 }: {
   entries: CatalogEntry[]
+  // The project's connections, to mark entries already in use.
+  connections: Connection[]
   onPick: (entry: CatalogEntry) => void
   onCustom: () => void
 }) {
@@ -518,8 +557,11 @@ function CatalogPicker({
             onClick={() => onPick(e)}
           >
             <BrandIcon icon={e.icon} name={e.name} />
-            <span className="flex min-w-0 flex-col">
-              <span className="truncate text-sm font-medium">{e.name}</span>
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="truncate text-sm font-medium">{e.name}</span>
+                <InUse entry={e} connections={connections} />
+              </span>
               <span className="text-muted-foreground truncate text-xs">
                 {e.tagline[locale]}
               </span>
@@ -1503,6 +1545,9 @@ export function Connections({
           {!pick ? (
             <CatalogPicker
               entries={catalog.entries}
+              connections={allConnections.filter(
+                (c) => c.projectId === targetProject
+              )}
               onPick={(e) => {
                 setName(e.name)
                 setPick(e)

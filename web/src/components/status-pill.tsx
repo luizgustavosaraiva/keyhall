@@ -14,18 +14,21 @@ export function StatusPill({
   children,
   title,
   dot = true,
+  className,
 }: {
   tone: keyof typeof tones
   children: ReactNode
   title?: string
   dot?: boolean
+  className?: string
 }) {
   return (
     <span
       title={title}
       className={cn(
         "inline-flex h-6 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium",
-        tones[tone]
+        tones[tone],
+        className
       )}
     >
       {dot && <span className="size-1.5 rounded-full bg-current" />}
