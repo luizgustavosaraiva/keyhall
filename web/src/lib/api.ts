@@ -23,6 +23,8 @@ export type CatalogConnect =
         label: Text
         url?: string
         placeholder?: string
+        optional?: boolean
+        endpoint?: string
       }
     }
   | {

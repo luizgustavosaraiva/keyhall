@@ -31,6 +31,9 @@ export const en = {
   "catalog.getKey": "Where to get the key",
   "catalog.oauthHint":
     "Creating the connection opens {name} to sign in and authorize keyhall.",
+  "catalog.optionalKey": "{label} (optional)",
+  "catalog.optionalKeyHint":
+    "Leave it empty to sign in with your {name} account. A key is for accounts or setups without a browser sign-in.",
   "catalog.pending": "{n} pending",
   "catalog.pending_one": "1 pending",
   "catalog.search": "Search services",
