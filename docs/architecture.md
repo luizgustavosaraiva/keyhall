@@ -50,6 +50,9 @@ server/
       oauth-provider.ts   OAuth client state, stored encrypted on the connection row
       stdio.ts            pool of local MCP processes
     api/openapi.ts        OpenAPI spec → tools, auth headers for API connections
+    catalog.ts            one-click connections (entries, vendor icons cached in data/icons)
+    native/               native plugins: OAuth 2.0 with the admin's client (oauth2.ts),
+                          plugin registry (index.ts), google.ts (Gmail/Drive/Sheets tools)
     secrets/store.ts      secret envelope encryption, {{secret:…}} references, access log
     routes/               admin, admin-secrets, setup, oauth callback, proxy, secrets
     scripts/              backup, reset-password, rotate-key, create-admin

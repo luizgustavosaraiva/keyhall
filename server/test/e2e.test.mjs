@@ -62,6 +62,71 @@ const remote = createServer(async (req, res) => {
   await transport.handleRequest(req, res)
 })
 
+// Fake Google: OAuth token endpoint, userinfo, and the few Gmail and Sheets routes the tools use.
+// Access tokens expire at once, so every call makes keyhall refresh first.
+const google = { refreshes: 0, sent: undefined, codes: new Set(["good-code"]) }
+const googleServer = createServer(async (req, res) => {
+  let raw = ""
+  for await (const chunk of req) raw += chunk
+  const url = new URL(req.url, "http://x")
+  const json = (status, body) => {
+    res.statusCode = status
+    res.setHeader("content-type", "application/json")
+    res.end(JSON.stringify(body))
+  }
+  if (url.pathname === "/token") {
+    const form = new URLSearchParams(raw)
+    if (form.get("client_secret") !== "g-secret")
+      return json(401, { error: "invalid_client" })
+    if (form.get("grant_type") === "authorization_code") {
+      if (!google.codes.has(form.get("code")))
+        return json(400, { error: "invalid_grant" })
+      return json(200, {
+        access_token: "at-0",
+        refresh_token: "rt-1",
+        expires_in: 1,
+        scope: "openid email",
+      })
+    }
+    if (form.get("refresh_token") !== "rt-1")
+      return json(400, { error: "invalid_grant" })
+    google.refreshes++
+    return json(200, { access_token: `at-${google.refreshes}`, expires_in: 1 })
+  }
+  if (!/^Bearer at-\d+$/.test(req.headers.authorization ?? ""))
+    return json(401, { error: { message: "bad token" } })
+  if (url.pathname === "/userinfo")
+    return json(200, { email: "someone@gmail.com" })
+  const gmail = "/gmail/gmail/v1/users/me"
+  if (url.pathname === `${gmail}/messages`)
+    return json(200, { messages: [{ id: "m1" }] })
+  if (url.pathname === `${gmail}/messages/m1`)
+    return json(200, {
+      id: "m1",
+      threadId: "t1",
+      snippet: "hi",
+      payload: {
+        headers: [
+          { name: "From", value: "Ana <ana@example.com>" },
+          { name: "Subject", value: "Olá" },
+          { name: "Message-ID", value: "<abc@mail>" },
+        ],
+        mimeType: "text/plain",
+        body: { data: Buffer.from("corpo da mensagem").toString("base64url") },
+      },
+    })
+  if (url.pathname === `${gmail}/messages/send`) {
+    google.sent = JSON.parse(raw)
+    return json(200, { id: "m2", threadId: google.sent.threadId })
+  }
+  if (url.pathname.startsWith("/sheets/v4/spreadsheets/s1/values/"))
+    return json(200, {
+      range: decodeURIComponent(url.pathname.split("/values/")[1]),
+      values: [["a", "1"]],
+    })
+  json(404, { error: { message: `no route ${url.pathname}` } })
+})
+
 async function call(
   path,
   { method = "GET", body, token, admin = false, headers = {} } = {}
@@ -131,6 +196,7 @@ const waitFor = async (check, what, ms = 15_000) => {
 before(async () => {
   await new Promise((r) => upstream.listen(0, "127.0.0.1", r))
   await new Promise((r) => remote.listen(0, "127.0.0.1", r))
+  await new Promise((r) => googleServer.listen(0, "127.0.0.1", r))
   proc = spawn(process.execPath, ["dist/index.js"], {
     cwd: serverDir,
     env: {
@@ -143,6 +209,7 @@ before(async () => {
       TRUSTED_ORIGINS: base,
       HOST: "127.0.0.1",
       PORT: String(port),
+      KEYHALL_GOOGLE_BASE: `http://127.0.0.1:${googleServer.address().port}`,
     },
   })
   proc.stdout.on("data", (d) => (log += d))
@@ -154,6 +221,7 @@ after(() => {
   proc?.kill()
   upstream.close()
   remote.close()
+  googleServer.close()
   rmSync(dataDir, { recursive: true, force: true })
 })
 
@@ -648,5 +716,184 @@ describe("keyhall", () => {
       body: { headers: { Authorization: "Bearer nope" } },
     })
     assert.equal(wrong.json.status, "error", wrong.text)
+  })
+  test("the catalog lists one-click connections and native plugins", async () => {
+    const res = await call("/api/admin/catalog", { admin: true })
+    assert.equal(res.status, 200)
+    const linear = res.json.entries.find((e) => e.slug === "linear")
+    assert.equal(linear.connect.url, "https://mcp.linear.app/mcp")
+    // Icons come from keyhall itself; the vendor's address stays on the server.
+    assert.equal(linear.icon, "/api/admin/catalog/linear/icon")
+    assert.ok(!("iconUrl" in linear))
+    const none = await call("/api/admin/catalog/no-such-entry/icon", {
+      admin: true,
+    })
+    assert.equal(none.status, 404)
+    assert.deepEqual(
+      res.json.native.google.features.map((f) => f.id),
+      ["gmail", "drive", "sheets"]
+    )
+    const bad = await call("/api/admin/connections", {
+      method: "POST",
+      admin: true,
+      body: {
+        kind: "mcp",
+        projectId: "prj-default",
+        name: "X",
+        slug: "x",
+        url: "https://example.com/mcp",
+        plugin: "no-such-entry",
+      },
+    })
+    assert.equal(bad.status, 400)
+  })
+
+  test("native plugin (Google): own OAuth client, consent, refresh and tools", async () => {
+    await call("/api/admin/secrets", {
+      method: "POST",
+      admin: true,
+      body: { projectId: "prj-default", name: "G_SECRET", value: "g-secret" },
+    })
+    const created = await call("/api/admin/connections", {
+      method: "POST",
+      admin: true,
+      body: {
+        kind: "native",
+        native: "google",
+        projectId: "prj-default",
+        name: "Google",
+        slug: "google",
+        fields: {
+          clientId: "g-client.apps.googleusercontent.com",
+          clientSecret: "{{secret:G_SECRET}}",
+        },
+        features: ["sheets", "gmail", "nope"],
+      },
+    })
+    assert.equal(created.status, 201, created.text)
+    assert.equal(created.json.status, "pending")
+    assert.equal(created.json.plugin, null)
+    assert.deepEqual(created.json.native, {
+      native: "google",
+      fields: {
+        clientId: "g-client.apps.googleusercontent.com",
+        clientSecret: "{{secret:G_SECRET}}",
+      },
+      features: ["gmail", "sheets"],
+      account: null,
+    })
+    const id = created.json.id
+
+    const start = await call(`/api/admin/connections/${id}/connect`, {
+      method: "POST",
+      admin: true,
+    })
+    assert.equal(start.json.status, "authorize", start.text)
+    const consent = new URL(start.json.authorizationUrl)
+    assert.equal(consent.searchParams.get("access_type"), "offline")
+    assert.equal(consent.searchParams.get("prompt"), "consent")
+    assert.equal(
+      consent.searchParams.get("redirect_uri"),
+      `${base}/api/oauth/callback`
+    )
+    const scopes = consent.searchParams.get("scope").split(" ")
+    assert.ok(scopes.includes("https://www.googleapis.com/auth/gmail.modify"))
+    assert.ok(scopes.includes("https://www.googleapis.com/auth/spreadsheets"))
+    assert.ok(!scopes.some((s) => s.includes("drive")))
+
+    const back = await fetch(
+      `${base}/api/oauth/callback?code=good-code&state=${consent.searchParams.get("state")}`,
+      { headers: { cookie }, redirect: "manual" }
+    )
+    assert.equal(back.headers.get("location"), "/?oauth=ok&conexao=google")
+    const [conn] = (
+      await call("/api/admin/connections", { admin: true })
+    ).json.filter((c) => c.id === id)
+    assert.equal(conn.status, "connected")
+    assert.equal(conn.native.account, "someone@gmail.com")
+
+    const token = (
+      await call("/api/admin/tokens", {
+        method: "POST",
+        admin: true,
+        body: { name: "g", target: { kind: "project", id: "prj-default" } },
+      })
+    ).json.key
+    const names = (await mcp(token, "tools/list")).result.tools.map(
+      (t) => t.name
+    )
+    assert.ok(names.includes("google__gmail_send"), names.join(", "))
+    assert.ok(names.includes("google__sheets_read"))
+    assert.ok(!names.some((n) => n.startsWith("google__drive_")))
+
+    const before = google.refreshes
+    const found = await mcp(token, "tools/call", {
+      name: "google__gmail_search",
+      arguments: { query: "is:unread" },
+    })
+    assert.equal(JSON.parse(found.result.content[0].text)[0].subject, "Olá")
+    assert.ok(google.refreshes > before, "expired token was refreshed")
+
+    const reply = await mcp(token, "tools/call", {
+      name: "google__gmail_send",
+      arguments: { replyToMessageId: "m1", body: "Obrigado!" },
+    })
+    assert.ok(!reply.result.isError, reply.result.content[0].text)
+    assert.equal(google.sent.threadId, "t1")
+    const mime = Buffer.from(google.sent.raw, "base64url").toString("utf8")
+    assert.match(mime, /^To: Ana <ana@example.com>\r\n/)
+    assert.match(mime, /Subject: =\?UTF-8\?B\?/)
+    assert.match(mime, /In-Reply-To: <abc@mail>/)
+
+    const cells = await mcp(token, "tools/call", {
+      name: "google__sheets_read",
+      arguments: { spreadsheetId: "s1", range: "Aba!A1:B2" },
+    })
+    assert.equal(JSON.parse(cells.result.content[0].text).range, "Aba!A1:B2")
+
+    // A catalog entry is one service: its features win over the request's.
+    const sheetsOnly = await call("/api/admin/connections", {
+      method: "POST",
+      admin: true,
+      body: {
+        kind: "native",
+        native: "google",
+        plugin: "google-sheets",
+        projectId: "prj-default",
+        name: "Planilhas",
+        slug: "planilhas",
+        fields: {
+          clientId: "g-client.apps.googleusercontent.com",
+          clientSecret: "{{secret:G_SECRET}}",
+        },
+        features: ["gmail", "drive"],
+      },
+    })
+    assert.equal(sheetsOnly.status, 201, sheetsOnly.text)
+    assert.deepEqual(sheetsOnly.json.native.features, ["sheets"])
+    const wrongKind = await call("/api/admin/connections", {
+      method: "POST",
+      admin: true,
+      body: {
+        kind: "native",
+        native: "google",
+        plugin: "linear",
+        projectId: "prj-default",
+        name: "X",
+        slug: "x-native",
+        fields: { clientId: "a", clientSecret: "b" },
+      },
+    })
+    assert.equal(wrongKind.status, 400)
+
+    // Other services need another consent: tokens are dropped.
+    const changed = await call(`/api/admin/connections/${id}`, {
+      method: "PATCH",
+      admin: true,
+      body: { features: ["drive"] },
+    })
+    assert.equal(changed.json.status, "pending", changed.text)
+    assert.equal(changed.json.native.account, null)
+    assert.ok(!JSON.stringify(changed.json).includes("g-secret"))
   })
 })

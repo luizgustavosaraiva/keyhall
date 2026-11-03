@@ -8,6 +8,16 @@ All notable changes to keyhall are documented here. The format is based on
 
 ### Added
 
+- **Connection catalog**: **New connection** opens a searchable catalog of well-known services
+  with their own icons, such as Notion, Linear, Atlassian, Cloudflare, Sentry, Stripe and
+  Supabase. One click fills in the address or command, and the form asks only for what that
+  service needs: nothing for OAuth servers, a key for the others. **Custom** keeps the full
+  form for anything else.
+- **Native plugins**: tools that keyhall implements itself, behind one interface (fields,
+  features, OAuth 2.0 with the admin's own client, tools). The first is Google: Gmail, Drive
+  and Sheets over the REST APIs. It works with personal Gmail accounts, which Google's own MCP
+  servers don't accept. Each feature requests only the scopes its tools need, and the client
+  secret may be a vault reference. Setup guide in [docs/google.md](docs/google.md).
 - **Code Mode**, a tool mode per token, and the default for new tokens. The consumer sees two
   tools whatever the token reaches:
   - `search` finds tools and shows their inputs as TypeScript types;

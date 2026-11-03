@@ -6,6 +6,7 @@ import * as z from "zod"
 import { toolMode } from "../access.js"
 import { fetchSpec, operations } from "../api/openapi.js"
 import { auth } from "../auth.js"
+import { catalogEntry, catalogIcon, publicCatalog } from "../catalog.js"
 import { decrypt, encrypt } from "../crypto.js"
 import { db } from "../db/index.js"
 import {
@@ -20,6 +21,14 @@ import {
 import { ConnectionOAuthProvider } from "../mcp/oauth-provider.js"
 import { stdioAllowed, stopStdio } from "../mcp/stdio.js"
 import { hasAuthHeader, withUpstream } from "../mcp/upstream.js"
+import { nativeTools, plugins } from "../native/index.js"
+import {
+  authorizationUrl,
+  checkTokens,
+  nativeAccount,
+  nativeFeatures,
+} from "../native/oauth2.js"
+import type { NativePlugin } from "../native/types.js"
 import { missingRefs, refsIn } from "../secrets/store.js"
 import { type AdminEnv, requireAdmin } from "./middleware.js"
 
@@ -73,6 +82,37 @@ const stdioFields = z.object({
     .default({}),
 })
 
+// Native plugin: field values (secret ones may be vault references) and the features on.
+const nativeFields = z.object({
+  native: z.string().refine((id) => id in plugins, "unknown native plugin"),
+  fields: z.record(z.string(), z.string().trim()).default({}),
+  // Taken from the catalog entry when there is one.
+  features: z.array(z.string()).default([]),
+})
+
+// Features the plugin knows, in its own order.
+const knownFeatures = (plugin: NativePlugin, list: string[]) =>
+  plugin.features.map((f) => f.id).filter((id) => list.includes(id))
+
+const fieldErrors = (plugin: NativePlugin, values: Record<string, string>) =>
+  plugin.fields.filter((f) => !values[f.name]).map((f) => f.name)
+
+// Display line, e.g. "google · gmail, drive".
+const nativeUrl = (plugin: NativePlugin, features: string[]) =>
+  `${plugin.id} · ${features.join(", ")}`
+
+// A catalog entry fixes the features: one service per connection.
+const entryFeatures = (data: { plugin?: string }) => {
+  const entry = catalogEntry(data.plugin)
+  return entry?.connect.kind === "native" ? entry.connect.features : undefined
+}
+
+// Catalog entry the connection came from; unknown slugs are refused.
+const pluginSlug = z
+  .string()
+  .refine((s) => !!catalogEntry(s), "unknown catalog entry")
+  .optional()
+
 // Fixed headers sent to a remote MCP server on every request, e.g. a key in Authorization
 // for servers that don't use OAuth. Values are encrypted and may hold vault references.
 const headerName = z
@@ -97,6 +137,7 @@ const connectionInput = z.discriminatedUnion("kind", [
     projectId: z.string().min(1),
     name: z.string().min(1),
     slug: connectionSlug,
+    plugin: pluginSlug,
     url: httpUrl,
     headers: remoteHeaders
       .refine((h) => Object.values(h).every(Boolean), "header without a value")
@@ -107,6 +148,7 @@ const connectionInput = z.discriminatedUnion("kind", [
     projectId: z.string().min(1),
     name: z.string().min(1),
     slug: connectionSlug,
+    plugin: pluginSlug,
     url: httpUrl,
   }),
   stdioFields.extend({
@@ -114,6 +156,14 @@ const connectionInput = z.discriminatedUnion("kind", [
     projectId: z.string().min(1),
     name: z.string().min(1),
     slug: connectionSlug,
+    plugin: pluginSlug,
+  }),
+  nativeFields.extend({
+    kind: z.literal("native"),
+    projectId: z.string().min(1),
+    name: z.string().min(1),
+    slug: connectionSlug,
+    plugin: pluginSlug,
   }),
 ])
 
@@ -166,6 +216,26 @@ function namedValues(c: typeof connection.$inferSelect) {
   }
 }
 
+// Native plugin: values of fields that aren't secret go back to the panel; secret ones only
+// when they are a vault reference.
+function nativePublic(c: typeof connection.$inferSelect) {
+  if (c.kind !== "native") return null
+  const plugin = plugins[c.config?.native ?? ""]
+  if (!plugin) return null
+  const stored = decrypt<Record<string, string>>(c.secretEnc) ?? {}
+  return {
+    native: plugin.id,
+    fields: Object.fromEntries(
+      plugin.fields.map((f) => [
+        f.name,
+        f.secret ? asRef(stored[f.name]) : (stored[f.name] ?? ""),
+      ])
+    ),
+    features: nativeFeatures(c, plugin),
+    account: nativeAccount(c),
+  }
+}
+
 const publicConnection = (c: typeof connection.$inferSelect) => {
   const named = namedValues(c)
   return {
@@ -191,6 +261,8 @@ const publicConnection = (c: typeof connection.$inferSelect) => {
     envNames: c.kind === "stdio" ? named.names : [],
     headerNames: c.kind === "mcp" ? named.names : [],
     headerRefs: c.kind === "mcp" ? named.refs : {},
+    plugin: c.plugin,
+    native: nativePublic(c),
     status: c.status,
     lastError: c.lastError,
     createdAt: c.createdAt,
@@ -312,10 +384,41 @@ async function connectStdio(conn: typeof connection.$inferSelect) {
   }
 }
 
+// Native: checks the stored tokens; without working ones, sends the admin to the consent page.
+async function connectNative(conn: typeof connection.$inferSelect) {
+  try {
+    const plugin = plugins[conn.config?.native ?? ""]
+    if (!plugin)
+      throw new Error(`unknown native plugin: ${conn.config?.native}`)
+    if (conn.tokensEnc) {
+      try {
+        await checkTokens(conn, plugin)
+        await db
+          .update(connection)
+          .set({ status: "connected", lastError: null })
+          .where(eq(connection.id, conn.id))
+        return { status: "connected" as const }
+      } catch {
+        // Revoked or expired: a new sign-in replaces the tokens.
+      }
+    }
+    const url = await authorizationUrl(conn, plugin)
+    return { status: "authorize" as const, authorizationUrl: url.toString() }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    await db
+      .update(connection)
+      .set({ status: "error", lastError: message })
+      .where(eq(connection.id, conn.id))
+    return { status: "error" as const, error: message }
+  }
+}
+
 // Tries to open a session with the upstream. If it asks for OAuth, returns the authorization URL.
 async function connect(conn: typeof connection.$inferSelect) {
   if (conn.kind === "api") return connectApi(conn)
   if (conn.kind === "stdio") return connectStdio(conn)
+  if (conn.kind === "native") return connectNative(conn)
   const provider = new ConnectionOAuthProvider(conn)
   // OAuth client registered with another callback (keyhall changed host): register again.
   const info = provider.clientInformation()
@@ -355,6 +458,17 @@ export const admin = new Hono<AdminEnv>()
 
   // What this instance allows; the panel hides what's disabled.
   .get("/settings", (c) => c.json({ stdio: stdioAllowed }))
+  // One-click connections, and the fields and features of native plugins.
+  .get("/catalog", (c) => c.json(publicCatalog(stdioAllowed)))
+  .get("/catalog/:slug/icon", async (c) => {
+    const icon = await catalogIcon(c.req.param("slug"))
+    if (!icon) return c.body(null, 404)
+    return c.body(new Uint8Array(icon.body), 200, {
+      "content-type": icon.type,
+      "cache-control": "private, max-age=86400",
+      "x-content-type-options": "nosniff",
+    })
+  })
 
   // Organizations and projects
   .get("/orgs", async (c) => {
@@ -511,32 +625,65 @@ export const admin = new Hono<AdminEnv>()
     const refs =
       data.kind === "api"
         ? [data.secret]
-        : Object.values(data.kind === "stdio" ? data.env : data.headers)
+        : data.kind === "native"
+          ? Object.values(data.fields)
+          : Object.values(data.kind === "stdio" ? data.env : data.headers)
     const missing = badRefs(refs, data.projectId)
     if (missing.length) return c.json({ error: refError(missing) }, 400)
+    if (data.kind === "native") {
+      const entry = catalogEntry(data.plugin)
+      if (
+        entry &&
+        (entry.connect.kind !== "native" ||
+          entry.connect.plugin !== data.native)
+      )
+        return c.json({ error: "catalog entry of another kind" }, 400)
+      const plugin = plugins[data.native] as NativePlugin
+      const empty = fieldErrors(plugin, data.fields)
+      if (empty.length)
+        return c.json({ error: `missing field: ${empty.join(", ")}` }, 400)
+      if (!knownFeatures(plugin, entryFeatures(data) ?? data.features).length)
+        return c.json({ error: "choose at least one feature" }, 400)
+    }
     const values =
       data.kind === "api"
         ? (({ secret, ...rest }) => ({ ...rest, secretEnc: encrypt(secret) }))(
             data
           )
-        : data.kind === "stdio"
-          ? (({ env, ...rest }) => ({
-              ...rest,
-              url: commandLine(rest.command, rest.args),
-              secretEnc: encrypt(env),
-            }))(data)
-          : (({ headers, ...rest }) => ({
-              ...rest,
-              secretEnc: Object.keys(headers).length ? encrypt(headers) : null,
-            }))(data)
+        : data.kind === "native"
+          ? (({ native, fields, features, ...rest }) => {
+              const plugin = plugins[native] as NativePlugin
+              const on = knownFeatures(plugin, entryFeatures(data) ?? features)
+              const values = Object.fromEntries(
+                plugin.fields.map((f) => [f.name, fields[f.name] ?? ""])
+              )
+              return {
+                ...rest,
+                url: nativeUrl(plugin, on),
+                config: { native, features: on },
+                secretEnc: encrypt(values),
+              }
+            })(data)
+          : data.kind === "stdio"
+            ? (({ env, ...rest }) => ({
+                ...rest,
+                url: commandLine(rest.command, rest.args),
+                secretEnc: encrypt(env),
+              }))(data)
+            : (({ headers, ...rest }) => ({
+                ...rest,
+                secretEnc: Object.keys(headers).length
+                  ? encrypt(headers)
+                  : null,
+              }))(data)
     const [row] = await db
       .insert(connection)
       .values({ id: randomUUID(), ...values })
       .returning()
     // API with a spec, stdio and remote MCP with a fixed key come out connected (or with the
-    // error). Remote MCP with OAuth waits for the administrator to authorize.
+    // error). Remote MCP with OAuth and native plugins wait for the administrator to authorize.
     if (
-      row.kind !== "mcp" ||
+      (row.kind !== "mcp" && row.kind !== "native") ||
       (data.kind === "mcp" && hasAuthHeader(data.headers))
     )
       await connect(row)
@@ -577,6 +724,53 @@ export const admin = new Hono<AdminEnv>()
         .returning()
       await connect(row)
       return c.json(publicConnection((await getConnection(row.id)) ?? row))
+    }
+    // Native: name, field values and features. Other values or features need a new consent
+    // (other client, other scopes), so the tokens are dropped and the connection waits.
+    if (conn.kind === "native") {
+      const plugin = plugins[conn.config?.native ?? ""]
+      if (!plugin) return c.json({ error: "unknown native plugin" }, 400)
+      const input = z
+        .object({
+          name: z.string().trim().min(1).optional(),
+          // An empty value keeps the current one.
+          fields: z.record(z.string(), z.string().trim()).optional(),
+          features: z.array(z.string()).optional(),
+        })
+        .safeParse(await c.req.json())
+      if (!input.success)
+        return c.json({ error: z.prettifyError(input.error) }, 400)
+      const { fields, features, ...rest } = input.data
+      const current = decrypt<Record<string, string>>(conn.secretEnc) ?? {}
+      const next = Object.fromEntries(
+        plugin.fields.map((f) => [
+          f.name,
+          fields?.[f.name] || current[f.name] || "",
+        ])
+      )
+      const missing = badRefs(Object.values(next), conn.projectId ?? "")
+      if (missing.length) return c.json({ error: refError(missing) }, 400)
+      const before = nativeFeatures(conn, plugin)
+      const on = features ? knownFeatures(plugin, features) : before
+      if (!on.length)
+        return c.json({ error: "choose at least one feature" }, 400)
+      const reauthorize =
+        plugin.fields.some((f) => next[f.name] !== (current[f.name] ?? "")) ||
+        on.join() !== before.join()
+      const [row] = await db
+        .update(connection)
+        .set({
+          ...rest,
+          url: nativeUrl(plugin, on),
+          config: { native: plugin.id, features: on },
+          secretEnc: encrypt(next),
+          ...(reauthorize
+            ? { tokensEnc: null, status: "pending" as const, lastError: null }
+            : {}),
+        })
+        .where(eq(connection.id, conn.id))
+        .returning()
+      return c.json(publicConnection(row))
     }
     // Remote MCP: the name and the fixed headers change; the URL stays.
     if (conn.kind === "mcp") {
@@ -730,7 +924,9 @@ export const admin = new Hono<AdminEnv>()
     const { tools } =
       conn.kind === "api"
         ? { tools: operations(conn) }
-        : await withUpstream(conn, (client) => client.listTools())
+        : conn.kind === "native"
+          ? { tools: nativeTools(conn) }
+          : await withUpstream(conn, (client) => client.listTools())
     return c.json(
       tools.map((t) => ({
         name: t.name,

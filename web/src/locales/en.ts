@@ -20,6 +20,16 @@ export const en = {
   "auth.tagline":
     "One door to every MCP server, API and secret your agents use",
 
+  "catalog.back": "Back",
+  "catalog.custom": "Custom",
+  "catalog.customDescription": "Any MCP server, HTTP API or local command",
+  "catalog.description":
+    "Pick a service to connect in one click, or set up a custom connection.",
+  "catalog.empty": "Nothing found. Use Custom to connect it by address.",
+  "catalog.getKey": "Where to get the key",
+  "catalog.oauthHint":
+    "Creating the connection opens {name} to sign in and authorize keyhall.",
+  "catalog.search": "Search services",
   "common.cancel": "Cancel",
   "common.copied": "Copied",
   "common.copy": "Copy",
@@ -92,6 +102,9 @@ export const en = {
   "kind.mcp": "Remote MCP",
   "kind.mcpDescription":
     "A remote MCP server (Streamable HTTP), authorized with OAuth right after you create it, or with a key under Advanced.",
+  "kind.native": "Native",
+  "kind.nativeDescription":
+    "Tools that keyhall implements itself, signed in with your own OAuth client.",
   "kind.stdio": "Local",
   "kind.stdioDescription":
     "A local MCP server (npx, node) that keyhall runs and proxies. Use only packages you trust: the process runs inside the keyhall server.",
@@ -112,6 +125,26 @@ export const en = {
     "Sent on every request to the server and encrypted in keyhall. A fixed Authorization replaces OAuth, for servers that take a key.",
   "mcp.removeHeader": "Remove header",
 
+  "native.badName":
+    "The client name takes uppercase letters, numbers and _, starting with a letter.",
+  "native.client": "OAuth client",
+  "native.clientName": "Name in the vault",
+  "native.clientNameHint":
+    "The values are saved as secrets of this project with the suffixes {names}, and any other connection can use them.",
+  "native.console": "Create the client in the console",
+  "native.editHint": "Pick another saved client, or add a new one.",
+  "native.guide": "Setup guide",
+  "native.nameTaken": "There are already secrets named {name} in this project.",
+  "native.newClient": "New client",
+  "native.newHint":
+    "Create an OAuth client (Web application) at the provider and paste its ID and secret here.",
+  "native.reauth": "Changing the client asks for sign-in again.",
+  "native.redirect": "Redirect URI",
+  "native.redirectHint":
+    "Add it to the authorized redirect URIs of your OAuth client (Web application).",
+  "native.savedClient": "Saved client",
+  "native.savedHint": "The same client can serve several connections.",
+  "native.usedBy": "{name} · used by {by}",
   "nav.connections": "Connections",
   "nav.manage": "Manage",
   "nav.menu": "Open menu",

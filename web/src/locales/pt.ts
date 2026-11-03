@@ -22,6 +22,18 @@ export const pt: Record<keyof typeof en, string> = {
   "auth.tagline":
     "Uma porta para cada servidor MCP, API e segredo que seus agentes usam",
 
+  "catalog.back": "Voltar",
+  "catalog.custom": "Personalizada",
+  "catalog.customDescription":
+    "Qualquer servidor MCP, API HTTP ou comando local",
+  "catalog.description":
+    "Escolha um serviço para conectar em um clique, ou crie uma conexão personalizada.",
+  "catalog.empty":
+    "Nada encontrado. Use Personalizada para conectar pelo endereço.",
+  "catalog.getKey": "Onde pegar a chave",
+  "catalog.oauthHint":
+    "Ao criar a conexão, o {name} abre para você entrar e autorizar o keyhall.",
+  "catalog.search": "Buscar serviços",
   "common.cancel": "Cancelar",
   "common.copied": "Copiado",
   "common.copy": "Copiar",
@@ -95,6 +107,9 @@ export const pt: Record<keyof typeof en, string> = {
   "kind.mcp": "MCP remoto",
   "kind.mcpDescription":
     "Servidor MCP remoto (Streamable HTTP), autorizado por OAuth logo depois de criado, ou por uma chave em Avançado.",
+  "kind.native": "Nativo",
+  "kind.nativeDescription":
+    "Ferramentas que o próprio keyhall implementa, com o seu cliente OAuth.",
   "kind.stdio": "Local",
   "kind.stdioDescription":
     "Servidor MCP local (npx, node) que o keyhall roda e repassa. Use só pacotes em que você confia: o processo roda dentro do servidor do keyhall.",
@@ -115,6 +130,26 @@ export const pt: Record<keyof typeof en, string> = {
     "Enviados em toda chamada ao servidor e cifrados no keyhall. Um Authorization fixo substitui o OAuth, para servidores que usam chave.",
   "mcp.removeHeader": "Remover cabeçalho",
 
+  "native.badName":
+    "O nome do cliente aceita letras maiúsculas, números e _, começando por uma letra.",
+  "native.client": "Cliente OAuth",
+  "native.clientName": "Nome no cofre",
+  "native.clientNameHint":
+    "Os valores são salvos como secrets deste projeto com os sufixos {names}, e outras conexões podem usá-los.",
+  "native.console": "Criar o cliente no console",
+  "native.editHint": "Escolha outro cliente salvo ou adicione um novo.",
+  "native.guide": "Guia de configuração",
+  "native.nameTaken": "Já existem secrets com o nome {name} neste projeto.",
+  "native.newClient": "Novo cliente",
+  "native.newHint":
+    "Crie um cliente OAuth (Aplicativo da Web) no provedor e cole aqui o ID e a chave secreta.",
+  "native.reauth": "Trocar o cliente pede o login de novo.",
+  "native.redirect": "URI de redirecionamento",
+  "native.redirectHint":
+    "Adicione nos URIs de redirecionamento autorizados do seu cliente OAuth (Aplicativo da Web).",
+  "native.savedClient": "Cliente salvo",
+  "native.savedHint": "O mesmo cliente pode servir várias conexões.",
+  "native.usedBy": "{name} · usado por {by}",
   "nav.connections": "Conexões",
   "nav.manage": "Gerenciar",
   "nav.menu": "Abrir menu",

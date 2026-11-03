@@ -4,6 +4,7 @@
 |---|---|
 | [Getting started](getting-started.md) | From install to an agent calling tools, step by step. |
 | [Concepts](concepts.md) | Organizations, projects, connections, scopes, tokens and secrets. |
+| [Google](google.md) | Gmail, Drive and Sheets with your own Google Cloud OAuth client. |
 
 | Run it | |
 |---|---|
