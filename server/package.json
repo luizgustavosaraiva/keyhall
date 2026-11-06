@@ -1,7 +1,7 @@
 {
   "name": "server",
   "private": true,
-  "license": "PolyForm-Noncommercial-1.0.0",
+  "license": "FSL-1.1-ALv2",
   "type": "module",
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=../.env src/index.ts",

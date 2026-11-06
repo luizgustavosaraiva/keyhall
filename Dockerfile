@@ -35,7 +35,7 @@ EXPOSE 8787
 LABEL org.opencontainers.image.title="keyhall" \
   org.opencontainers.image.description="Self-hosted hub for MCP servers, APIs and secrets" \
   org.opencontainers.image.source="https://github.com/luizgustavosaraiva/keyhall" \
-  org.opencontainers.image.licenses="PolyForm-Noncommercial-1.0.0"
+  org.opencontainers.image.licenses="FSL-1.1-ALv2"
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
   CMD ["node", "-e", "fetch('http://127.0.0.1:8787/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
 CMD ["node", "dist/index.js"]

@@ -16,8 +16,8 @@ welcome. Please read this page before opening an issue or a pull request.
 
 ## Licensing of contributions
 
-keyhall is distributed under the [PolyForm Noncommercial License 1.0.0](LICENSE), and the
-author also offers separate commercial licenses. To keep that possible, by submitting a
+keyhall is distributed under the [Functional Source License 1.1, Apache 2.0 Future
+License](LICENSE), and the author also offers separate licenses. To keep that possible, by submitting a
 contribution you agree that:
 
 1. you wrote it, or have the right to submit it, under the terms below

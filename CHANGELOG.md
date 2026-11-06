@@ -6,6 +6,13 @@ All notable changes to keyhall are documented here. The format is based on
 
 ## [Unreleased]
 
+### License
+
+- keyhall moves from the PolyForm Noncommercial License 1.0.0 to the **Functional Source License
+  1.1, Apache 2.0 Future License** (FSL-1.1-ALv2). Commercial use is allowed, except offering
+  keyhall to others in a competing commercial product or service, and each version becomes
+  Apache 2.0 two years after its release. Released versions keep their license.
+
 ### Added
 
 - **Connection catalog**: **New connection** opens a searchable catalog of well-known services
