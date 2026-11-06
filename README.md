@@ -16,7 +16,7 @@
   <img alt="Platforms" src="https://img.shields.io/badge/platforms-amd64%20%7C%20arm64-555">
   <img alt="Node.js" src="https://img.shields.io/badge/node-%E2%89%A524-339933?logo=nodedotjs&logoColor=white">
   <img alt="MCP" src="https://img.shields.io/badge/MCP-Streamable%20HTTP-F5A524">
-  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-blue"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-FSL--1.1--ALv2-blue"></a>
 </p>
 
 <p align="center"><img src="docs/images/connections.png" alt="Connections in the keyhall panel" width="860"></p>
@@ -111,6 +111,10 @@ privately, as described in [SECURITY.md](SECURITY.md). Changes are listed in the
 
 ## License
 
-[PolyForm Noncommercial 1.0.0](LICENSE). Free for personal use, research, education, and
-noncommercial organizations. **Commercial use requires a separate license** from the author:
-open an issue or reach out through [GitHub](https://github.com/luizgustavosaraiva).
+[Functional Source License 1.1, Apache 2.0 Future License](LICENSE) (FSL-1.1-ALv2). Use, modify
+and share keyhall for any purpose except offering it to others in a commercial product or
+service that competes with it. Each version becomes Apache 2.0 two years after its release.
+
+For a use the license doesn't cover, ask for a **separate license**: open an issue or reach out
+through [GitHub](https://github.com/luizgustavosaraiva). Code published before this license
+remains under the PolyForm Noncommercial License 1.0.0.
