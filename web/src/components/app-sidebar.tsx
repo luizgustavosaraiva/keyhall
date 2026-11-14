@@ -382,6 +382,18 @@ export function AppSidebar({
             >
               keyhall v{__APP_VERSION__}
             </a>
+            {/* Appropriate Legal Notices (AGPL-3.0, section 0) and the attribution in NOTICE. */}
+            <p className="text-muted-foreground px-2 pb-1.5 text-xs leading-relaxed">
+              {t("account.legal")}{" "}
+              <a
+                href="https://github.com/luizgustavosaraiva/keyhall"
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-foreground underline underline-offset-2"
+              >
+                {t("account.source")}
+              </a>
+            </p>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

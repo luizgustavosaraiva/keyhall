@@ -16,7 +16,7 @@
   <img alt="Platforms" src="https://img.shields.io/badge/platforms-amd64%20%7C%20arm64-555">
   <img alt="Node.js" src="https://img.shields.io/badge/node-%E2%89%A524-339933?logo=nodedotjs&logoColor=white">
   <img alt="MCP" src="https://img.shields.io/badge/MCP-Streamable%20HTTP-F5A524">
-  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-blue"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-AGPL--3.0-blue"></a>
 </p>
 
 <p align="center"><img src="docs/images/connections.png" alt="Connections in the keyhall panel" width="860"></p>
@@ -111,6 +111,12 @@ privately, as described in [SECURITY.md](SECURITY.md). Changes are listed in the
 
 ## License
 
-[PolyForm Noncommercial 1.0.0](LICENSE). Free for personal use, research, education, and
-noncommercial organizations. **Commercial use requires a separate license** from the author:
-open an issue or reach out through [GitHub](https://github.com/luizgustavosaraiva).
+[GNU AGPL 3.0](LICENSE), with the additional terms in [NOTICE](NOTICE). Use, modify and run
+keyhall for any purpose, including commercial ones. If you modify it and let others use it over
+a network, you must offer them the source of your version under the same license, and keep the
+"Based on keyhall" attribution in its interface. The license grants no rights to the keyhall
+name or logo.
+
+For other terms, ask for a **separate license**: open an issue or reach out through
+[GitHub](https://github.com/luizgustavosaraiva). Code published before this license remains
+under the PolyForm Noncommercial License 1.0.0.

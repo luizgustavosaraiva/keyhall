@@ -4,7 +4,10 @@ import type { en } from "./en"
 export const pt: Record<keyof typeof en, string> = {
   "account.changePassword": "Trocar senha",
   "account.language": "Idioma",
+  "account.legal":
+    "Baseado no keyhall de Luiz Gustavo Saraiva. Software livre sob a GNU AGPL 3.0, sem garantia.",
   "account.signOut": "Sair",
+  "account.source": "Código-fonte e licença",
   "account.theme": "Tema",
 
   "api.baseUrl": "URL base",

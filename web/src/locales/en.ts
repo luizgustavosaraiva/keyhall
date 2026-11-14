@@ -2,7 +2,10 @@
 export const en = {
   "account.changePassword": "Change password",
   "account.language": "Language",
+  "account.legal":
+    "Based on keyhall by Luiz Gustavo Saraiva. Free software under the GNU AGPL 3.0, with no warranty.",
   "account.signOut": "Sign out",
+  "account.source": "Source code and license",
   "account.theme": "Theme",
 
   "api.baseUrl": "Base URL",

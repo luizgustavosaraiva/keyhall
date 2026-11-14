@@ -1,0 +1,25 @@
+keyhall — Copyright (C) 2026 Luiz Gustavo Saraiva and contributors
+
+This repository is licensed under the GNU Affero General Public License version 3
+only (SPDX: AGPL-3.0-only), in LICENSE. Third-party components keep their own
+licenses.
+
+ADDITIONAL TERM UNDER AGPL-3.0 SECTION 7(b) (attribution)
+Every copy of this work, and every modified version or work based on it, that has
+an interactive user interface must keep this attribution in its Appropriate
+Legal Notices (section 0), where everyone who uses it, including remotely over a
+network, can find it from its settings or menus (such as an account menu or an
+About screen):
+
+    Based on keyhall by Luiz Gustavo Saraiva (https://github.com/luizgustavosaraiva/keyhall)
+
+You may show your own name, product name and branding next to it, and translate
+it, but you may not remove it, hide it, change its meaning or present the work as
+made only by you. Keeping it uses the name only to say where the work comes
+from; it grants no other right to the trademarks below.
+
+TRADEMARKS: this License grants no rights to "keyhall" or its logos
+(section 7(e)).
+
+SEPARATE LICENSES: the copyright holder may also license keyhall under other
+terms. Open an issue or reach out through https://github.com/luizgustavosaraiva.
