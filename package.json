@@ -7,7 +7,7 @@
     "url": "https://github.com/luizgustavosaraiva/keyhall.git"
   },
   "private": true,
-  "license": "PolyForm-Noncommercial-1.0.0",
+  "license": "AGPL-3.0-only",
   "type": "module",
   "engines": {
     "node": ">=24"

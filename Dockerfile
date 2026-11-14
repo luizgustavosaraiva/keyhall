@@ -29,13 +29,14 @@ COPY --from=build /app/server/drizzle ./drizzle
 COPY --from=build /app/web/dist /app/web/dist
 # Release version, read by the server for /api/health
 COPY --from=build /app/package.json /app/package.json
+COPY --from=build /app/LICENSE /app/NOTICE /app/
 RUN mkdir -p /data && chown node:node /data
 USER node
 EXPOSE 8787
 LABEL org.opencontainers.image.title="keyhall" \
   org.opencontainers.image.description="Self-hosted hub for MCP servers, APIs and secrets" \
   org.opencontainers.image.source="https://github.com/luizgustavosaraiva/keyhall" \
-  org.opencontainers.image.licenses="PolyForm-Noncommercial-1.0.0"
+  org.opencontainers.image.licenses="AGPL-3.0-only"
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
   CMD ["node", "-e", "fetch('http://127.0.0.1:8787/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
 CMD ["node", "dist/index.js"]

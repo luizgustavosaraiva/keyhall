@@ -6,6 +6,15 @@ All notable changes to keyhall are documented here. The format is based on
 
 ## [Unreleased]
 
+### License
+
+- keyhall moves from the PolyForm Noncommercial License 1.0.0 to the **GNU AGPL 3.0 only**,
+  with two terms in NOTICE: modified versions keep a "Based on keyhall" attribution in their
+  interface, and the license grants no rights to the keyhall name or logo. Any use is allowed,
+  commercial included; whoever runs a modified version for others over a network must offer
+  them its source. The account menu shows the license, the absence of warranty and a link to
+  the source. Released versions keep their license.
+
 ### Added
 
 - **Connection catalog**: **New connection** opens a searchable catalog of well-known services
