@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto"
 import type { Tool } from "@modelcontextprotocol/sdk/types.js"
 import type { NativeContext, NativePlugin, NativeTool } from "./types.js"
 
@@ -16,6 +17,7 @@ const endpoints = {
   gmail: testBase ? `${testBase}/gmail` : "https://gmail.googleapis.com",
   drive: testBase ? `${testBase}/drive` : "https://www.googleapis.com",
   sheets: testBase ? `${testBase}/sheets` : "https://sheets.googleapis.com",
+  calendar: testBase ? `${testBase}/calendar` : "https://www.googleapis.com",
 }
 
 // File and message bodies are cut here so one call doesn't flood the model's context.
@@ -791,6 +793,324 @@ const sheetsTools: NativeTool[] = [
   },
 ]
 
+// ---- Calendar ----
+
+const calendar = (path: string) => `${endpoints.calendar}/calendar/v3${path}`
+const calendarId = (v: unknown) => enc(str(v) || "primary")
+
+type CalendarTime = { dateTime?: string; date?: string; timeZone?: string }
+type CalendarEvent = {
+  id: string
+  status?: string
+  summary?: string
+  description?: string
+  location?: string
+  start?: CalendarTime
+  end?: CalendarTime
+  htmlLink?: string
+  hangoutLink?: string
+  organizer?: { email?: string }
+  attendees?: { email?: string; responseStatus?: string; self?: boolean }[]
+  recurringEventId?: string
+}
+
+// What the model needs from an event; the API's full object is mostly bookkeeping.
+const eventSummary = (e: CalendarEvent) => ({
+  id: e.id,
+  summary: e.summary ?? "",
+  start: e.start?.dateTime ?? e.start?.date,
+  end: e.end?.dateTime ?? e.end?.date,
+  allDay: Boolean(e.start?.date),
+  ...(e.location ? { location: e.location } : {}),
+  ...(e.description ? { description: cut(e.description) } : {}),
+  ...(e.hangoutLink ? { meet: e.hangoutLink } : {}),
+  ...(e.attendees?.length
+    ? {
+        attendees: e.attendees.map((a) => ({
+          email: a.email,
+          response: a.responseStatus,
+        })),
+      }
+    : {}),
+  ...(e.organizer?.email ? { organizer: e.organizer.email } : {}),
+  ...(e.recurringEventId ? { recurringEventId: e.recurringEventId } : {}),
+  status: e.status,
+  link: e.htmlLink,
+})
+
+// "2026-11-20" is an all-day date; anything with a time is a moment.
+const when = (v: unknown, timeZone: string): CalendarTime | undefined => {
+  const value = str(v)
+  if (!value) return undefined
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return { date: value }
+  return timeZone ? { dateTime: value, timeZone } : { dateTime: value }
+}
+
+const calendarProp = {
+  type: "string",
+  description: 'Calendar id from calendar_list_calendars; default "primary"',
+}
+const sendUpdatesProp = {
+  type: "string",
+  enum: ["all", "externalOnly", "none"],
+  description: 'Who gets an email about the change; default "none"',
+}
+const eventProps = {
+  calendarId: calendarProp,
+  summary: { type: "string", description: "Title" },
+  description: { type: "string" },
+  location: { type: "string" },
+  start: {
+    type: "string",
+    description:
+      'RFC 3339 time with offset (e.g. "2026-11-20T14:00:00-03:00"), or a date ("2026-11-20") for an all-day event',
+  },
+  end: {
+    type: "string",
+    description:
+      "Same format as start; for all-day events, the day after the last day",
+  },
+  timeZone: {
+    type: "string",
+    description: 'IANA zone for start and end, e.g. "America/Sao_Paulo"',
+  },
+  attendees: {
+    type: "array",
+    items: { type: "string" },
+    description: "Guest emails",
+  },
+  meet: { type: "boolean", description: "Add a Google Meet link" },
+  sendUpdates: sendUpdatesProp,
+}
+
+// The event body from the arguments given; only what was passed changes on update.
+function eventBody(args: Args) {
+  const timeZone = str(args.timeZone)
+  const body: Record<string, unknown> = {}
+  for (const key of ["summary", "description", "location"])
+    if (args[key] !== undefined) body[key] = str(args[key])
+  const start = when(args.start, timeZone)
+  const end = when(args.end, timeZone)
+  if (start) body.start = start
+  if (end) body.end = end
+  if (args.attendees !== undefined)
+    body.attendees = list(args.attendees).map((email) => ({ email }))
+  if (args.meet)
+    body.conferenceData = {
+      createRequest: {
+        requestId: randomUUID(),
+        conferenceSolutionKey: { type: "hangoutsMeet" },
+      },
+    }
+  return body
+}
+
+const writeQuery = (args: Args) =>
+  `conferenceDataVersion=1&sendUpdates=${enc(str(args.sendUpdates) || "none")}`
+
+const calendarTools: NativeTool[] = [
+  {
+    feature: "calendar",
+    tool: {
+      name: "calendar_list_calendars",
+      description:
+        "Calendars the account sees (its own, shared and subscribed), with their ids, time zones and access.",
+      inputSchema: schema({}),
+      annotations: READ,
+    },
+    run: async (ctx) => {
+      const res = await ctx.json<{
+        items?: {
+          id: string
+          summary?: string
+          primary?: boolean
+          accessRole?: string
+          timeZone?: string
+        }[]
+      }>(
+        calendar(
+          `/users/me/calendarList?fields=${enc("items(id,summary,primary,accessRole,timeZone)")}`
+        )
+      )
+      return res.items ?? []
+    },
+  },
+  {
+    feature: "calendar",
+    tool: {
+      name: "calendar_list_events",
+      description:
+        "Events in a time window, soonest first, recurring events expanded into each occurrence. Defaults to the next 7 days of the primary calendar.",
+      inputSchema: schema({
+        calendarId: calendarProp,
+        timeMin: {
+          type: "string",
+          description: "RFC 3339 start of the window; default now",
+        },
+        timeMax: {
+          type: "string",
+          description: "RFC 3339 end of the window; default 7 days later",
+        },
+        query: {
+          type: "string",
+          description: "Words in the title, description, location or guests",
+        },
+        maxResults: { type: "integer", description: "1 to 250, default 50" },
+      }),
+      annotations: READ,
+    },
+    run: async (ctx, args) => {
+      const from = str(args.timeMin) || new Date().toISOString()
+      const to =
+        str(args.timeMax) ||
+        new Date(Date.parse(from) + 7 * 86_400_000).toISOString()
+      const params = new URLSearchParams({
+        timeMin: from,
+        timeMax: to,
+        singleEvents: "true",
+        orderBy: "startTime",
+        maxResults: String(clampInt(args.maxResults, 1, 250, 50)),
+      })
+      if (args.query) params.set("q", str(args.query))
+      const res = await ctx.json<{ items?: CalendarEvent[] }>(
+        calendar(`/calendars/${calendarId(args.calendarId)}/events?${params}`)
+      )
+      return (res.items ?? []).map(eventSummary)
+    },
+  },
+  {
+    feature: "calendar",
+    tool: {
+      name: "calendar_get_event",
+      description: "One event, with its description, guests and Meet link.",
+      inputSchema: schema(
+        { calendarId: calendarProp, eventId: { type: "string" } },
+        ["eventId"]
+      ),
+      annotations: READ,
+    },
+    run: async (ctx, args) =>
+      eventSummary(
+        await ctx.json<CalendarEvent>(
+          calendar(
+            `/calendars/${calendarId(args.calendarId)}/events/${enc(str(args.eventId))}`
+          )
+        )
+      ),
+  },
+  {
+    feature: "calendar",
+    tool: {
+      name: "calendar_free_busy",
+      description:
+        "Busy intervals of one or more calendars in a window, to find a free slot.",
+      inputSchema: schema(
+        {
+          timeMin: { type: "string", description: "RFC 3339" },
+          timeMax: { type: "string", description: "RFC 3339" },
+          calendarIds: {
+            type: "array",
+            items: { type: "string" },
+            description: 'Default ["primary"]',
+          },
+          timeZone: { type: "string" },
+        },
+        ["timeMin", "timeMax"]
+      ),
+      annotations: READ,
+    },
+    run: async (ctx, args) => {
+      const ids = list(args.calendarIds)
+      const res = await ctx.json<{
+        calendars?: Record<string, { busy?: unknown[]; errors?: unknown[] }>
+      }>(calendar("/freeBusy"), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          timeMin: str(args.timeMin),
+          timeMax: str(args.timeMax),
+          ...(args.timeZone ? { timeZone: str(args.timeZone) } : {}),
+          items: (ids.length ? ids : ["primary"]).map((id) => ({ id })),
+        }),
+      })
+      return res.calendars ?? {}
+    },
+  },
+  {
+    feature: "calendar",
+    tool: {
+      name: "calendar_create_event",
+      description:
+        "Create an event, optionally with guests and a Google Meet link. Guests get no email unless sendUpdates says so.",
+      inputSchema: schema(eventProps, ["summary", "start", "end"]),
+      annotations: WRITE,
+    },
+    run: async (ctx, args) =>
+      eventSummary(
+        await ctx.json<CalendarEvent>(
+          calendar(
+            `/calendars/${calendarId(args.calendarId)}/events?${writeQuery(args)}`
+          ),
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(eventBody(args)),
+          }
+        )
+      ),
+  },
+  {
+    feature: "calendar",
+    tool: {
+      name: "calendar_update_event",
+      description:
+        "Change an event: only the fields given change. attendees replaces the guest list.",
+      inputSchema: schema({ eventId: { type: "string" }, ...eventProps }, [
+        "eventId",
+      ]),
+      annotations: WRITE,
+    },
+    run: async (ctx, args) =>
+      eventSummary(
+        await ctx.json<CalendarEvent>(
+          calendar(
+            `/calendars/${calendarId(args.calendarId)}/events/${enc(str(args.eventId))}?${writeQuery(args)}`
+          ),
+          {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(eventBody(args)),
+          }
+        )
+      ),
+  },
+  {
+    feature: "calendar",
+    tool: {
+      name: "calendar_delete_event",
+      description: "Delete an event (cancels it for the guests).",
+      inputSchema: schema(
+        {
+          calendarId: calendarProp,
+          eventId: { type: "string" },
+          sendUpdates: sendUpdatesProp,
+        },
+        ["eventId"]
+      ),
+      annotations: { ...WRITE, destructiveHint: true },
+    },
+    run: async (ctx, args) => {
+      await ctx.fetch(
+        calendar(
+          `/calendars/${calendarId(args.calendarId)}/events/${enc(str(args.eventId))}?sendUpdates=${enc(str(args.sendUpdates) || "none")}`
+        ),
+        { method: "DELETE" }
+      )
+      return { deleted: str(args.eventId) }
+    },
+  },
+]
+
 // Least scopes that cover each feature's tools. drive.readonly reads every file; drive.file
 // writes only files keyhall created, so existing files can't be overwritten through it.
 const SCOPES: Record<string, string[]> = {
@@ -800,9 +1120,15 @@ const SCOPES: Record<string, string[]> = {
     "https://www.googleapis.com/auth/drive.file",
   ],
   sheets: ["https://www.googleapis.com/auth/spreadsheets"],
+  // Events on every calendar, the calendar list and free/busy; no calendar settings or sharing.
+  calendar: [
+    "https://www.googleapis.com/auth/calendar.events",
+    "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
+    "https://www.googleapis.com/auth/calendar.freebusy",
+  ],
 }
 
-// Gmail, Drive and Sheets over Google's REST APIs, with the admin's own OAuth client. Google's
+// Gmail, Drive, Sheets and Calendar over Google's REST APIs, with the admin's own OAuth client. Google's
 // MCP servers need a Workspace account in the Developer Preview, so personal accounts go here.
 export const google: NativePlugin = {
   id: "google",
@@ -850,6 +1176,14 @@ export const google: NativePlugin = {
         pt: "ler e escrever planilhas",
       },
     },
+    {
+      id: "calendar",
+      label: { en: "Google Calendar", pt: "Google Agenda" },
+      hint: {
+        en: "events, free/busy, Meet links",
+        pt: "eventos, horários livres, links do Meet",
+      },
+    },
   ],
   oauth: (values, features) => ({
     authorizeUrl: endpoints.authorize,
@@ -870,5 +1204,5 @@ export const google: NativePlugin = {
     accountUrl: endpoints.userinfo,
     accountField: "email",
   }),
-  tools: [...gmailTools, ...driveTools, ...sheetsTools],
+  tools: [...gmailTools, ...driveTools, ...sheetsTools, ...calendarTools],
 }

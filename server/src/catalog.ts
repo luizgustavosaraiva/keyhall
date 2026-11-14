@@ -194,6 +194,33 @@ export const catalog: CatalogEntry[] = [
     },
   },
   {
+    slug: "google-calendar",
+    name: "Google Calendar",
+    iconUrl:
+      "https://ssl.gstatic.com/images/branding/product/2x/calendar_2020q4_48dp.png",
+    category: "productivity",
+    tagline: {
+      en: "Events, free/busy and Meet links",
+      pt: "Eventos, horários livres e links do Meet",
+    },
+    website: "https://calendar.google.com",
+    connect: {
+      kind: "native",
+      plugin: "google",
+      features: ["calendar"],
+      guide: GOOGLE_GUIDE,
+      links: [
+        {
+          label: {
+            en: "Enable the Google Calendar API",
+            pt: "Ativar a Google Calendar API",
+          },
+          url: "https://console.cloud.google.com/apis/library/calendar-json.googleapis.com",
+        },
+      ],
+    },
+  },
+  {
     slug: "notion",
     name: "Notion",
     iconUrl: "https://www.notion.so/images/favicon.ico",

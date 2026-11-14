@@ -1,6 +1,7 @@
-# Google (Gmail, Drive, Sheets)
+# Google (Gmail, Drive, Sheets, Calendar)
 
-Gmail, Google Drive and Google Sheets are in the connection catalog as a **native plugin**: keyhall
+Gmail, Google Drive, Google Sheets and Google Calendar are in the connection catalog as a
+**native plugin**: keyhall
 calls Google's REST APIs itself, with an OAuth client that you create in your own Google Cloud
 project. It works with personal `@gmail.com` accounts as well as Google Workspace ones.
 
@@ -15,12 +16,18 @@ client registration either, so keyhall can't add them as remote MCP connections.
 | Gmail | `gmail_search`, `gmail_read_message`, `gmail_read_thread`, `gmail_create_draft`, `gmail_send`, `gmail_list_labels`, `gmail_modify_labels` | `gmail.modify` |
 | Drive | `drive_search`, `drive_read_file`, `drive_create_file`, `drive_update_file` | `drive.readonly`, `drive.file` |
 | Sheets | `sheets_get`, `sheets_read`, `sheets_write`, `sheets_append`, `sheets_clear`, `sheets_create`, `sheets_add_tab` | `spreadsheets` |
+| Calendar | `calendar_list_calendars`, `calendar_list_events`, `calendar_get_event`, `calendar_free_busy`, `calendar_create_event`, `calendar_update_event`, `calendar_delete_event` | `calendar.events`, `calendar.calendarlist.readonly`, `calendar.freebusy` |
 
 `openid` and `email` are always requested, so the panel can show which account is connected.
 
 Drive can read every file but can only change files that keyhall itself created (`drive.file`).
 `drive_read_file` exports Google Docs and Slides as text and Google Sheets as CSV. Message and file
 bodies are cut at 100,000 characters.
+
+Calendar reads and changes events on every calendar the account sees, but not calendar settings
+or sharing. `calendar_list_events` defaults to the next 7 days of the primary calendar and
+expands recurring events. Created and changed events email the guests only when `sendUpdates`
+asks for it; `meet: true` adds a Google Meet link.
 
 As with any connection, a scope can limit which of these tools a token sees. For example, a bot
 can search and read Gmail without being able to send.
@@ -32,7 +39,8 @@ can search and read Gmail without being able to send.
 2. Enable the APIs of the services you'll use. Use **APIs & Services → Library**, or run:
 
    ```sh
-   gcloud services enable gmail.googleapis.com drive.googleapis.com sheets.googleapis.com
+   gcloud services enable gmail.googleapis.com drive.googleapis.com sheets.googleapis.com \
+     calendar-json.googleapis.com
    ```
 
 ## 2. Consent screen
@@ -62,11 +70,12 @@ In **Google Auth Platform**:
 
 ## 4. Connections in keyhall
 
-Gmail, Google Drive and Google Sheets are separate cards in the catalog. Each card makes a
+Gmail, Google Drive, Google Sheets and Google Calendar are separate cards in the catalog. Each card makes a
 connection with only that service's tools and scopes, so Google's consent screen asks only for
 what that connection uses.
 
-1. **Connections → New connection**, then pick **Gmail**, **Google Drive** or **Google Sheets**.
+1. **Connections → New connection**, then pick **Gmail**, **Google Drive**, **Google Sheets** or
+   **Google Calendar**.
 2. Under **OAuth client**:
    - the first time, choose **New client**. Give it a name in the vault (default `GOOGLE`)
      and paste the client ID and secret. keyhall saves them as the project secrets

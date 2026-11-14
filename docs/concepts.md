@@ -31,7 +31,7 @@ Something keyhall reaches on behalf of your consumers. Four kinds:
 | **Remote MCP** | An MCP server over Streamable HTTP, e.g. `https://mcp.example.com/mcp`. | OAuth, done once in the browser from the panel; or fixed headers under **Advanced**, e.g. `Authorization: Bearer {{secret:KEY}}`, encrypted; or none. keyhall refreshes OAuth tokens. |
 | **Local** | An MCP server started by a command (`npx -y some-mcp-server`), pasted as the `mcpServers` JSON that READMEs show for Claude Desktop or Cursor. | Environment variables, encrypted. |
 | **HTTP API** | Any HTTP API with a fixed key. With an OpenAPI 3 spec, each operation becomes an MCP tool. | A header (e.g. `Authorization: Bearer …`), encrypted. |
-| **Native** | Tools that keyhall implements itself, for services without a usable MCP server. Today: Gmail, Drive and Sheets ([Google](google.md)). | Your own OAuth client (ID and secret, encrypted), and a sign-in done once from the panel. keyhall refreshes the tokens. |
+| **Native** | Tools that keyhall implements itself, for services without a usable MCP server. Today: Gmail, Drive, Sheets and Calendar ([Google](google.md)). | Your own OAuth client (ID and secret, encrypted), and a sign-in done once from the panel. keyhall refreshes the tokens. |
 
 ### Catalog
 

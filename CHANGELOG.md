@@ -17,8 +17,8 @@ All notable changes to keyhall are documented here. The format is based on
   connected, amber while waiting for sign-in), also for connections made with the custom form
   at the same address.
 - **Native plugins**: tools that keyhall implements itself, behind one interface (fields,
-  features, OAuth 2.0 with the admin's own client, tools). The first is Google: Gmail, Drive
-  and Sheets over the REST APIs. It works with personal Gmail accounts, which Google's own MCP
+  features, OAuth 2.0 with the admin's own client, tools). The first is Google: Gmail, Drive,
+  Sheets and Calendar over the REST APIs. It works with personal Gmail accounts, which Google's own MCP
   servers don't accept. Each feature requests only the scopes its tools need, and the client
   secret may be a vault reference. Setup guide in [docs/google.md](docs/google.md).
 - **Code Mode**, a tool mode per token, and the default for new tokens. The consumer sees two

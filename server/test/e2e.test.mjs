@@ -62,9 +62,16 @@ const remote = createServer(async (req, res) => {
   await transport.handleRequest(req, res)
 })
 
-// Fake Google: OAuth token endpoint, userinfo, and the few Gmail and Sheets routes the tools use.
+// Fake Google: OAuth token endpoint, userinfo, and the few Gmail, Sheets and Calendar routes the
+// tools use.
 // Access tokens expire at once, so every call makes keyhall refresh first.
-const google = { refreshes: 0, sent: undefined, codes: new Set(["good-code"]) }
+const google = {
+  refreshes: 0,
+  sent: undefined,
+  event: undefined,
+  eventQuery: undefined,
+  codes: new Set(["good-code"]),
+}
 const googleServer = createServer(async (req, res) => {
   let raw = ""
   for await (const chunk of req) raw += chunk
@@ -124,6 +131,33 @@ const googleServer = createServer(async (req, res) => {
       range: decodeURIComponent(url.pathname.split("/values/")[1]),
       values: [["a", "1"]],
     })
+  const events = "/calendar/calendar/v3/calendars/primary/events"
+  if (url.pathname === events && req.method === "GET")
+    return json(200, {
+      items: [
+        {
+          id: "e1",
+          status: "confirmed",
+          summary: "Reunião",
+          start: { dateTime: "2026-11-20T14:00:00-03:00" },
+          end: { dateTime: "2026-11-20T15:00:00-03:00" },
+          attendees: [{ email: "ana@example.com", responseStatus: "accepted" }],
+          htmlLink: "https://calendar.google.com/e1",
+          etag: "x",
+        },
+      ],
+      query: url.search,
+    })
+  if (url.pathname === events && req.method === "POST") {
+    google.event = JSON.parse(raw)
+    google.eventQuery = url.searchParams
+    return json(200, {
+      id: "e2",
+      status: "confirmed",
+      ...google.event,
+      hangoutLink: "https://meet.google.com/abc-defg-hij",
+    })
+  }
   json(404, { error: { message: `no route ${url.pathname}` } })
 })
 
@@ -735,7 +769,7 @@ describe("keyhall", () => {
     assert.equal(none.status, 404)
     assert.deepEqual(
       res.json.native.google.features.map((f) => f.id),
-      ["gmail", "drive", "sheets"]
+      ["gmail", "drive", "sheets", "calendar"]
     )
     const bad = await call("/api/admin/connections", {
       method: "POST",
@@ -899,5 +933,102 @@ describe("keyhall", () => {
     assert.equal(changed.json.status, "pending", changed.text)
     assert.equal(changed.json.native.account, null)
     assert.ok(!JSON.stringify(changed.json).includes("g-secret"))
+  })
+
+  test("Google Calendar: its own scopes, events listed and created with a Meet link", async () => {
+    const created = await call("/api/admin/connections", {
+      method: "POST",
+      admin: true,
+      body: {
+        kind: "native",
+        native: "google",
+        plugin: "google-calendar",
+        projectId: "prj-default",
+        name: "Agenda",
+        slug: "agenda",
+        fields: {
+          clientId: "g-client.apps.googleusercontent.com",
+          clientSecret: "{{secret:G_SECRET}}",
+        },
+      },
+    })
+    assert.equal(created.status, 201, created.text)
+    assert.deepEqual(created.json.native.features, ["calendar"])
+    const start = await call(
+      `/api/admin/connections/${created.json.id}/connect`,
+      { method: "POST", admin: true }
+    )
+    const consent = new URL(start.json.authorizationUrl)
+    const scopes = consent.searchParams.get("scope").split(" ")
+    assert.deepEqual(scopes.filter((s) => s.includes("/auth/")).sort(), [
+      "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
+      "https://www.googleapis.com/auth/calendar.events",
+      "https://www.googleapis.com/auth/calendar.freebusy",
+    ])
+    await fetch(
+      `${base}/api/oauth/callback?code=good-code&state=${consent.searchParams.get("state")}`,
+      { headers: { cookie }, redirect: "manual" }
+    )
+
+    const token = (
+      await call("/api/admin/tokens", {
+        method: "POST",
+        admin: true,
+        body: {
+          name: "agenda",
+          target: { kind: "project", id: "prj-default" },
+        },
+      })
+    ).json.key
+    const names = (await mcp(token, "tools/list")).result.tools.map(
+      (t) => t.name
+    )
+    assert.ok(names.includes("agenda__calendar_create_event"), names.join(", "))
+    assert.ok(!names.some((n) => n.startsWith("agenda__gmail_")))
+
+    const listed = await mcp(token, "tools/call", {
+      name: "agenda__calendar_list_events",
+      arguments: { query: "reunião" },
+    })
+    assert.ok(!listed.result.isError, listed.result.content[0].text)
+    const [event] = JSON.parse(listed.result.content[0].text)
+    assert.deepEqual(event, {
+      id: "e1",
+      summary: "Reunião",
+      start: "2026-11-20T14:00:00-03:00",
+      end: "2026-11-20T15:00:00-03:00",
+      allDay: false,
+      attendees: [{ email: "ana@example.com", response: "accepted" }],
+      status: "confirmed",
+      link: "https://calendar.google.com/e1",
+    })
+
+    const made = await mcp(token, "tools/call", {
+      name: "agenda__calendar_create_event",
+      arguments: {
+        summary: "Café",
+        start: "2026-11-21T09:00:00",
+        end: "2026-11-21T09:30:00",
+        timeZone: "America/Sao_Paulo",
+        attendees: ["bia@example.com"],
+        meet: true,
+      },
+    })
+    assert.ok(!made.result.isError, made.result.content[0].text)
+    assert.equal(
+      JSON.parse(made.result.content[0].text).meet,
+      "https://meet.google.com/abc-defg-hij"
+    )
+    assert.deepEqual(google.event.start, {
+      dateTime: "2026-11-21T09:00:00",
+      timeZone: "America/Sao_Paulo",
+    })
+    assert.deepEqual(google.event.attendees, [{ email: "bia@example.com" }])
+    assert.equal(
+      google.event.conferenceData.createRequest.conferenceSolutionKey.type,
+      "hangoutsMeet"
+    )
+    assert.equal(google.eventQuery.get("conferenceDataVersion"), "1")
+    assert.equal(google.eventQuery.get("sendUpdates"), "none")
   })
 })
