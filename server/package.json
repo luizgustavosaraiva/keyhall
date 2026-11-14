@@ -24,7 +24,7 @@
     "better-auth": "^1.7.14",
     "better-sqlite3": "^13.0.3",
     "drizzle-orm": "^0.45.4",
-    "hono": "^4.13.14",
+    "hono": "^4.13.16",
     "quickjs-emscripten-core": "0.32.0",
     "undici": "^8.12.3",
     "zod": "^4.6.7"
