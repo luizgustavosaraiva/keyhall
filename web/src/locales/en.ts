@@ -10,15 +10,23 @@ export const en = {
 
   "api.baseUrl": "Base URL",
   "api.editHint":
-    "Leave the key blank to keep the current one. Saving downloads the spec again.",
+    "Leave the key blank to keep the current one. With a URL, saving downloads the spec again.",
   "api.header": "Key header",
   "api.key": "API key",
   "api.prefix": "Prefix",
   "api.prefixHint":
     'Goes before the key: "Bearer " for Authorization, empty when the header carries only the key.',
-  "api.spec": "OpenAPI spec (URL)",
+  "api.spec": "OpenAPI spec",
+  "api.specChoose": "Choose a JSON file or drop it here",
+  "api.specCurrent": "Uploaded file in use. Choose another to replace it.",
+  "api.specFile": "File",
+  "api.specFileHint":
+    "An OpenAPI 3 JSON file. Upload a trimmed copy with only the routes you want: each operation becomes an MCP tool you can allow per scope.",
   "api.specHint":
     "Each operation becomes an MCP tool you can allow per scope. Without a spec, the API is only reachable through /api/proxy, as a whole.",
+  "api.specInvalid": "This file is not an OpenAPI 3 spec in JSON.",
+  "api.specOperations": "{n} operations",
+  "api.specOperations_one": "1 operation",
 
   "auth.tagline":
     "One door to every MCP server, API and secret your agents use",

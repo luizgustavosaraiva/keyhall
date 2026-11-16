@@ -17,6 +17,9 @@ All notable changes to keyhall are documented here. The format is based on
 
 ### Added
 
+- **OpenAPI spec from a file**: an HTTP API connection takes its spec as a URL or as an
+  uploaded JSON file (pick or drop it in the form). A file stays as uploaded, so a trimmed copy
+  exposes only the routes you want; uploading another file or entering a URL replaces it.
 - **Connection catalog**: **New connection** opens a searchable catalog of well-known services
   with their own icons, such as Notion, Linear, Atlassian, Cloudflare, Sentry, Stripe and
   Supabase. One click fills in the address or command, and the form asks only for what that

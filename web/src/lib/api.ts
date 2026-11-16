@@ -81,6 +81,8 @@ export type Connection = {
   authHeader: string | null
   authPrefix: string | null
   specUrl: string | null
+  // Where the API's tools come from: a URL fetched on save, or an uploaded file.
+  specSource: "url" | "file" | null
   hasSecret: boolean
   // The API key, when it's a vault reference ({{secret:NAME}}).
   secretRef: string | null
