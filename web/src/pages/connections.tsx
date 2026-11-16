@@ -3,6 +3,7 @@ import {
   ArrowRightLeftIcon,
   ChevronDownIcon,
   ExternalLinkIcon,
+  FileJsonIcon,
   GlobeIcon,
   Loader2Icon,
   MoreHorizontalIcon,
@@ -84,6 +85,7 @@ import {
   stdioExample,
 } from "@/lib/mcp-config"
 import { slugify } from "@/lib/slug"
+import { cn } from "@/lib/utils"
 
 type Kind = Connection["kind"]
 
@@ -93,12 +95,146 @@ type Vault = { projectId: string; projects: Project[]; secrets: Secret[] }
 // Empty fields aren't sent: when editing, they keep the current value.
 function apiBody(form: FormData) {
   return Object.fromEntries(
-    ["authHeader", "authPrefix", "secret", "specUrl"].flatMap((key) => {
+    ["authHeader", "authPrefix", "secret", "specUrl", "spec"].flatMap((key) => {
       const value = form.get(key)
       // The prefix may be empty on purpose (e.g. a header with just the key).
       if (key === "authPrefix" && value !== null) return [[key, value]]
       return value ? [[key, value]] : []
     })
+  )
+}
+
+// Operations in an OpenAPI 3 spec, or null when the text isn't one.
+function countOperations(text: string) {
+  try {
+    const spec = JSON.parse(text)
+    if (typeof spec?.openapi !== "string" || typeof spec.paths !== "object")
+      return null
+    return Object.values(spec.paths as Record<string, object>).reduce(
+      (n, item) =>
+        n +
+        ["get", "post", "put", "patch", "delete"].filter(
+          (m) => item && m in item
+        ).length,
+      0
+    )
+  } catch {
+    return null
+  }
+}
+
+// The spec comes from a URL (fetched on every save) or from a JSON file, e.g. a trimmed copy
+// with only the routes to expose. A file goes in the hidden "spec" field as text.
+function SpecField({ connection }: { connection?: Connection }) {
+  const { t } = useI18n()
+  const [mode, setMode] = useState<"url" | "file">(
+    connection?.specSource === "file" ? "file" : "url"
+  )
+  const [file, setFile] = useState<{
+    name: string
+    text: string
+    ops: number
+  }>()
+  const [error, setError] = useState<string>()
+  const [over, setOver] = useState(false)
+
+  async function load(picked?: File) {
+    if (!picked) return
+    const text = await picked.text()
+    const ops = countOperations(text)
+    if (ops === null) {
+      setFile(undefined)
+      setError(t("api.specInvalid"))
+      return
+    }
+    setError(undefined)
+    setFile({ name: picked.name, text, ops })
+  }
+
+  return (
+    <Field>
+      <FieldLabel htmlFor={mode === "url" ? "a-spec" : "a-spec-file"}>
+        {t("api.spec")}
+      </FieldLabel>
+      <Segmented
+        aria-label={t("api.spec")}
+        value={mode}
+        onChange={setMode}
+        options={[
+          { value: "url", label: "URL", icon: <GlobeIcon /> },
+          { value: "file", label: t("api.specFile"), icon: <FileJsonIcon /> },
+        ]}
+      />
+      {mode === "url" ? (
+        <Input
+          id="a-spec"
+          name="specUrl"
+          type="url"
+          defaultValue={connection?.specUrl ?? undefined}
+          placeholder="https://…/openapi.json"
+        />
+      ) : (
+        <>
+          {file && <input type="hidden" name="spec" value={file.text} />}
+          <label
+            htmlFor="a-spec-file"
+            onDragOver={(e) => {
+              e.preventDefault()
+              setOver(true)
+            }}
+            onDragLeave={() => setOver(false)}
+            onDrop={(e) => {
+              e.preventDefault()
+              setOver(false)
+              load(e.dataTransfer.files[0])
+            }}
+            className={cn(
+              "border-input hover:bg-muted/50 has-focus-visible:ring-ring/50 flex cursor-pointer items-center gap-3 rounded-lg border border-dashed px-3 py-3 text-sm transition-colors has-focus-visible:ring-3",
+              over && "bg-muted/50 border-ring",
+              error && "border-destructive"
+            )}
+          >
+            <FileJsonIcon className="text-muted-foreground size-5 shrink-0" />
+            <span className="min-w-0 flex-1">
+              {file ? (
+                <>
+                  <span className="block truncate font-medium">
+                    {file.name}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {t("api.specOperations", { n: file.ops })}
+                  </span>
+                </>
+              ) : connection?.specSource === "file" ? (
+                <span className="text-muted-foreground">
+                  {t("api.specCurrent")}
+                </span>
+              ) : (
+                <span className="text-muted-foreground">
+                  {t("api.specChoose")}
+                </span>
+              )}
+            </span>
+            <input
+              id="a-spec-file"
+              type="file"
+              accept=".json,application/json"
+              className="sr-only"
+              required={!connection && mode === "file" && !file}
+              onChange={(e) => load(e.target.files?.[0])}
+            />
+          </label>
+          {error && (
+            <p role="alert" className="text-destructive text-sm">
+              {error}
+            </p>
+          )}
+        </>
+      )}
+      <FieldDescription>
+        {mode === "file" ? t("api.specFileHint") : t("api.specHint")}
+      </FieldDescription>
+    </Field>
   )
 }
 
@@ -151,17 +287,7 @@ function ApiFields({
           {...vault}
         />
       </Field>
-      <Field>
-        <FieldLabel htmlFor="a-spec">{t("api.spec")}</FieldLabel>
-        <Input
-          id="a-spec"
-          name="specUrl"
-          type="url"
-          defaultValue={connection?.specUrl ?? undefined}
-          placeholder="https://…/openapi.json"
-        />
-        <FieldDescription>{t("api.specHint")}</FieldDescription>
-      </Field>
+      <SpecField connection={connection} />
     </>
   )
 }

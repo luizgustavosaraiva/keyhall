@@ -12,15 +12,23 @@ export const pt: Record<keyof typeof en, string> = {
 
   "api.baseUrl": "URL base",
   "api.editHint":
-    "Deixe a chave em branco para manter a atual. Salvar baixa a especificação de novo.",
+    "Deixe a chave em branco para manter a atual. Com URL, salvar baixa a especificação de novo.",
   "api.header": "Cabeçalho da chave",
   "api.key": "Chave da API",
   "api.prefix": "Prefixo",
   "api.prefixHint":
     'Vai antes da chave: "Bearer " para Authorization, vazio quando o cabeçalho leva só a chave.',
-  "api.spec": "Especificação OpenAPI (URL)",
+  "api.spec": "Especificação OpenAPI",
+  "api.specChoose": "Escolha um arquivo JSON ou solte aqui",
+  "api.specCurrent": "Arquivo enviado em uso. Escolha outro para substituir.",
+  "api.specFile": "Arquivo",
+  "api.specFileHint":
+    "Um arquivo JSON OpenAPI 3. Envie uma cópia só com as rotas que você quer: cada operação vira uma ferramenta MCP que pode ser liberada por escopo.",
   "api.specHint":
     "Cada operação vira uma ferramenta MCP que pode ser liberada por escopo. Sem especificação, a API só passa pela rota /api/proxy, inteira.",
+  "api.specInvalid": "Este arquivo não é uma especificação OpenAPI 3 em JSON.",
+  "api.specOperations": "{n} operações",
+  "api.specOperations_one": "1 operação",
 
   "auth.tagline":
     "Uma porta para cada servidor MCP, API e segredo que seus agentes usam",

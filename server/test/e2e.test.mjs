@@ -751,6 +751,90 @@ describe("keyhall", () => {
     })
     assert.equal(wrong.json.status, "error", wrong.text)
   })
+  test("an API spec uploaded as a file exposes only its routes", async () => {
+    const spec = (paths) =>
+      JSON.stringify({
+        openapi: "3.0.0",
+        info: { title: "Trimmed", version: "1" },
+        paths,
+      })
+    const body = (extra) => ({
+      kind: "api",
+      projectId: "prj-default",
+      name: "Trimmed",
+      slug: "trimmed",
+      url: `http://127.0.0.1:${upstream.address().port}/base`,
+      authHeader: "X-Api-Key",
+      authPrefix: "",
+      secret: "k",
+      ...extra,
+    })
+    const invalid = await call("/api/admin/connections", {
+      method: "POST",
+      admin: true,
+      body: body({ spec: '{"swagger":"2.0"}' }),
+    })
+    assert.equal(invalid.status, 400, invalid.text)
+    const both = await call("/api/admin/connections", {
+      method: "POST",
+      admin: true,
+      body: body({ spec: spec({}), specUrl: "https://example.com/o.json" }),
+    })
+    assert.equal(both.status, 400, both.text)
+
+    const created = await call("/api/admin/connections", {
+      method: "POST",
+      admin: true,
+      body: body({
+        spec: spec({
+          "/v1/items": { get: { operationId: "listItems" } },
+          "/v1/items/{id}": {
+            get: {
+              operationId: "getItem",
+              parameters: [{ name: "id", in: "path", required: true }],
+            },
+          },
+        }),
+      }),
+    })
+    assert.equal(created.status, 201, created.text)
+    assert.equal(created.json.status, "connected", created.text)
+    assert.equal(created.json.specSource, "file")
+    assert.equal(created.json.specUrl, null)
+    const id = created.json.id
+    const tools = await call(`/api/admin/connections/${id}/tools`, {
+      admin: true,
+    })
+    assert.deepEqual(tools.json.map((t) => t.name).sort(), [
+      "getItem",
+      "listItems",
+    ])
+
+    // Reconnecting keeps the uploaded spec; a new file replaces it.
+    const again = await call(`/api/admin/connections/${id}/connect`, {
+      method: "POST",
+      admin: true,
+    })
+    assert.equal(again.json.status, "connected", again.text)
+    const replaced = await call(`/api/admin/connections/${id}`, {
+      method: "PATCH",
+      admin: true,
+      body: { spec: spec({ "/v1/ping": { post: { operationId: "ping" } } }) },
+    })
+    assert.equal(replaced.status, 200, replaced.text)
+    const after = await call(`/api/admin/connections/${id}/tools`, {
+      admin: true,
+    })
+    assert.deepEqual(
+      after.json.map((t) => t.name),
+      ["ping"]
+    )
+    await call(`/api/admin/connections/${id}`, {
+      method: "DELETE",
+      admin: true,
+    })
+  })
+
   test("the catalog lists one-click connections and native plugins", async () => {
     const res = await call("/api/admin/catalog", { admin: true })
     assert.equal(res.status, 200)

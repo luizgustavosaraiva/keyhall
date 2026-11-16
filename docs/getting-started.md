@@ -68,8 +68,10 @@ For APIs that don't have an MCP server:
 1. Type: **HTTP API**.
 2. Base URL of the API, the header that carries the key (e.g. `Authorization` with the
    `Bearer ` prefix, or `X-API-Key`) and the key itself.
-3. Optionally the URL of its **OpenAPI 3 spec** (JSON). Each operation becomes an MCP tool;
-   without a spec the API is available only through the [proxy](api.md#proxy).
+3. Optionally its **OpenAPI 3 spec** (JSON), as a URL or as a file. Each operation becomes an
+   MCP tool; without a spec the API is available only through the [proxy](api.md#proxy). A URL
+   is downloaded again on every save. A file stays as uploaded, so you can trim a copy of the
+   spec to the routes you want to expose and upload that.
 
 ## 3. Store keys as secrets (recommended)
 

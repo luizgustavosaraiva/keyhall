@@ -4,7 +4,7 @@ import { and, eq, inArray, isNull, ne } from "drizzle-orm"
 import { Hono } from "hono"
 import * as z from "zod"
 import { toolMode } from "../access.js"
-import { fetchSpec, operations } from "../api/openapi.js"
+import { fetchSpec, operations, parseSpec } from "../api/openapi.js"
 import { auth } from "../auth.js"
 import { catalogEntry, catalogIcon, publicCatalog } from "../catalog.js"
 import { decrypt, encrypt } from "../crypto.js"
@@ -70,7 +70,20 @@ const apiFields = z.object({
   authPrefix: z.string().default("Bearer "),
   secret: z.string().min(1),
   specUrl: httpUrl.optional(),
+  // The spec itself, uploaded as a JSON file: e.g. a trimmed copy with only the routes to expose.
+  spec: z.string().max(10_000_000).optional(),
 })
+
+// An uploaded spec replaces the URL: it stays as sent until another file or a URL comes.
+function uploadedSpec(data: { spec?: string; specUrl?: string }) {
+  if (data.spec === undefined) return {}
+  if (data.specUrl)
+    throw new Error("send the spec as a URL or as a file, not both")
+  const spec = parseSpec(data.spec)
+  if (!Object.keys(spec.paths as object).length)
+    throw new Error("the spec has no paths")
+  return { spec, specUrl: null }
+}
 
 // Local MCP server in the mcpServers format (Claude Code, Claude Desktop, Cursor):
 // { command, args, env }. env values are encrypted.
@@ -248,6 +261,8 @@ const publicConnection = (c: typeof connection.$inferSelect) => {
     authHeader: c.authHeader,
     authPrefix: c.authPrefix,
     specUrl: c.specUrl,
+    // Where the API's tools come from: a URL fetched on save, or an uploaded file.
+    specSource: c.specUrl ? "url" : c.spec ? "file" : null,
     hasSecret: !!c.secretEnc,
     // Vault references aren't secret: they go back to the panel to fill the edit form.
     secretRef:
@@ -630,6 +645,13 @@ export const admin = new Hono<AdminEnv>()
           : Object.values(data.kind === "stdio" ? data.env : data.headers)
     const missing = badRefs(refs, data.projectId)
     if (missing.length) return c.json({ error: refError(missing) }, 400)
+    let upload = {}
+    if (data.kind === "api")
+      try {
+        upload = uploadedSpec(data)
+      } catch (err) {
+        return c.json({ error: `spec: ${(err as Error).message}` }, 400)
+      }
     if (data.kind === "native") {
       const entry = catalogEntry(data.plugin)
       if (
@@ -647,9 +669,11 @@ export const admin = new Hono<AdminEnv>()
     }
     const values =
       data.kind === "api"
-        ? (({ secret, ...rest }) => ({ ...rest, secretEnc: encrypt(secret) }))(
-            data
-          )
+        ? (({ secret, spec: _, ...rest }) => ({
+            ...rest,
+            ...upload,
+            secretEnc: encrypt(secret),
+          }))(data)
         : data.kind === "native"
           ? (({ native, fields, features, ...rest }) => {
               const plugin = plugins[native] as NativePlugin
@@ -821,12 +845,18 @@ export const admin = new Hono<AdminEnv>()
       .safeParse(await c.req.json())
     if (!input.success)
       return c.json({ error: z.prettifyError(input.error) }, 400)
-    const { secret: key, ...rest } = input.data
+    const { secret: key, spec: _, ...rest } = input.data
     const missing = key ? badRefs([key], conn.projectId ?? "") : []
     if (missing.length) return c.json({ error: refError(missing) }, 400)
+    let upload = {}
+    try {
+      upload = uploadedSpec(input.data)
+    } catch (err) {
+      return c.json({ error: `spec: ${(err as Error).message}` }, 400)
+    }
     const [row] = await db
       .update(connection)
-      .set({ ...rest, ...(key ? { secretEnc: encrypt(key) } : {}) })
+      .set({ ...rest, ...upload, ...(key ? { secretEnc: encrypt(key) } : {}) })
       .where(eq(connection.id, conn.id))
       .returning()
     await connectApi(row)
