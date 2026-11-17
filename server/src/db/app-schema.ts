@@ -6,6 +6,7 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core"
+import { user } from "./auth-schema.js"
 
 const timestamps = {
   createdAt: integer("created_at", { mode: "timestamp_ms" })
@@ -186,3 +187,68 @@ export const secretAccess = sqliteTable("secret_access", {
   actor: text("actor").notNull(),
   createdAt: timestamps.createdAt,
 })
+
+// People who use an organization without administering it. A row starts as an invitation
+// (userId null, inviteHash set: the SHA-256 of the link's code) and becomes a member when
+// accepted. Instance admins (user.role "admin") reach everything and are never members.
+export const member = sqliteTable(
+  "member",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+    inviteHash: text("invite_hash").unique(),
+    inviteExpires: integer("invite_expires", { mode: "timestamp_ms" }),
+    invitedBy: text("invited_by").notNull(),
+    joinedAt: integer("joined_at", { mode: "timestamp_ms" }),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("member_org_email_unique").on(t.orgId, t.email)]
+)
+
+// What a member may use, checked on every call: connections (with an optional tool list,
+// null = all), scopes as the admin built them, and secrets. Members never edit these.
+export const memberConnection = sqliteTable(
+  "member_connection",
+  {
+    memberId: text("member_id")
+      .notNull()
+      .references(() => member.id, { onDelete: "cascade" }),
+    connectionId: text("connection_id")
+      .notNull()
+      .references(() => connection.id, { onDelete: "cascade" }),
+    allowedTools: text("allowed_tools", { mode: "json" }).$type<
+      string[] | null
+    >(),
+  },
+  (t) => [primaryKey({ columns: [t.memberId, t.connectionId] })]
+)
+
+export const memberScope = sqliteTable(
+  "member_scope",
+  {
+    memberId: text("member_id")
+      .notNull()
+      .references(() => member.id, { onDelete: "cascade" }),
+    scopeId: text("scope_id")
+      .notNull()
+      .references(() => scope.id, { onDelete: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.memberId, t.scopeId] })]
+)
+
+export const memberSecret = sqliteTable(
+  "member_secret",
+  {
+    memberId: text("member_id")
+      .notNull()
+      .references(() => member.id, { onDelete: "cascade" }),
+    secretId: text("secret_id")
+      .notNull()
+      .references(() => secret.id, { onDelete: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.memberId, t.secretId] })]
+)

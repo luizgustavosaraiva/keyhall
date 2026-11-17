@@ -13,3 +13,12 @@ export const requireAdmin = createMiddleware<AdminEnv>(async (c, next) => {
   c.set("session", session)
   await next()
 })
+
+// Any signed-in user: admins and members. What a member may do is checked by each route.
+export const requireUser = createMiddleware<AdminEnv>(async (c, next) => {
+  const session = await auth.api.getSession({ headers: c.req.raw.headers })
+  if (!session) return c.json({ error: "not authenticated" }, 401)
+  if (session.user.banned) return c.json({ error: "access denied" }, 403)
+  c.set("session", session)
+  await next()
+})

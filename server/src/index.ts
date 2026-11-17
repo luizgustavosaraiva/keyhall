@@ -20,6 +20,7 @@ import { oauth } from "./routes/oauth.js"
 import { proxy } from "./routes/proxy.js"
 import { secretsApi } from "./routes/secrets.js"
 import { announceSetup, setup } from "./routes/setup.js"
+import { adminTeam, invite, me } from "./routes/team.js"
 
 assertEncryptionKey()
 runMigrations()
@@ -35,8 +36,12 @@ const app = new Hono()
 app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw))
 app.get("/api/health", (c) => c.json({ ok: true, version }))
 app.route("/api/admin/secrets", adminSecrets)
+app.route("/api/admin/members", adminTeam)
 app.route("/api/admin", admin)
 app.route("/api/setup", setup)
+// Team: invitation links (public) and the member's own side of the panel.
+app.route("/api/invite", invite)
+app.route("/api/me", me)
 app.route("/api/oauth", oauth)
 app.route("/api/mcp-oauth", mcpOAuthConsent)
 // OAuth for MCP clients: metadata, client registration and token (see mcp-oauth.ts).

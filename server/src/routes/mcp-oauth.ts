@@ -4,15 +4,13 @@ import {
   randomBytes,
   timingSafeEqual,
 } from "node:crypto"
-import { eq } from "drizzle-orm"
 import type { Context } from "hono"
 import { Hono } from "hono"
 import { cors } from "hono/cors"
 import * as z from "zod"
+import { findTarget } from "../access.js"
 import { auth } from "../auth.js"
-import { db } from "../db/index.js"
-import { organization, project, scope } from "../db/schema.js"
-import { type AdminEnv, requireAdmin } from "./middleware.js"
+import { type AdminEnv, requireUser } from "./middleware.js"
 
 // keyhall as the OAuth authorization server of its own MCP endpoint (MCP authorization spec):
 // protected resource metadata (RFC 9728), server metadata (RFC 8414), dynamic client
@@ -116,7 +114,7 @@ function redirectMatches(client: Client, raw: string) {
   })
 }
 
-type Target = { kind: "org" | "project" | "scope"; id: string }
+type Target = { kind: "org" | "project" | "scope" | "member"; id: string }
 
 type PendingCode = {
   clientId: string
@@ -175,14 +173,9 @@ function redirectWith(
   return url.toString()
 }
 
-async function targetExists({ kind, id }: Target) {
-  const table = { org: organization, project, scope }[kind]
-  const [row] = await db
-    .select({ id: table.id })
-    .from(table)
-    .where(eq(table.id, id))
-  return !!row
-}
+// The approver must still reach the target: admins anything, members only their grants.
+const canTarget = async (userId: string, { kind, id }: Target) =>
+  !!(await findTarget(userId, { [kind]: [id] }))
 
 const publicCors = cors({
   origin: "*",
@@ -270,7 +263,7 @@ export const mcpOAuth = new Hono()
     const challenge = createHash("sha256").update(verifier).digest("base64url")
     if (verifier.length < 43 || challenge !== pending.challenge)
       return fail("invalid_grant", "PKCE verification failed")
-    if (!(await targetExists(pending.target)))
+    if (!(await canTarget(pending.userId, pending.target)))
       return fail("invalid_grant", "the approved target no longer exists")
     const created = await auth.api.createApiKey({
       body: {
@@ -319,7 +312,7 @@ function serverDoc(c: Context) {
 const decision = z.object({ request: z.record(z.string(), z.string()) })
 
 export const mcpOAuthConsent = new Hono<AdminEnv>()
-  .use("*", requireAdmin)
+  .use("*", requireUser)
   .post("/check", async (c) => {
     const checked = checkRequest(await c.req.json())
     if ("error" in checked) return c.json({ error: checked.error }, 400)
@@ -332,7 +325,7 @@ export const mcpOAuthConsent = new Hono<AdminEnv>()
     const input = decision
       .extend({
         target: z.object({
-          kind: z.enum(["org", "project", "scope"]),
+          kind: z.enum(["org", "project", "scope", "member"]),
           id: z.string().min(1),
         }),
         mode: z.enum(["tools", "code"]).default("tools"),
@@ -342,7 +335,7 @@ export const mcpOAuthConsent = new Hono<AdminEnv>()
       return c.json({ error: z.prettifyError(input.error) }, 400)
     const checked = checkRequest(input.data.request)
     if ("error" in checked) return c.json({ error: checked.error }, 400)
-    if (!(await targetExists(input.data.target)))
+    if (!(await canTarget(c.get("session").user.id, input.data.target)))
       return c.json({ error: "token target not found" }, 404)
     const { params, client } = checked
     const code = storeCode({

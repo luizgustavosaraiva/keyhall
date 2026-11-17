@@ -6,6 +6,14 @@ All notable changes to keyhall are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- **Team**: invite people to an organization by link (7 days, single use), and grant each one
+  connections (all tools or only some), scopes and secrets. They sign in with a password or
+  Google, see only what was granted (names only, no credentials), and make their own tokens or
+  approve MCP clients by OAuth within it. Grants are checked on every call; removing a member
+  ends their tokens.
+
 ## [0.2.0] - 2026-11-17
 
 ### License

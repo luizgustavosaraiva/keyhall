@@ -262,8 +262,8 @@ export const pt: Record<keyof typeof en, string> = {
   "scopes.noConnections": "Sem conexões",
   "scopes.noneSelected":
     "Nenhuma marcada: o escopo não verá ferramentas desta conexão.",
-  "scopes.notIncluded": "Fora do escopo",
-  "scopes.notIncludedHint": "{name} ainda não faz parte deste escopo.",
+  "scopes.notIncluded": "Não incluída",
+  "scopes.notIncludedHint": "{name} ainda não foi incluída.",
   "scopes.pickConnection":
     "Escolha uma conexão à esquerda para marcar as ferramentas dela.",
   "scopes.rename": "Renomear escopo",
@@ -448,4 +448,76 @@ export const pt: Record<keyof typeof en, string> = {
   "tools.noParams": "Sem parâmetros.",
   "tools.params": "Parâmetros",
   "tools.required": "obrigatório",
+  "invite.create": "Criar conta e entrar",
+  "invite.description":
+    "O convite é para {email}. Crie sua conta para ver o que foi compartilhado com você.",
+  "invite.googleHint": "Use a conta Google de {email}.",
+  "invite.invalid":
+    "Este convite é inválido, expirou ou já foi usado. Peça um link novo.",
+  "invite.join": "Aceitar o convite",
+  "invite.leave": "Continuar sem o convite",
+  "invite.loading": "Abrindo o convite…",
+  "invite.passwordHint": "Pelo menos 8 caracteres.",
+  "invite.title": "Convite para {org}",
+  "invite.wrongAccount":
+    "Você está conectado como {current}, mas este convite é para {email}. Saia e abra o link de novo.",
+  "member.access": "Seu acesso",
+  "member.accessDescription":
+    "O que {org} compartilhou com você. Use com um token ou entrando por um cliente MCP; o admin decide o que aparece aqui e pode mudar a qualquer momento.",
+  "member.accessTitle": "Seu acesso",
+  "member.allTools": "Todas as ferramentas",
+  "member.emptyDescription":
+    "Peça ao admin da organização para liberar conexões, escopos ou secrets.",
+  "member.emptyTitle": "Nada compartilhado com você ainda",
+  "member.nav": "Seu espaço",
+  "member.noneDescription": "Você não é mais membro de nenhuma organização.",
+  "member.noneTitle": "Nenhuma organização",
+  "member.role": "Membro",
+  "member.scopesHint":
+    "Conjuntos prontos de conexões e ferramentas. Um token de escopo alcança só ele.",
+  "nav.team": "Equipe",
+  "team.access": "Acesso",
+  "team.accessDescription":
+    "Escolha o que esta pessoa pode usar: conexões (todas as ferramentas ou só algumas), secrets e escopos. As mudanças valem na próxima chamada dela.",
+  "team.accessHint":
+    "Membros usam o que for liberado aqui, mas nunca veem endereços, headers ou credenciais, e não editam nada.",
+  "team.accessTitle": "Acesso de {name}",
+  "team.active": "Ativo",
+  "team.countConnections": "{n} conexões",
+  "team.countConnections_one": "1 conexão",
+  "team.countScopes": "{n} escopos",
+  "team.countScopes_one": "1 escopo",
+  "team.countSecrets": "{n} secrets",
+  "team.countSecrets_one": "1 secret",
+  "team.createLink": "Criar link de convite",
+  "team.description":
+    "Pessoas convidadas para {org}. Cada uma entra no keyhall e usa só o que você liberar, com os próprios tokens.",
+  "team.email": "E-mail",
+  "team.emptyDescription":
+    "Convide alguém por link e depois escolha quais conexões, ferramentas, escopos e secrets a pessoa pode usar.",
+  "team.emptyTitle": "Ninguém convidado ainda",
+  "team.expired": "Convite expirado",
+  "team.invite": "Convidar",
+  "team.invited": "Convidado",
+  "team.inviteDescription":
+    "O keyhall gera um link para você enviar. A pessoa entra com senha ou com Google, usando este e-mail.",
+  "team.invitedUntil": "Link válido até {date}",
+  "team.inviteTitle": "Convidar para {org}",
+  "team.linkDescription":
+    "Envie este link para a pessoa. Ele funciona uma vez, por 7 dias, e só aparece agora; dá para gerar outro no menu do membro.",
+  "team.linkTitle": "Link de convite",
+  "team.newLink": "Novo link de convite",
+  "team.remove": "Remover",
+  "team.removeDescription":
+    "Os tokens da pessoa param na hora. Se ela não estiver em outra organização, a conta também é apagada.",
+  "team.removeTitle": "Remover {name}?",
+  "team.saved": "Acesso salvo",
+  "team.scopeHint": "Escopo · {n} conexões",
+  "team.scopeHint_one": "Escopo · 1 conexão",
+  "team.scopes": "Escopos",
+  "team.title": "Equipe",
+  "tokens.levelMember": "Meu acesso",
+  "tokens.levelMemberHint":
+    "Tudo o que foi compartilhado com você nesta organização, conforme mudar.",
+  "tokens.targetMember": "Meu acesso",
 }

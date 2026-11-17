@@ -37,7 +37,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { api, type Scope, type Token, type View } from "@/lib/api"
+import { api, meApi, type Scope, type Token, type View } from "@/lib/api"
 import { useI18n } from "@/lib/i18n"
 
 type Level = Token["target"]["kind"]
@@ -69,13 +69,21 @@ function snippet(kind: Snippet, endpoint: string, key: string) {
   return `curl -X POST ${endpoint} \\\n  -H "Authorization: Bearer ${key}" \\\n  -H "content-type: application/json" \\\n  -H "accept: application/json, text/event-stream" \\\n  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'`
 }
 
+// A member's own tokens: everything granted to them, or one of the scopes granted to them.
+export type MemberTokens = {
+  id: string
+  scopes: Pick<Scope, "id" | "name">[]
+}
+
 export function Tokens({
   view,
+  member,
   tokens,
   scopes,
   reload,
 }: {
-  view: View
+  view?: View
+  member?: MemberTokens
   // Already filtered for the current view.
   tokens: Token[]
   scopes: Scope[]
@@ -83,7 +91,8 @@ export function Tokens({
 }) {
   const { t, date } = useI18n()
   const confirm = useConfirm()
-  const { org } = view
+  const org = view?.org
+  const client = member ? meApi : api
   const [creating, setCreating] = useState(false)
   const [created, setCreated] = useState<{ key: string }>()
   const [level, setLevel] = useState<Level>("scope")
@@ -91,28 +100,39 @@ export function Tokens({
   const [mode, setMode] = useState<Mode>("code")
   const [shown, setShown] = useState<Snippet>("claude")
   const [pending, setPending] = useState(false)
-  const orgScopes = scopes.filter((s) => s.orgId === org.id)
-  const viewScopes = view.project
-    ? orgScopes.filter((s) => s.projectId === view.project?.id)
-    : orgScopes
+  const orgScopes = scopes.filter((s) => s.orgId === org?.id)
+  const viewScopes: Pick<Scope, "id" | "name">[] =
+    member?.scopes ??
+    (view?.project
+      ? orgScopes.filter((s) => s.projectId === view.project?.id)
+      : orgScopes)
 
   // Describes the token's target: organization, project or scope (with its project).
   function describe(target: Token["target"]) {
+    if (target.kind === "member") return t("tokens.targetMember")
     if (target.kind === "org")
-      return target.id === org.id
+      return target.id === org?.id
         ? t("tokens.targetOrg", { name: org.name })
         : t("tokens.targetOtherOrg")
     if (target.kind === "project") {
-      const p = org.projects.find((x) => x.id === target.id)
+      const p = org?.projects.find((x) => x.id === target.id)
       return p ? t("tokens.targetProject", { name: p.name }) : "?"
     }
-    const s = scopes.find((x) => x.id === target.id)
+    const s = (member?.scopes ?? scopes).find((x) => x.id === target.id)
     if (!s) return t("tokens.targetRemoved")
     return t("tokens.targetScope", { name: s.name })
   }
 
   function openCreate() {
-    setLevel(viewScopes.length ? "scope" : view.project ? "project" : "org")
+    setLevel(
+      member
+        ? "member"
+        : viewScopes.length
+          ? "scope"
+          : view?.project
+            ? "project"
+            : "org"
+    )
     setExpiry("never")
     setMode("code")
     setShown("claude")
@@ -124,12 +144,14 @@ export function Tokens({
     e.preventDefault()
     const form = new FormData(e.currentTarget)
     const id =
-      level === "org"
-        ? org.id
-        : String(form.get(level === "project" ? "project" : "scope"))
+      level === "member"
+        ? member?.id
+        : level === "org"
+          ? org?.id
+          : String(form.get(level === "project" ? "project" : "scope"))
     setPending(true)
     try {
-      const { key } = await api<{ key: string }>("/tokens", {
+      const { key } = await client<{ key: string }>("/tokens", {
         body: {
           name: form.get("name"),
           target: { kind: level, id },
@@ -154,13 +176,13 @@ export function Tokens({
       destructive: true,
     })
     if (!ok) return
-    await api(`/tokens/${token.id}`, { method: "DELETE" })
+    await client(`/tokens/${token.id}`, { method: "DELETE" })
     reload()
   }
 
   async function switchMode(token: Token) {
     try {
-      await api(`/tokens/${token.id}`, {
+      await client(`/tokens/${token.id}`, {
         method: "PATCH",
         body: { mode: token.mode === "code" ? "tools" : "code" },
       })
@@ -360,29 +382,42 @@ export function Tokens({
                     aria-label={t("tokens.access")}
                     value={level}
                     onChange={setLevel}
-                    options={[
-                      { value: "scope", label: t("tokens.levelScope") },
-                      { value: "project", label: t("tokens.levelProject") },
-                      { value: "org", label: t("tokens.levelOrg") },
-                    ]}
+                    options={
+                      member
+                        ? [
+                            { value: "member", label: t("tokens.levelMember") },
+                            { value: "scope", label: t("tokens.levelScope") },
+                          ]
+                        : [
+                            { value: "scope", label: t("tokens.levelScope") },
+                            {
+                              value: "project",
+                              label: t("tokens.levelProject"),
+                            },
+                            { value: "org", label: t("tokens.levelOrg") },
+                          ]
+                    }
                   />
                   <FieldDescription>
                     {
                       {
+                        member: t("tokens.levelMemberHint"),
                         scope: t("tokens.levelScopeHint"),
                         project: t("tokens.levelProjectHint"),
-                        org: t("tokens.levelOrgHint", { name: org.name }),
+                        org: t("tokens.levelOrgHint", {
+                          name: org?.name ?? "",
+                        }),
                       }[level]
                     }
                   </FieldDescription>
                 </Field>
-                {level !== "scope" && (
+                {(level === "project" || level === "org") && (
                   <p className="bg-warning/12 dark:text-warning flex gap-2 rounded-xl px-3 py-2 text-xs text-amber-800">
                     <ShieldAlertIcon className="size-4 shrink-0" />
                     {t("tokens.broadWarning")}
                   </p>
                 )}
-                {level === "project" && (
+                {level === "project" && org && (
                   <Field>
                     <FieldLabel htmlFor="t-project">
                       {t("project.label")}
@@ -390,7 +425,7 @@ export function Tokens({
                     <Choice
                       id="t-project"
                       name="project"
-                      defaultValue={view.project?.id ?? org.projects[0]?.id}
+                      defaultValue={view?.project?.id ?? org.projects[0]?.id}
                       options={org.projects.map((p) => ({
                         value: p.id,
                         label: p.name,

@@ -8,6 +8,7 @@ Organization
     └── Scopes        (hand-picked connections, tools and secrets)
 
 Token  →  an organization, a project, or a scope
+Member →  connections (and tools), scopes and secrets granted by an admin
 ```
 
 ## Organization
@@ -74,6 +75,7 @@ What a consumer uses: `Authorization: Bearer kh_…`. Each token points at one t
 | Organization | Everything in it, including what you add later. |
 | Project | Everything in that project, including what you add later. |
 | Scope | Only the connections, tools and secrets picked in the scope. |
+| My access | A member's token: everything granted to that member, as the grants change. |
 
 Create one token per consumer so you can revoke each independently. Tokens are shown once and
 stored only as a hash. They can expire (30 days, 90 days, 1 year) or not.
@@ -108,3 +110,28 @@ Every read (panel, REST or MCP) is logged in the secret's history. See [API](api
 
 All consumers use the same URL, `https://<your-keyhall>/mcp`. The token decides what each one
 sees.
+
+## Team
+
+An admin invites people to an organization from **Team**. keyhall makes an invitation link
+(valid 7 days, works once) for you to send; the person opens it and creates an account with a
+password, or with Google when [Google sign-in](configuration.md) is on. Someone who already has
+an account (a member of another organization) signs in and accepts.
+
+Then pick what each member may use, at any granularity:
+
+- **connections**, with all their tools or only some;
+- **scopes**, as you built them;
+- **secrets**.
+
+Members sign in to the same panel and see only that, by name: never addresses, headers or
+credentials, and they can't edit anything. They create their own tokens, for everything granted
+to them (**My access**) or for one granted scope, and can approve MCP clients by
+[OAuth](api.md#signing-in-by-oauth) the same way. Grants are checked on every call, so taking one
+away takes effect at once. Removing a member ends their tokens; if they belong to no other
+organization, their account is deleted.
+
+Admins (the account made at first run, or with `admin:create`) reach everything and are never
+members. How people reach the panel is up to your deployment: on a private network, invited
+people need access to it too.
+

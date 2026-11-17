@@ -1,20 +1,27 @@
-import { eq, inArray, or, type SQL } from "drizzle-orm"
+import { and, eq, inArray, or, type SQL } from "drizzle-orm"
 import { auth } from "./auth.js"
 import { db } from "./db/index.js"
 import {
   connection,
+  member,
+  memberConnection,
+  memberScope,
   organization,
   project,
   scope,
   scopeConnection,
+  user,
 } from "./db/schema.js"
 
 // What a token sees. The api-key permissions hold the target:
-// { org: [id] } | { project: [id] } | { scope: [id] }. Older tokens have { scope: [slug] }.
+// { org: [id] } | { project: [id] } | { scope: [id] } | { member: [id] }. Older tokens have
+// { scope: [slug] }. A member's token reaches a scope granted to them, or everything granted to
+// them ("member"); the grants are read on every call, so taking one away takes effect at once.
 export type Target =
   | { kind: "org"; org: typeof organization.$inferSelect }
   | { kind: "project"; project: typeof project.$inferSelect }
   | { kind: "scope"; scope: typeof scope.$inferSelect }
+  | { kind: "member"; member: typeof member.$inferSelect }
 
 export type Link = {
   conn: typeof connection.$inferSelect
@@ -50,7 +57,7 @@ async function connectionsOf(where: SQL) {
     .where(where)
 }
 
-async function findTarget(
+async function adminTarget(
   permissions: Record<string, string[]> | null
 ): Promise<Target | undefined> {
   const [orgId] = permissions?.org ?? []
@@ -76,7 +83,66 @@ async function findTarget(
   }
 }
 
+// A member's token: only a scope granted to them, or their own grants, while they are a member.
+export async function memberTarget(
+  userId: string,
+  permissions: Record<string, string[]> | null
+): Promise<Target | undefined> {
+  const [memberId] = permissions?.member ?? []
+  if (memberId) {
+    const [m] = await db
+      .select()
+      .from(member)
+      .where(and(eq(member.id, memberId), eq(member.userId, userId)))
+    return m && { kind: "member", member: m }
+  }
+  const [scopeId] = permissions?.scope ?? []
+  if (scopeId) {
+    const [row] = await db
+      .select({ scope })
+      .from(memberScope)
+      .innerJoin(member, eq(memberScope.memberId, member.id))
+      .innerJoin(scope, eq(memberScope.scopeId, scope.id))
+      .where(and(eq(member.userId, userId), eq(scope.id, scopeId)))
+    return row && { kind: "scope", scope: row.scope }
+  }
+}
+
+// The target of a token, as its owner may still reach it.
+export async function findTarget(
+  userId: string,
+  permissions: Record<string, string[]> | null
+): Promise<Target | undefined> {
+  const [owner] = await db
+    .select({ role: user.role, banned: user.banned })
+    .from(user)
+    .where(eq(user.id, userId))
+  if (!owner || owner.banned) return undefined
+  return owner.role === "admin"
+    ? adminTarget(permissions)
+    : memberTarget(userId, permissions)
+}
+
 export async function linksFor(target: Target): Promise<Link[]> {
+  if (target.kind === "member") {
+    // Grants may span projects, so the project joins the name, as in organization scopes.
+    const rows = await db
+      .select({
+        conn: connection,
+        project,
+        allowedTools: memberConnection.allowedTools,
+      })
+      .from(memberConnection)
+      .innerJoin(connection, eq(memberConnection.connectionId, connection.id))
+      .innerJoin(project, eq(connection.projectId, project.id))
+      .where(eq(memberConnection.memberId, target.member.id))
+    return rows.map(({ conn, project: p, allowedTools }) => ({
+      conn,
+      project: p,
+      allowedTools: allowedTools ?? null,
+      prefix: `${p.slug}${SEP}${conn.slug}${SEP}`,
+    }))
+  }
   if (target.kind === "org") {
     const projects = await db
       .select({ id: project.id })
@@ -132,6 +198,7 @@ export async function resolveToken(key: string): Promise<Access | undefined> {
   const { valid, key: apiKey } = await auth.api.verifyApiKey({ body: { key } })
   if (!valid || !apiKey) return undefined
   const target = await findTarget(
+    apiKey.referenceId,
     apiKey.permissions as Record<string, string[]> | null
   )
   if (!target) return undefined
