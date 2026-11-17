@@ -28,11 +28,15 @@ export function App() {
   }, [])
   // No users yet: show the first-run setup instead of the sign-in.
   const [setupNeeded, setSetupNeeded] = useState<boolean>()
+  const [google, setGoogle] = useState(false)
   useEffect(() => {
     if (isPending || session || linking) return
     fetch("/api/setup")
       .then((r) => r.json())
-      .then((d: { needed: boolean }) => setSetupNeeded(d.needed))
+      .then((d: { needed: boolean; google?: boolean }) => {
+        setGoogle(!!d.google)
+        setSetupNeeded(d.needed)
+      })
       .catch(() => setSetupNeeded(false))
   }, [isPending, session, linking])
 
@@ -46,7 +50,7 @@ export function App() {
       ) : setupNeeded === undefined ? null : setupNeeded ? (
         <Setup />
       ) : (
-        <Login />
+        <Login google={google} />
       )}
       <Toaster position="top-center" />
     </>

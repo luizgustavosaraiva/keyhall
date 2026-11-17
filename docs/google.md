@@ -97,6 +97,21 @@ password, or the app is still in Testing after 7 days. **Connect** signs in agai
 
 Choosing another client in **Configure** asks for a new sign-in.
 
+## Signing in to the panel with Google
+
+Separate from the connections above, the sign-in page can offer **Continue with Google**. It
+never creates accounts: a Google account gets in only when its e-mail is a keyhall user's, or
+when that user linked it from the account menu (**Sign in with Google too**), which works with
+any e-mail.
+
+1. In the same OAuth client (or another one), add the redirect URI
+   `<BETTER_AUTH_URL>/api/auth/callback/google`, e.g.
+   `https://keyhall.example.com/api/auth/callback/google`.
+2. Set `KEYHALL_GOOGLE_CLIENT_ID` and `KEYHALL_GOOGLE_CLIENT_SECRET` on the server and restart.
+
+The sign-in only asks for the e-mail and profile, so it needs no extra scopes on the consent
+screen.
+
 ## Troubleshooting
 
 | Error | Fix |

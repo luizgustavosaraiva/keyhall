@@ -1,6 +1,7 @@
-import { type FormEvent, useState } from "react"
+import { type FormEvent, useEffect, useState } from "react"
 import { AuthLayout } from "@/components/auth-layout"
 import { door } from "@/components/doorway"
+import { GoogleMark } from "@/components/google-mark"
 import { Button } from "@/components/ui/button"
 import {
   Field,
@@ -12,10 +13,37 @@ import { Input } from "@/components/ui/input"
 import { authClient } from "@/lib/auth-client"
 import { useI18n } from "@/lib/i18n"
 
-export function Login() {
+export function Login({ google }: { google?: boolean }) {
   const { t } = useI18n()
   const [error, setError] = useState<string>()
   const [pending, setPending] = useState(false)
+
+  // Back from Google without a session (an account no keyhall user has): say why once.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: first load only
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    if (!url.searchParams.has("error")) return
+    setError(t("login.googleFailed"))
+    door.fail()
+    url.searchParams.delete("error")
+    window.history.replaceState(null, "", url.pathname + url.search + url.hash)
+  }, [])
+
+  async function withGoogle() {
+    setPending(true)
+    setError(undefined)
+    door.open()
+    const { error } = await authClient.signIn.social({
+      provider: "google",
+      callbackURL: "/",
+      errorCallbackURL: "/",
+    })
+    if (error) {
+      setPending(false)
+      door.fail()
+      setError(error.message ?? t("login.failed"))
+    }
+  }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -63,6 +91,25 @@ export function Login() {
           <Button type="submit" size="lg" disabled={pending}>
             {pending ? t("login.pending") : t("login.submit")}
           </Button>
+          {google && (
+            <>
+              <div className="text-muted-foreground flex items-center gap-3 text-xs">
+                <span className="bg-border h-px flex-1" />
+                {t("login.or")}
+                <span className="bg-border h-px flex-1" />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                disabled={pending}
+                onClick={withGoogle}
+              >
+                <GoogleMark className="size-4" />
+                {t("login.google")}
+              </Button>
+            </>
+          )}
         </FieldGroup>
       </form>
     </AuthLayout>

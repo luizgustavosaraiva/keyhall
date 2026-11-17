@@ -2,6 +2,9 @@ import type { en } from "./en"
 
 // Textos do painel em português do Brasil. Toda chave de en.ts precisa existir aqui.
 export const pt: Record<keyof typeof en, string> = {
+  "account.googleLinked": "Conta Google vinculada",
+  "account.googleLink": "Entrar também com Google",
+  "account.googleFailed": "Não foi possível vincular a conta Google.",
   "account.changePassword": "Trocar senha",
   "account.language": "Idioma",
   "account.legal":
@@ -132,6 +135,10 @@ export const pt: Record<keyof typeof en, string> = {
   "kind.stdioDescription":
     "Servidor MCP local (npx, node) que o keyhall roda e repassa. Use só pacotes em que você confia: o processo roda dentro do servidor do keyhall.",
 
+  "login.or": "ou",
+  "login.googleFailed":
+    "Essa conta Google não está vinculada a nenhum usuário do keyhall. Entre com a senha e vincule pelo menu da conta.",
+  "login.google": "Continuar com Google",
   "login.description": "Use a sua conta de administrador",
   "login.failed": "Não foi possível entrar",
   "login.pending": "Entrando…",

@@ -2,7 +2,7 @@ import { randomInt, timingSafeEqual } from "node:crypto"
 import { count, eq } from "drizzle-orm"
 import { Hono } from "hono"
 import * as z from "zod"
-import { auth } from "../auth.js"
+import { auth, googleLogin } from "../auth.js"
 import { db } from "../db/index.js"
 import { organization, user } from "../db/schema.js"
 import { slug } from "./admin.js"
@@ -55,7 +55,10 @@ const setupInput = z.object({
 })
 
 export const setup = new Hono()
-  .get("/", async (c) => c.json({ needed: await needsSetup() }))
+  // Also tells the sign-in page which methods it offers.
+  .get("/", async (c) =>
+    c.json({ needed: await needsSetup(), google: googleLogin })
+  )
   .post("/", async (c) => {
     if (running || !(await needsSetup()))
       return c.json({ error: "keyhall is already set up" }, 409)
