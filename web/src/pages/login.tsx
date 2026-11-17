@@ -35,8 +35,9 @@ export function Login({ google }: { google?: boolean }) {
     door.open()
     const { error } = await authClient.signIn.social({
       provider: "google",
-      callbackURL: "/",
-      errorCallbackURL: "/",
+      // Back to where sign-in started (e.g. an MCP client's authorization request).
+      callbackURL: window.location.pathname + window.location.search,
+      errorCallbackURL: window.location.pathname + window.location.search,
     })
     if (error) {
       setPending(false)

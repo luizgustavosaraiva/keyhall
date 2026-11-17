@@ -2,7 +2,7 @@
 // public surface the way a consumer and the panel do. Run with `pnpm test` after `pnpm build`.
 import assert from "node:assert/strict"
 import { spawn } from "node:child_process"
-import { randomBytes } from "node:crypto"
+import { createHash, randomBytes } from "node:crypto"
 import { mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { createServer, request } from "node:http"
 import { tmpdir } from "node:os"
@@ -485,7 +485,12 @@ describe("keyhall", () => {
 
   test("the MCP endpoint rejects missing and invalid tokens", async () => {
     assert.equal((await mcp(undefined, "tools/list")).status, 401)
-    assert.equal((await mcp("kh_invalid", "tools/list")).status, 403)
+    const invalid = await mcp("kh_invalid", "tools/list")
+    assert.equal(invalid.status, 401)
+    assert.match(
+      invalid.headers.get("www-authenticate"),
+      /error="invalid_token"/
+    )
   })
 
   test("a project token lists and calls tools, with secrets resolved", async () => {
@@ -683,6 +688,138 @@ describe("keyhall", () => {
     assert.ok(names.includes("echo__echo"), names.join(", "))
   })
 
+  test("MCP clients get a token by OAuth, approved in the panel", async () => {
+    // Discovery: the 401 points to the resource metadata, which names keyhall as the server.
+    const bare = await mcp(undefined, "tools/list")
+    assert.equal(bare.status, 401)
+    const metaUrl = bare.headers
+      .get("www-authenticate")
+      .match(/resource_metadata="([^"]+)"/)[1]
+    assert.equal(metaUrl, `${base}/.well-known/oauth-protected-resource/mcp`)
+    const resource = await call(new URL(metaUrl).pathname)
+    assert.equal(resource.json.resource, `${base}/mcp`)
+    const server = await call("/.well-known/oauth-authorization-server")
+    assert.equal(server.json.issuer, resource.json.authorization_servers[0])
+    assert.equal(server.json.authorization_endpoint, `${base}/oauth/authorize`)
+    assert.deepEqual(server.json.code_challenge_methods_supported, ["S256"])
+
+    const refused = await call("/oauth/register", {
+      method: "POST",
+      body: { redirect_uris: ["http://evil.example/cb"] },
+    })
+    assert.equal(refused.status, 400)
+    const registered = await call("/oauth/register", {
+      method: "POST",
+      body: {
+        redirect_uris: ["https://client.example/cb"],
+        client_name: "Test Client",
+      },
+    })
+    assert.equal(registered.status, 201, registered.text)
+    const clientId = registered.json.client_id
+
+    const verifier = randomBytes(32).toString("base64url")
+    const challenge = createHash("sha256").update(verifier).digest("base64url")
+    const request = {
+      response_type: "code",
+      client_id: clientId,
+      redirect_uri: "https://client.example/cb",
+      code_challenge: challenge,
+      code_challenge_method: "S256",
+      state: "st-1",
+      scope: "mcp",
+    }
+    // The consent page needs a panel session, and refuses a redirect the client didn't register.
+    assert.equal(
+      (await call("/api/mcp-oauth/check", { method: "POST", body: request }))
+        .status,
+      401
+    )
+    const checked = await call("/api/mcp-oauth/check", {
+      method: "POST",
+      admin: true,
+      body: request,
+    })
+    assert.deepEqual(checked.json, {
+      client: "Test Client",
+      redirectHost: "client.example",
+    })
+    const forged = await call("/api/mcp-oauth/check", {
+      method: "POST",
+      admin: true,
+      body: { ...request, redirect_uri: "https://evil.example/cb" },
+    })
+    assert.equal(forged.status, 400)
+    const tampered = await call("/api/mcp-oauth/check", {
+      method: "POST",
+      admin: true,
+      body: { ...request, client_id: `${clientId.split(".")[0]}.x` },
+    })
+    assert.equal(tampered.status, 400)
+
+    const denied = await call("/api/mcp-oauth/deny", {
+      method: "POST",
+      admin: true,
+      body: { request },
+    })
+    const deniedUrl = new URL(denied.json.redirect)
+    assert.equal(deniedUrl.searchParams.get("error"), "access_denied")
+    assert.equal(deniedUrl.searchParams.get("state"), "st-1")
+
+    const approve = async () => {
+      const res = await call("/api/mcp-oauth/approve", {
+        method: "POST",
+        admin: true,
+        body: {
+          request,
+          target: { kind: "project", id: "prj-default" },
+          mode: "tools",
+        },
+      })
+      assert.equal(res.status, 200, res.text)
+      const url = new URL(res.json.redirect)
+      assert.equal(url.origin + url.pathname, "https://client.example/cb")
+      assert.equal(url.searchParams.get("state"), "st-1")
+      return url.searchParams.get("code")
+    }
+    const exchange = (code, codeVerifier) =>
+      fetch(`${base}/oauth/token`, {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          grant_type: "authorization_code",
+          code,
+          redirect_uri: "https://client.example/cb",
+          client_id: clientId,
+          code_verifier: codeVerifier,
+        }),
+      }).then(async (r) => ({ status: r.status, json: await r.json() }))
+
+    const wrong = await exchange(await approve(), "x".repeat(43))
+    assert.equal(wrong.status, 400)
+    assert.equal(wrong.json.error, "invalid_grant")
+
+    const code = await approve()
+    const token = await exchange(code, verifier)
+    assert.equal(token.status, 200, JSON.stringify(token.json))
+    assert.equal(token.json.token_type, "Bearer")
+    assert.match(token.json.access_token, /^kh_/)
+    assert.equal((await exchange(code, verifier)).status, 400)
+
+    const list = await mcp(token.json.access_token, "tools/list")
+    assert.equal(list.status, 200)
+    assert.ok(list.result.tools.length > 0)
+    // It's a regular token: listed on the Tokens page and revocable there.
+    const tokensList = await call("/api/admin/tokens", { admin: true })
+    const issued = tokensList.json.find((k) => k.name === "Test Client (OAuth)")
+    assert.deepEqual(issued.target, { kind: "project", id: "prj-default" })
+    await call(`/api/admin/tokens/${issued.id}`, {
+      method: "DELETE",
+      admin: true,
+    })
+    assert.equal((await mcp(token.json.access_token, "tools/list")).status, 401)
+  })
+
   test("a secret in use can't be deleted", async () => {
     const res = await call(`/api/admin/secrets/${ids.secret}`, {
       method: "DELETE",
@@ -699,7 +836,7 @@ describe("keyhall", () => {
       admin: true,
     })
     assert.ok(del.status < 300, del.text)
-    assert.equal((await mcp(tokens.scope, "tools/list")).status, 403)
+    assert.equal((await mcp(tokens.scope, "tools/list")).status, 401)
   })
 
   test("a remote MCP server with fixed headers instead of OAuth", async () => {

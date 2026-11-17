@@ -4,6 +4,7 @@ import { redeemDeviceLink } from "@/components/devices"
 import { Toaster } from "@/components/ui/sonner"
 import { authClient } from "@/lib/auth-client"
 import { useI18n } from "@/lib/i18n"
+import { Authorize } from "@/pages/authorize"
 import { Dashboard } from "@/pages/dashboard"
 import { Login } from "@/pages/login"
 import { Setup } from "@/pages/setup"
@@ -43,10 +44,15 @@ export function App() {
   return (
     <>
       {isPending || linking ? null : session ? (
-        <Dashboard
-          user={{ name: session.user.name, email: session.user.email }}
-          sessionToken={session.session.token}
-        />
+        // An MCP client asking for access by OAuth: the consent page instead of the panel.
+        window.location.pathname === "/oauth/authorize" ? (
+          <Authorize />
+        ) : (
+          <Dashboard
+            user={{ name: session.user.name, email: session.user.email }}
+            sessionToken={session.session.token}
+          />
+        )
       ) : setupNeeded === undefined ? null : setupNeeded ? (
         <Setup />
       ) : (

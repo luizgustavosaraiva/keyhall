@@ -17,6 +17,10 @@ All notable changes to keyhall are documented here. The format is based on
 
 ### Added
 
+- **OAuth for MCP clients**: `/mcp` now follows the MCP authorization spec (resource and
+  server metadata, dynamic client registration, PKCE). A client connects with just the URL;
+  you approve it in the panel, choosing its reach like a token, and it gets a regular keyhall
+  token listed on the Tokens page. An invalid token on `/mcp` now answers `401` instead of `403`.
 - **Sign in with Google**: with `KEYHALL_GOOGLE_CLIENT_ID` and `KEYHALL_GOOGLE_CLIENT_SECRET`
   set, the sign-in page offers **Continue with Google**. It never creates accounts: the Google
   account must have a keyhall user's e-mail, or be linked from the account menu.

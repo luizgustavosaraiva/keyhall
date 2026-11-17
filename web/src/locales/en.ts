@@ -31,6 +31,15 @@ export const en = {
   "api.specOperations": "{n} operations",
   "api.specOperations_one": "1 operation",
 
+  "authorize.approve": "Allow",
+  "authorize.deny": "Deny",
+  "authorize.description":
+    "Choose what it reaches. It gets a token like the ones on the Tokens page, and goes back to {host}.",
+  "authorize.loading": "Authorize access",
+  "authorize.org": "Organization",
+  "authorize.revokeHint":
+    "The token shows on the Tokens page, where you can revoke it at any time.",
+  "authorize.title": "Allow {client} into keyhall?",
   "auth.tagline":
     "One door to every MCP server, API and secret your agents use",
 
