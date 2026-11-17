@@ -32,7 +32,14 @@ every MCP server, and access to all of their tools. keyhall puts them in one pla
 - **Hand out narrow tokens.** A token reaches a whole organization, one project, or a scope with
   hand-picked connections and tools, e.g. "the support bot may only *list* mail domains".
 - **One endpoint.** Every consumer uses `https://<your-keyhall>/mcp`. Revoke one token without
-  touching the others.
+  touching the others. Clients that speak MCP OAuth connect with just the URL: you approve them
+  in the panel and pick their reach.
+- **Bring your team.** Invite people by link. Each member gets exactly the connections (down to
+  single tools), scopes and secrets you grant, signs in with a password or Google, and makes
+  their own tokens. Take a grant away and it stops working on the next call.
+- **Approve risky calls.** Mark tools like sending e-mail, deleting or paying as needing approval.
+  The call waits for you on the **Approvals** page, and Telegram, ntfy, Discord, Slack or a
+  webhook tells you it's there.
 - **Code Mode.** However many connections a token reaches, the agent sees two tools: `search`
   finds what it needs, and `execute` runs a short script that calls the tools and returns only
   the result, in a sandbox with no network of its own. Small context, fewer round trips.
@@ -95,7 +102,8 @@ upgrades, backups and key rotation.
 ## Documentation
 
 - [Getting started](docs/getting-started.md): from install to an agent calling tools
-- [Concepts](docs/concepts.md): organizations, projects, connections, scopes, tokens, secrets
+- [Concepts](docs/concepts.md): organizations, projects, connections, scopes, tokens, secrets,
+  team, approval and notifications
 - [Requirements](docs/requirements.md) and [configuration](docs/configuration.md)
 - [Deploy](docs/deploy/docker.md) and [operations](docs/operations.md)
 - [API reference](docs/api.md): MCP endpoint, secrets REST, proxy, health
