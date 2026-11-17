@@ -243,6 +243,8 @@ before(async () => {
       TRUSTED_ORIGINS: base,
       HOST: "127.0.0.1",
       PORT: String(port),
+      KEYHALL_GOOGLE_CLIENT_ID: "login-client.apps.googleusercontent.com",
+      KEYHALL_GOOGLE_CLIENT_SECRET: "login-secret",
       KEYHALL_GOOGLE_BASE: `http://127.0.0.1:${googleServer.address().port}`,
     },
   })
@@ -270,7 +272,10 @@ describe("keyhall", () => {
   })
 
   test("first-run setup needs the code from the log", async () => {
-    assert.deepEqual((await call("/api/setup")).json, { needed: true })
+    assert.deepEqual((await call("/api/setup")).json, {
+      needed: true,
+      google: true,
+    })
     const account = {
       name: "Test Admin",
       email: "admin@example.com",
@@ -312,6 +317,25 @@ describe("keyhall", () => {
       .getSetCookie()
       .map((c) => c.split(";")[0])
       .join("; ")
+  })
+
+  test("sign-in with Google goes to Google with keyhall's own callback", async () => {
+    const res = await call("/api/auth/sign-in/social", {
+      method: "POST",
+      headers: { origin: base },
+      body: { provider: "google", callbackURL: "/", errorCallbackURL: "/" },
+    })
+    assert.equal(res.status, 200, res.text)
+    const url = new URL(res.json.url)
+    assert.equal(url.host, "accounts.google.com")
+    assert.equal(
+      url.searchParams.get("client_id"),
+      "login-client.apps.googleusercontent.com"
+    )
+    assert.equal(
+      url.searchParams.get("redirect_uri"),
+      `${base}/api/auth/callback/google`
+    )
   })
 
   test("the admin API requires a session", async () => {

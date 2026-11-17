@@ -11,6 +11,7 @@ projects, tokens, secrets) lives in the database and is managed from the panel.
 | `KEYHALL_ENCRYPTION_KEY` | yes | | 32 bytes, base64 (`openssl rand -base64 32`). Encrypts every stored credential and secret. keyhall refuses to start without a valid one. See [Rotating the key](operations.md#rotating-the-encryption-key). |
 | `BETTER_AUTH_URL` | yes | | Public URL of the panel, exactly as people type it, e.g. `https://keyhall.example.com`. Used for cookies and as the OAuth callback base. |
 | `TRUSTED_ORIGINS` | yes | | Origins allowed to call the auth API, comma-separated. Usually the same value as `BETTER_AUTH_URL`. |
+| `KEYHALL_GOOGLE_CLIENT_ID`, `KEYHALL_GOOGLE_CLIENT_SECRET` | no | | Turn on **Continue with Google** on the sign-in page. See [Signing in with Google](google.md#signing-in-to-the-panel-with-google). |
 | `KEYHALL_ALLOW_STDIO` | no | `true` | `false` disables local (command) MCP connections. See [Security](security.md#local-connections). |
 | `DATABASE_PATH` | no | `/data/keyhall.db` in the image, `../data/keyhall.db` from source | SQLite file. Its directory is created if missing. |
 | `HOST` | no | `0.0.0.0` in the image, `127.0.0.1` from source | Address the HTTP server binds to. |

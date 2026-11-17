@@ -1,5 +1,8 @@
 // Panel strings in English (the default). These keys define the type of pt.ts.
 export const en = {
+  "account.googleLinked": "Google account linked",
+  "account.googleLink": "Sign in with Google too",
+  "account.googleFailed": "Could not link the Google account.",
   "account.changePassword": "Change password",
   "account.language": "Language",
   "account.legal":
@@ -127,6 +130,10 @@ export const en = {
   "kind.stdioDescription":
     "A local MCP server (npx, node) that keyhall runs and proxies. Use only packages you trust: the process runs inside the keyhall server.",
 
+  "login.or": "or",
+  "login.googleFailed":
+    "This Google account isn't linked to any keyhall user. Sign in with your password and link it from the account menu.",
+  "login.google": "Continue with Google",
   "login.description": "Use your administrator account",
   "login.failed": "Could not sign in",
   "login.pending": "Signing in…",

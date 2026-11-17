@@ -17,6 +17,9 @@ All notable changes to keyhall are documented here. The format is based on
 
 ### Added
 
+- **Sign in with Google**: with `KEYHALL_GOOGLE_CLIENT_ID` and `KEYHALL_GOOGLE_CLIENT_SECRET`
+  set, the sign-in page offers **Continue with Google**. It never creates accounts: the Google
+  account must have a keyhall user's e-mail, or be linked from the account menu.
 - **OpenAPI spec from a file**: an HTTP API connection takes its spec as a URL or as an
   uploaded JSON file (pick or drop it in the form). A file stays as uploaded, so a trimmed copy
   exposes only the routes you want; uploading another file or entering a URL replaces it.

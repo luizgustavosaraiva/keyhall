@@ -19,7 +19,9 @@ import {
   SwatchBookIcon,
   Trash2Icon,
 } from "lucide-react"
-import type { ReactNode } from "react"
+import { type ReactNode, useEffect, useState } from "react"
+import { toast } from "sonner"
+import { GoogleMark } from "@/components/google-mark"
 import { useTheme } from "@/components/theme-provider"
 import {
   DropdownMenu,
@@ -36,6 +38,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import type { Org, Project, View } from "@/lib/api"
+import { authClient } from "@/lib/auth-client"
 import { type Locale, locales, useI18n } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 
@@ -51,6 +54,46 @@ export type SidebarActions = {
   changePassword: () => void
   devices: () => void
   signOut: () => void
+}
+
+// Links a Google account to sign in with it, when the instance offers Google sign-in.
+function GoogleAccountItem() {
+  const { t } = useI18n()
+  const [state, setState] = useState<"off" | "linked" | "unlinked">("off")
+  useEffect(() => {
+    fetch("/api/setup")
+      .then((r) => r.json())
+      .then(async (d: { google?: boolean }) => {
+        if (!d.google) return
+        const { data } = await authClient.listAccounts()
+        setState(
+          data?.some((a) => a.providerId === "google") ? "linked" : "unlinked"
+        )
+      })
+      .catch(() => {})
+  }, [])
+  if (state === "off") return null
+  if (state === "linked")
+    return (
+      <DropdownMenuItem disabled>
+        <GoogleMark />
+        {t("account.googleLinked")}
+      </DropdownMenuItem>
+    )
+  return (
+    <DropdownMenuItem
+      onClick={async () => {
+        const { error } = await authClient.linkSocial({
+          provider: "google",
+          callbackURL: "/",
+        })
+        if (error) toast.error(error.message ?? t("account.googleFailed"))
+      }}
+    >
+      <GoogleMark />
+      {t("account.googleLink")}
+    </DropdownMenuItem>
+  )
 }
 
 function NavItem({
@@ -322,6 +365,7 @@ export function AppSidebar({
               <LockKeyholeIcon />
               {t("account.changePassword")}
             </DropdownMenuItem>
+            <GoogleAccountItem />
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
                 <LanguagesIcon />
