@@ -88,6 +88,10 @@ export const connection = sqliteTable(
       native?: string
       features?: string[]
     }>(),
+    // Tools that wait for an admin's approval on each call (null = none).
+    approvalTools: text("approval_tools", { mode: "json" }).$type<
+      string[] | null
+    >(),
     ...timestamps,
   },
   (t) => [uniqueIndex("connection_project_slug_unique").on(t.projectId, t.slug)]
@@ -252,3 +256,31 @@ export const memberSecret = sqliteTable(
   },
   (t) => [primaryKey({ columns: [t.memberId, t.secretId] })]
 )
+
+// A call to a tool that needs approval. The agent's call waits a little for the decision; an
+// approval then holds for that exact call (same token, tool and arguments) until it expires,
+// and is used once. callKey = SHA-256 of token, connection, tool and arguments.
+export const toolApproval = sqliteTable("tool_approval", {
+  id: text("id").primaryKey(),
+  connectionId: text("connection_id")
+    .notNull()
+    .references(() => connection.id, { onDelete: "cascade" }),
+  tool: text("tool").notNull(),
+  // The name the agent called (with the connection prefix).
+  exposedName: text("exposed_name").notNull(),
+  args: text("args", { mode: "json" }).$type<unknown>(),
+  callKey: text("call_key").notNull(),
+  tokenId: text("token_id").notNull(),
+  tokenName: text("token_name").notNull(),
+  // Who owns the token (e-mail), for the admin deciding.
+  requestedBy: text("requested_by").notNull(),
+  status: text("status", {
+    enum: ["pending", "approved", "denied", "used"],
+  })
+    .default("pending")
+    .notNull(),
+  decidedBy: text("decided_by"),
+  decidedAt: integer("decided_at", { mode: "timestamp_ms" }),
+  expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+  createdAt: timestamps.createdAt,
+})

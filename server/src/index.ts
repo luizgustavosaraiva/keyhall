@@ -5,6 +5,7 @@ import { serveStatic } from "@hono/node-server/serve-static"
 import { Hono } from "hono"
 import { createMiddleware } from "hono/factory"
 import { type Access, resolveToken } from "./access.js"
+import { approvals } from "./approvals.js"
 import { auth } from "./auth.js"
 import { assertEncryptionKey } from "./crypto.js"
 import { runMigrations } from "./db/migrate.js"
@@ -37,6 +38,7 @@ app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw))
 app.get("/api/health", (c) => c.json({ ok: true, version }))
 app.route("/api/admin/secrets", adminSecrets)
 app.route("/api/admin/members", adminTeam)
+app.route("/api/admin/approvals", approvals)
 app.route("/api/admin", admin)
 app.route("/api/setup", setup)
 // Team: invitation links (public) and the member's own side of the panel.

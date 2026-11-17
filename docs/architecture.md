@@ -80,6 +80,9 @@ deploy/                   compose files (default, Caddy, Tailscale) and systemd 
 - `member` is a person in an organization: an invitation while `user_id` is null (only the
   SHA-256 of the link's code is stored), a member once accepted. `member_connection` (with
   `allowed_tools`), `member_scope` and `member_secret` hold the grants.
+- `connection.approval_tools` lists the tools that need approval; each such call becomes a
+  `tool_approval` row (`call_key` = SHA-256 of token, connection, tool and canonical arguments)
+  that the gateway waits on (`approvals.ts`).
 - `secret_version` keeps every value: `value_enc` (encrypted with a random data key) and
   `key_enc` (that data key encrypted with the master key). `secret_access` logs every read.
 

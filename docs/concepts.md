@@ -135,3 +135,22 @@ Admins (the account made at first run, or with `admin:create`) reach everything 
 members. How people reach the panel is up to your deployment: on a private network, invited
 people need access to it too.
 
+## Approval
+
+Some tools shouldn't run without a person saying yes: sending an e-mail, deleting, paying,
+publishing. In a connection's menu, **Approval** picks which of its tools wait for an admin on
+each call, whatever the token or member. Their description tells agents so up front.
+
+When an agent calls one, the request shows up on **Approvals** with the token, its owner, the
+tool and the arguments. The call waits a little (45 seconds by default,
+`KEYHALL_APPROVAL_WAIT_SECONDS`):
+
+- approved in that time, it runs and returns as usual;
+- denied, the agent gets an error saying so;
+- no decision yet, the agent is told to repeat the same call once it's approved. The approval
+  then holds for that exact call (same token, tool and arguments) for 15 minutes, and is used
+  once.
+
+So an admin watching approves in place, and an unattended run never hangs: it stops with a
+clear "waiting for approval". Only admins decide; members can't approve their own calls.
+

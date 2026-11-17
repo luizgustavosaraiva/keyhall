@@ -520,4 +520,31 @@ export const pt: Record<keyof typeof en, string> = {
   "tokens.levelMemberHint":
     "Tudo o que foi compartilhado com você nesta organização, conforme mudar.",
   "tokens.targetMember": "Meu acesso",
+  "approvals.approve": "Aprovar",
+  "approvals.approved": "Aprovado",
+  "approvals.deny": "Negar",
+  "approvals.denied": "Negado",
+  "approvals.description":
+    "Chamadas a ferramentas que pedem aprovação. O agente espera cerca de 45 segundos; depois disso, a aprovação vale para a mesma chamada por 15 minutos, uma vez.",
+  "approvals.emptyDescription":
+    "Escolha quais ferramentas pedem aprovação no menu da conexão, em Aprovação.",
+  "approvals.emptyTitle": "Nada esperando",
+  "approvals.history": "Últimas decisões",
+  "approvals.rulesCount": "{n} ferramentas pedem aprovação",
+  "approvals.rulesCount_one": "1 ferramenta pede aprovação",
+  "approvals.rulesDescription":
+    "Cada chamada a uma ferramenta marcada espera um admin, qualquer que seja o token ou o membro. Use no que não tem volta ou fala com o mundo: enviar, apagar, pagar, publicar.",
+  "approvals.rulesMenu": "Aprovação",
+  "approvals.rulesNone": "Nenhuma ferramenta pede aprovação.",
+  "approvals.rulesSaved": "Regras de aprovação salvas",
+  "approvals.rulesTitle": "Aprovação em {name}",
+  "approvals.status.approved": "Aprovada, ainda não usada",
+  "approvals.status.denied": "Negada",
+  "approvals.status.expired": "Expirou",
+  "approvals.status.pending": "Esperando",
+  "approvals.status.used": "Aprovada",
+  "approvals.title": "Aprovações",
+  "approvals.when": "Pedida {at} · vale até {until}",
+  "approvals.who": "Token {token} ({person}) · {connection} em {project}",
+  "nav.approvals": "Aprovações",
 }

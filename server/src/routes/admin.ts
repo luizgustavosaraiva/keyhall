@@ -278,6 +278,8 @@ const publicConnection = (c: typeof connection.$inferSelect) => {
     headerRefs: c.kind === "mcp" ? named.refs : {},
     plugin: c.plugin,
     native: nativePublic(c),
+    // Tools that wait for an admin's approval on each call.
+    approvalTools: c.approvalTools ?? [],
     status: c.status,
     lastError: c.lastError,
     createdAt: c.createdAt,

@@ -13,6 +13,7 @@ import { NameDialog, type NameRequest } from "@/components/name-dialog"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import {
+  type Approval,
   api,
   type Connection,
   type Member,
@@ -25,6 +26,7 @@ import {
 } from "@/lib/api"
 import { authClient } from "@/lib/auth-client"
 import { useI18n } from "@/lib/i18n"
+import { Approvals } from "./approvals"
 import { Connections } from "./connections"
 import { Scopes } from "./scopes"
 import { Secrets } from "./secrets"
@@ -48,7 +50,14 @@ function useOAuthNotice() {
 }
 
 const VIEW_KEY = "keyhall:view"
-const pages: Page[] = ["connections", "scopes", "secrets", "tokens", "team"]
+const pages: Page[] = [
+  "connections",
+  "scopes",
+  "secrets",
+  "tokens",
+  "team",
+  "approvals",
+]
 
 function savedView(orgs: Org[]): View | null {
   let saved: string | null = null
@@ -102,6 +111,7 @@ export function Dashboard({
   const [tokens, setTokens] = useState<Token[]>([])
   const [secrets, setSecrets] = useState<Secret[]>([])
   const [members, setMembers] = useState<Member[]>([])
+  const [approvals, setApprovals] = useState<Approval[]>([])
   const [page, setPage] = usePage()
   const [menuOpen, setMenuOpen] = useState(false)
   const [naming, setNaming] = useState<NameRequest>()
@@ -154,6 +164,20 @@ export function Dashboard({
   }, [reloadOrgs])
 
   useEffect(reload, [reload])
+
+  // Approvals arrive while agents work: checked every few seconds while the tab is visible.
+  const reloadApprovals = useCallback(() => {
+    api<Approval[]>("/approvals")
+      .then(setApprovals)
+      .catch(() => {})
+  }, [])
+  useEffect(() => {
+    reloadApprovals()
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") reloadApprovals()
+    }, 4000)
+    return () => clearInterval(timer)
+  }, [reloadApprovals])
   useOAuthNotice()
 
   // What belongs to the current view: one project, or every project of the organization.
@@ -305,6 +329,7 @@ export function Dashboard({
   }
 
   if (!view) return null
+  const orgApprovals = approvals.filter((a) => a.project.orgId === view.org.id)
 
   const sidebar = (
     <AppSidebar
@@ -322,6 +347,7 @@ export function Dashboard({
         secrets: inView.secrets.length,
         tokens: inView.tokens.length,
         team: inView.members.length,
+        approvals: orgApprovals.filter((a) => a.status === "pending").length,
       }}
       user={user}
       actions={actions}
@@ -407,6 +433,9 @@ export function Dashboard({
               scopes={scopes}
               reload={reload}
             />
+          )}
+          {page === "approvals" && (
+            <Approvals approvals={orgApprovals} reload={reloadApprovals} />
           )}
           {page === "team" && (
             <Team

@@ -13,6 +13,10 @@ All notable changes to keyhall are documented here. The format is based on
   Google, see only what was granted (names only, no credentials), and make their own tokens or
   approve MCP clients by OAuth within it. Grants are checked on every call; removing a member
   ends their tokens.
+- **Approval per tool**: in a connection's menu, pick which tools wait for an admin on each
+  call. Requests show up on the new **Approvals** page with the token, its owner and the
+  arguments; the call waits up to 45 s (`KEYHALL_APPROVAL_WAIT_SECONDS`), then the agent is told
+  to repeat it, and an approval holds for that exact call for 15 minutes, once.
 
 ## [0.2.0] - 2026-11-17
 
