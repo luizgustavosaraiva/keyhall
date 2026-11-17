@@ -39,6 +39,28 @@ When the token reaches secrets marked "Readable by agents", two more tools appea
 
 The connection name `keyhall` is reserved for these.
 
+### Signing in by OAuth
+
+Clients that speak the [MCP authorization spec](https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization)
+(agentes.chat, Claude, Cursor and others) can connect with just the URL, no token pasted:
+
+1. Without a token, `/mcp` answers `401` with
+   `WWW-Authenticate: Bearer resource_metadata="https://<host>/.well-known/oauth-protected-resource/mcp"`.
+2. The client reads the resource metadata and the server metadata
+   (`/.well-known/oauth-authorization-server`), registers itself at `/oauth/register` (dynamic
+   client registration, public clients only) and opens `/oauth/authorize` with PKCE S256.
+3. You sign in to the panel (password or Google) and choose what the client reaches, like a
+   token: a scope, a project or the organization, and the tool mode.
+4. The client exchanges the code at `/oauth/token` and gets a regular keyhall token named
+   `<client> (OAuth)`. It shows on the Tokens page; revoking it there makes the client sign in
+   again (an invalid token on `/mcp` answers `401` with `error="invalid_token"`).
+
+The authorization page is always the panel's address (`BETTER_AUTH_URL`). If clients reach
+`/mcp` through another address (e.g. a public host that only forwards `/mcp`), that host must
+also forward `/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server`,
+`/oauth/register` and `/oauth/token`; the panel itself can stay private, as long as the browser
+that approves can reach it.
+
 ### Code Mode
 
 Tokens in Code Mode list two tools instead:

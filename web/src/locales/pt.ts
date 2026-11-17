@@ -33,6 +33,15 @@ export const pt: Record<keyof typeof en, string> = {
   "api.specOperations": "{n} operações",
   "api.specOperations_one": "1 operação",
 
+  "authorize.approve": "Permitir",
+  "authorize.deny": "Negar",
+  "authorize.description":
+    "Escolha o que ele alcança. Ele recebe um token como os da página Tokens e volta para {host}.",
+  "authorize.loading": "Autorizar acesso",
+  "authorize.org": "Organização",
+  "authorize.revokeHint":
+    "O token aparece na página Tokens, onde você pode revogá-lo quando quiser.",
+  "authorize.title": "Permitir que {client} acesse o keyhall?",
   "auth.tagline":
     "Uma porta para cada servidor MCP, API e segredo que seus agentes usam",
 

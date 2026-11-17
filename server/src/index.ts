@@ -11,6 +11,11 @@ import { runMigrations } from "./db/migrate.js"
 import { handleMcp } from "./mcp/gateway.js"
 import { admin } from "./routes/admin.js"
 import { adminSecrets } from "./routes/admin-secrets.js"
+import {
+  mcpOAuth,
+  mcpOAuthConsent,
+  resourceMetadataUrl,
+} from "./routes/mcp-oauth.js"
 import { oauth } from "./routes/oauth.js"
 import { proxy } from "./routes/proxy.js"
 import { secretsApi } from "./routes/secrets.js"
@@ -33,15 +38,33 @@ app.route("/api/admin/secrets", adminSecrets)
 app.route("/api/admin", admin)
 app.route("/api/setup", setup)
 app.route("/api/oauth", oauth)
+app.route("/api/mcp-oauth", mcpOAuthConsent)
+// OAuth for MCP clients: metadata, client registration and token (see mcp-oauth.ts).
+app.route("/", mcpOAuth)
 
 // Consumers send the token as Authorization: Bearer kh_... The token decides the reach:
 // the organization, a project or a scope.
 const requireToken = createMiddleware<{ Variables: { access: Access } }>(
   async (c, next) => {
+    // On /mcp, a 401 tells MCP clients where to get a token by OAuth (RFC 9728).
+    const isMcp = c.req.path === "/mcp" || c.req.path.startsWith("/mcp/")
+    const challenge = (error?: string) =>
+      c.header(
+        "WWW-Authenticate",
+        `Bearer resource_metadata="${resourceMetadataUrl(c)}"${error ? `, error="${error}"` : ""}`
+      )
     const key = c.req.header("authorization")?.replace(/^Bearer\s+/i, "")
-    if (!key) return c.json({ error: "missing token" }, 401)
+    if (!key) {
+      if (isMcp) challenge()
+      return c.json({ error: "missing token" }, 401)
+    }
     const access = await resolveToken(key)
-    if (!access) return c.json({ error: "invalid token" }, 403)
+    if (!access) {
+      // A revoked or expired token on /mcp: 401 so the client signs in again.
+      if (!isMcp) return c.json({ error: "invalid token" }, 403)
+      challenge("invalid_token")
+      return c.json({ error: "invalid token" }, 401)
+    }
     // Legacy /mcp/<scope> URL: the token's scope must be the one in the URL.
     const slug = c.req.param("scope")
     if (
