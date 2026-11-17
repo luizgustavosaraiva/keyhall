@@ -107,6 +107,8 @@ export type Connection = {
   } | null
   status: "pending" | "connected" | "error"
   lastError: string | null
+  // Tools that wait for an admin's approval on each call.
+  approvalTools: string[]
 }
 
 export type Scope = {
@@ -219,6 +221,23 @@ export type Reach = {
     agentAccess: boolean
     project: { name: string; slug: string }
   }[]
+}
+
+// A call waiting for (or decided by) an admin.
+export type Approval = {
+  id: string
+  tool: string
+  exposedName: string
+  args: unknown
+  tokenName: string
+  requestedBy: string
+  status: "pending" | "approved" | "denied" | "used" | "expired"
+  decidedBy: string | null
+  decidedAt: string | null
+  expiresAt: string
+  createdAt: string
+  connection: { id: string; name: string }
+  project: { id: string; orgId: string; name: string }
 }
 
 export type ApiClient = <T = void>(

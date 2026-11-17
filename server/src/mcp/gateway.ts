@@ -9,6 +9,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js"
 import type { Access, Link, ToolMode } from "../access.js"
 import { callOperation, operations } from "../api/openapi.js"
+import { needsApproval, requestApproval } from "../approvals.js"
 import { callNativeTool, nativeTools } from "../native/index.js"
 import {
   currentValue,
@@ -147,6 +148,11 @@ async function catalog(
           .map(
             (t): Tool => ({
               ...t,
+              // Tells the agent up front, so it can warn the person or plan around the wait.
+              ...(needsApproval(link, t.name) && {
+                description:
+                  `[Needs approval in keyhall: each call waits for an admin.] ${t.description ?? ""}`.trim(),
+              }),
               name: full
                 ? `${link.prefix}${t.name}`
                 : exposedName(link.prefix, t.name),
@@ -189,6 +195,29 @@ async function callTool(
     if (match) tool = match.name
   }
   if (!allowed(link.allowedTools, tool)) return denied(name)
+  if (needsApproval(link, tool)) {
+    const outcome = await requestApproval(access, link, tool, name, args)
+    if (outcome.status === "denied")
+      return {
+        content: [
+          {
+            type: "text",
+            text: `An admin denied this call to ${name}${outcome.by ? ` (${outcome.by})` : ""}. Don't retry it unless the person asks.`,
+          },
+        ],
+        isError: true,
+      }
+    if (outcome.status === "pending")
+      return {
+        content: [
+          {
+            type: "text",
+            text: `This call to ${name} is waiting for an admin's approval in the keyhall panel (request ${outcome.id}, valid 15 minutes). Tell the person, then repeat exactly the same call once it's approved.`,
+          },
+        ],
+        isError: true,
+      }
+  }
 
   if (link.conn.kind === "api") {
     const op = operations(link.conn).find((o) => o.name === tool)

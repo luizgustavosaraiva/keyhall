@@ -13,6 +13,7 @@ import {
   RefreshCwIcon,
   SearchIcon,
   SettingsIcon,
+  ShieldCheckIcon,
   TerminalIcon,
   Trash2Icon,
   WrenchIcon,
@@ -26,6 +27,7 @@ import {
   useState,
 } from "react"
 import { toast } from "sonner"
+import { ApprovalRulesDialog } from "@/components/approval-rules"
 import { BrandIcon } from "@/components/brand-icon"
 import { Choice } from "@/components/choice"
 import { useConfirm } from "@/components/confirm"
@@ -1218,6 +1220,7 @@ export function Connections({
     (c) => c.projectId === targetProject && c.slug === slug
   )
   const [moving, setMoving] = useState<Connection>()
+  const [ruling, setRuling] = useState<Connection>()
   const [kind, setKind] = useState<Kind>("mcp")
   const [editing, setEditing] = useState<Connection>()
   const [stdio, setStdio] = useState<StdioConfig>()
@@ -1558,6 +1561,12 @@ export function Connections({
                           : t("connections.reconnect")}
                       </DropdownMenuItem>
                     )}
+                    {conn.status === "connected" && (
+                      <DropdownMenuItem onClick={() => setRuling(conn)}>
+                        <ShieldCheckIcon />
+                        {t("approvals.rulesMenu")}
+                      </DropdownMenuItem>
+                    )}
                     {projects.length > 1 && (
                       <DropdownMenuItem onClick={() => setMoving(conn)}>
                         <ArrowRightLeftIcon />
@@ -1620,6 +1629,17 @@ export function Connections({
                     >
                       {statusLabel[conn.status]}
                     </StatusPill>
+                  )}
+                  {conn.approvalTools.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setRuling(conn)}
+                      title={conn.approvalTools.join(", ")}
+                      className="text-muted-foreground hover:text-foreground ml-2 inline-flex items-center gap-1 text-xs"
+                    >
+                      <ShieldCheckIcon className="size-3.5" />
+                      {conn.approvalTools.length}
+                    </button>
                   )}
                 </div>
                 {conn.status === "connected" ? (
@@ -1950,6 +1970,11 @@ export function Connections({
         tools={tools?.list}
         error={tools?.error}
         onClose={() => setTools(undefined)}
+      />
+      <ApprovalRulesDialog
+        connection={ruling}
+        onClose={() => setRuling(undefined)}
+        onSaved={reload}
       />
       <NameDialog request={naming} onClose={() => setNaming(undefined)} />
     </>
