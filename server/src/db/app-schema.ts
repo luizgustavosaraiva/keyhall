@@ -292,3 +292,22 @@ export const setting = sqliteTable("setting", {
   value: text("value", { mode: "json" }).$type<unknown>().notNull(),
   updatedAt: timestamps.updatedAt,
 })
+
+// Where keyhall tells admins that something waits for them (today: approval requests).
+// configEnc holds the channel's fields, encrypted (bot tokens and webhook URLs are credentials).
+export const notificationChannel = sqliteTable("notification_channel", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  kind: text("kind", {
+    enum: ["telegram", "ntfy", "discord", "slack", "webhook"],
+  }).notNull(),
+  configEnc: text("config_enc").notNull(),
+  // Sends the call's arguments too (they leave keyhall for that service).
+  includeArgs: integer("include_args", { mode: "boolean" })
+    .default(false)
+    .notNull(),
+  enabled: integer("enabled", { mode: "boolean" }).default(true).notNull(),
+  lastSentAt: integer("last_sent_at", { mode: "timestamp_ms" }),
+  lastError: text("last_error"),
+  ...timestamps,
+})

@@ -41,7 +41,9 @@ reference a secret.
 Tokens are rate-limited to 600 requests per minute each.
 
 Tools marked for [approval](concepts.md#approval) run only after an admin approves that exact
-call in the panel; the request, its arguments and the decision are kept.
+call in the panel; the request, its arguments and the decision are kept. [Notification
+channels](concepts.md#notifications) send who asked and which tool, and the arguments only where
+you turn that on; their bot tokens and webhook URLs are encrypted with the master key.
 
 ### Code Mode
 

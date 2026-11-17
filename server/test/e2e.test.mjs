@@ -2,7 +2,7 @@
 // public surface the way a consumer and the panel do. Run with `pnpm test` after `pnpm build`.
 import assert from "node:assert/strict"
 import { spawn } from "node:child_process"
-import { createHash, randomBytes } from "node:crypto"
+import { createHash, createHmac, randomBytes } from "node:crypto"
 import { mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { createServer, request } from "node:http"
 import { tmpdir } from "node:os"
@@ -35,6 +35,16 @@ const upstream = createServer((req, res) => {
   }
   res.setHeader("content-type", "application/json")
   res.end(JSON.stringify({ ok: true, path: req.url }))
+})
+
+// Notification receiver: records every POST (Telegram's API, webhooks, ntfy).
+const hooks = []
+const hookServer = createServer(async (req, res) => {
+  let body = ""
+  for await (const chunk of req) body += chunk
+  hooks.push({ url: req.url, headers: req.headers, body })
+  res.statusCode = req.url.startsWith("/fail") ? 500 : 200
+  res.end("{}")
 })
 
 // Remote MCP server that takes a fixed key instead of OAuth, and tells which headers reached it.
@@ -231,6 +241,7 @@ before(async () => {
   await new Promise((r) => upstream.listen(0, "127.0.0.1", r))
   await new Promise((r) => remote.listen(0, "127.0.0.1", r))
   await new Promise((r) => googleServer.listen(0, "127.0.0.1", r))
+  await new Promise((r) => hookServer.listen(0, "127.0.0.1", r))
   proc = spawn(process.execPath, ["dist/index.js"], {
     cwd: serverDir,
     env: {
@@ -247,6 +258,7 @@ before(async () => {
       KEYHALL_GOOGLE_CLIENT_SECRET: "login-secret",
       KEYHALL_GOOGLE_BASE: `http://127.0.0.1:${googleServer.address().port}`,
       KEYHALL_APPROVAL_WAIT_SECONDS: "2",
+      KEYHALL_TELEGRAM_API: `http://127.0.0.1:${hookServer.address().port}/tg`,
     },
   })
   proc.stdout.on("data", (d) => (log += d))
@@ -259,6 +271,7 @@ after(() => {
   upstream.close()
   remote.close()
   googleServer.close()
+  hookServer.close()
   rmSync(dataDir, { recursive: true, force: true })
 })
 
@@ -690,6 +703,128 @@ describe("keyhall", () => {
       body: { tools: [] },
     })
     assert.equal((await echo("d")).result.content[0].text, "d")
+  })
+
+  test("approval requests notify the admin's channels", async () => {
+    const hookBase = `http://127.0.0.1:${hookServer.address().port}`
+    const channel = (body) =>
+      call("/api/admin/notifications", { method: "POST", admin: true, body })
+    assert.equal(
+      (await channel({ name: "x", kind: "discord", fields: {} })).status,
+      400
+    )
+    assert.equal(
+      (
+        await channel({
+          name: "x",
+          kind: "webhook",
+          fields: { url: "ftp://example.com" },
+        })
+      ).status,
+      400
+    )
+    const hook = await channel({
+      name: "Automation",
+      kind: "webhook",
+      fields: { url: `${hookBase}/hook`, secret: "hook-secret" },
+    })
+    assert.equal(hook.status, 201, hook.text)
+    // Secret fields never come back.
+    assert.equal(hook.json.fields.secret, "")
+    assert.deepEqual(hook.json.secretsSet, ["secret"])
+    const tg = await channel({
+      name: "Phone",
+      kind: "telegram",
+      fields: { botToken: "123:abc", chatId: "42" },
+      includeArgs: true,
+    })
+    assert.equal(tg.status, 201, tg.text)
+    const broken = await channel({
+      name: "Broken",
+      kind: "ntfy",
+      fields: { url: `${hookBase}/fail` },
+    })
+
+    // HMAC-SHA256 of the raw body with the channel's secret.
+    const verify = (h) =>
+      h.headers["x-keyhall-signature"] ===
+      `sha256=${createHmac("sha256", "hook-secret").update(h.body).digest("hex")}`
+
+    // The test button sends a sample at once and reports failures.
+    hooks.length = 0
+    const tested = await call(`/api/admin/notifications/${hook.json.id}/test`, {
+      method: "POST",
+      admin: true,
+    })
+    assert.equal(tested.status, 204, tested.text)
+    assert.equal(hooks.length, 1)
+    assert.ok(verify(hooks[0]), "signature")
+    const failed = await call(
+      `/api/admin/notifications/${broken.json.id}/test`,
+      { method: "POST", admin: true }
+    )
+    assert.equal(failed.status, 502)
+    const listed = await call("/api/admin/notifications", { admin: true })
+    assert.match(
+      listed.json.channels.find((c) => c.name === "Broken").lastError,
+      /^500/
+    )
+    await call(`/api/admin/notifications/${broken.json.id}`, {
+      method: "PATCH",
+      admin: true,
+      body: { enabled: false },
+    })
+
+    // A new request reaches every enabled channel; arguments only where asked.
+    await call(`/api/admin/approvals/rules/${ids.stdio}`, {
+      method: "PUT",
+      admin: true,
+      body: { tools: ["echo"] },
+    })
+    hooks.length = 0
+    const pending = await mcp(tokens.project, "tools/call", {
+      name: "echo__echo",
+      arguments: { text: "notify me" },
+    })
+    assert.equal(pending.result.isError, true)
+    await waitFor(() => hooks.length >= 2, "two notifications")
+    assert.ok(!hooks.some((h) => h.url.startsWith("/fail")))
+    const telegram = hooks.find((h) => h.url === "/tg/bot123:abc/sendMessage")
+    const sent = JSON.parse(telegram.body)
+    assert.equal(sent.chat_id, "42")
+    assert.match(sent.text, /echo__echo/)
+    assert.match(sent.text, /notify me/)
+    assert.match(sent.text, /#approvals/)
+    const webhook = hooks.find((h) => h.url === "/hook")
+    assert.ok(verify(webhook), "signature")
+    const payload = JSON.parse(webhook.body)
+    assert.equal(payload.event, "approval.requested")
+    assert.equal(payload.approval.name, "echo__echo")
+    assert.equal(payload.approval.args, undefined)
+
+    // Editing without the secret keeps it.
+    await call(`/api/admin/notifications/${hook.json.id}`, {
+      method: "PATCH",
+      admin: true,
+      body: { fields: { url: `${hookBase}/hook`, secret: "" } },
+    })
+    hooks.length = 0
+    await call(`/api/admin/notifications/${hook.json.id}/test`, {
+      method: "POST",
+      admin: true,
+    })
+    assert.ok(verify(hooks[0]), "signature kept")
+
+    await call(`/api/admin/approvals/rules/${ids.stdio}`, {
+      method: "PUT",
+      admin: true,
+      body: { tools: [] },
+    })
+    for (const ch of [hook, tg, broken])
+      await call(`/api/admin/notifications/${ch.json.id}`, {
+        method: "DELETE",
+        admin: true,
+      })
   })
 
   test("team: an invited member reaches only what was granted", async () => {

@@ -1,7 +1,14 @@
-import { CheckIcon, SettingsIcon, ShieldCheckIcon, XIcon } from "lucide-react"
+import {
+  BellIcon,
+  CheckIcon,
+  SettingsIcon,
+  ShieldCheckIcon,
+  XIcon,
+} from "lucide-react"
 import { type FormEvent, useEffect, useState } from "react"
 import { toast } from "sonner"
 import { CodeBlock } from "@/components/copy-button"
+import { NotificationChannels } from "@/components/notification-channels"
 import { EmptyState, PageHeader } from "@/components/page-header"
 import { StatusPill } from "@/components/status-pill"
 import { Button } from "@/components/ui/button"
@@ -46,6 +53,7 @@ export function Approvals({
   const [busy, setBusy] = useState<string>()
   const [timing, setTiming] = useState<Timing>()
   const [editing, setEditing] = useState(false)
+  const [notifying, setNotifying] = useState(false)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -115,14 +123,20 @@ export function Approvals({
             : ""
         }
         action={
-          <Button
-            variant="outline"
-            disabled={!timing}
-            onClick={() => setEditing(true)}
-          >
-            <SettingsIcon />
-            {t("approvals.settings")}
-          </Button>
+          <>
+            <Button variant="outline" onClick={() => setNotifying(true)}>
+              <BellIcon />
+              {t("notify.button")}
+            </Button>
+            <Button
+              variant="outline"
+              disabled={!timing}
+              onClick={() => setEditing(true)}
+            >
+              <SettingsIcon />
+              {t("approvals.settings")}
+            </Button>
+          </>
         }
       />
       {pending.length === 0 ? (
@@ -271,6 +285,7 @@ export function Approvals({
           )}
         </DialogContent>
       </Dialog>
+      <NotificationChannels open={notifying} onOpenChange={setNotifying} />
     </>
   )
 }

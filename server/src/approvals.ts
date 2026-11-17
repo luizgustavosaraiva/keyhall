@@ -6,6 +6,7 @@ import * as z from "zod"
 import type { Access, Link } from "./access.js"
 import { db } from "./db/index.js"
 import { connection, project, toolApproval, user } from "./db/schema.js"
+import { notifyApproval } from "./notifications.js"
 import { type AdminEnv, requireAdmin } from "./routes/middleware.js"
 import { APPROVAL_LIMITS, approvalTiming, writeSetting } from "./settings.js"
 
@@ -104,6 +105,16 @@ export async function requestApproval(
         expiresAt: new Date(now.getTime() + timing.validMinutes * 60_000),
       })
       .returning()
+    notifyApproval({
+      id: pending.id,
+      tool,
+      exposedName,
+      connection: link.conn.name,
+      tokenName: pending.tokenName,
+      requestedBy: pending.requestedBy,
+      args: pending.args,
+      expiresAt: pending.expiresAt,
+    })
   }
   const id = pending.id
   const decision = await new Promise<"approved" | "denied" | "timeout">(
