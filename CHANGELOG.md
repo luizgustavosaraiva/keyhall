@@ -6,6 +6,8 @@ All notable changes to keyhall are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-17
+
 ### License
 
 - keyhall moves from the PolyForm Noncommercial License 1.0.0 to the **GNU AGPL 3.0 only**,
@@ -126,5 +128,6 @@ First public release.
   - OpenSSF Scorecard.
 - Images published with SBOM and provenance attestations.
 
-[Unreleased]: https://github.com/luizgustavosaraiva/keyhall/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/luizgustavosaraiva/keyhall/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/luizgustavosaraiva/keyhall/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/luizgustavosaraiva/keyhall/releases/tag/v0.1.0

@@ -1,6 +1,6 @@
 {
   "name": "keyhall",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Self-hosted hub for MCP servers, APIs and secrets, with scoped tokens per consumer.",
   "repository": {
     "type": "git",

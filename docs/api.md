@@ -8,8 +8,8 @@ Authorization: Bearer kh_...
 
 | Status | Meaning |
 |---|---|
-| `401` | No token. |
-| `403` | Invalid, expired or revoked token, a token over its rate limit (600 requests per minute), or an operation outside the token's reach. |
+| `401` | No token. On `/mcp`, also an invalid, expired or revoked token: sign in again (OAuth clients do it on their own) or paste a new token. |
+| `403` | On the REST endpoints (`/api/proxy`, `/api/secrets`), an invalid, expired or revoked token: create a new token. On every endpoint, a token over its rate limit (600 requests per minute) or an operation outside the token's reach: retrying with the same token won't help. |
 | `404` | The connection or secret doesn't exist within the token's reach. |
 | `409` | Ambiguous name: the same secret name exists in several reachable projects. Add the project. |
 
