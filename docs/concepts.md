@@ -157,3 +157,34 @@ the approval from 1 minute to 24 hours.
 So an admin watching approves in place, and an unattended run never hangs: it stops with a
 clear "waiting for approval". Only admins decide; members can't approve their own calls.
 
+### Notifications
+
+**Approvals → Notifications** adds the channels that tell you a call is waiting: Telegram (a bot
+token and a chat ID), ntfy (a topic URL, optionally with an access token), Discord or Slack (an
+incoming webhook URL), or any webhook. Every enabled channel gets each new request, with a link
+to the Approvals page. **Send a test** checks a channel right away; a failed send shows on the
+channel.
+
+The call's arguments go out only on channels where you turn on **Include the call's arguments**,
+since they then leave keyhall for that service. A webhook receives JSON:
+
+```json
+{
+  "event": "approval.requested",
+  "approval": {
+    "id": "…",
+    "tool": "send_message",
+    "name": "gmail__send_message",
+    "connection": "Gmail",
+    "token": "Sales agent",
+    "requestedBy": "ana@example.com",
+    "expiresAt": "2026-11-17T18:00:00.000Z"
+  },
+  "url": "https://keyhall.example.com/#approvals"
+}
+```
+
+With a signing secret, the `X-Keyhall-Signature` header carries `sha256=` and the HMAC-SHA256 of
+the raw body. Channel fields are encrypted like connection credentials, and secret ones never go
+back to the panel.
+

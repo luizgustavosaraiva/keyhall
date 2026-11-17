@@ -550,4 +550,51 @@ export const en = {
   "approvals.valid": "Approval valid for (minutes)",
   "approvals.validHint":
     "How long an approval holds for the agent to repeat the call, once. Up to {max} (24 hours).",
+  "common.edit": "Edit",
+  "common.optional": "optional",
+  "notify.add": "Add channel",
+  "notify.button": "Notifications",
+  "notify.title": "Notifications",
+  "notify.description":
+    "Where keyhall tells you a call is waiting for approval, with a link to approve it here. Every enabled channel gets each new request.",
+  "notify.empty":
+    "No channels yet. Add Telegram, ntfy, Discord, Slack or a webhook.",
+  "notify.enabled": "Enabled",
+  "notify.lastSent": "last sent {at}",
+  "notify.neverSent": "not sent yet",
+  "notify.lastError": "failed: {error}",
+  "notify.withArgs": "With arguments",
+  "notify.test": "Send a test",
+  "notify.testSent": "Test sent to {name}",
+  "notify.testFailed": "The test failed: {error}",
+  "notify.deleteTitle": "Delete {name}?",
+  "notify.deleteDescription":
+    "keyhall stops notifying this channel. Its stored token or URL is deleted.",
+  "notify.kind": "Service",
+  "notify.namePlaceholder": "My phone",
+  "notify.keep": "Saved; leave empty to keep it",
+  "notify.includeArgs": "Include the call's arguments",
+  "notify.includeArgsHint":
+    "Helps you decide from your phone, but the arguments (e-mail text, IDs, amounts) leave keyhall for that service. Off by default.",
+  "notify.kind.telegram": "Telegram",
+  "notify.kind.ntfy": "ntfy",
+  "notify.kind.discord": "Discord",
+  "notify.kind.slack": "Slack",
+  "notify.kind.webhook": "Webhook",
+  "notify.field.botToken": "Bot token",
+  "notify.field.chatId": "Chat ID",
+  "notify.field.url": "URL",
+  "notify.field.token": "Access token",
+  "notify.field.webhookUrl": "Webhook URL",
+  "notify.field.secret": "Signing secret",
+  "notify.help.telegram":
+    "Create a bot with @BotFather and paste its token. For the chat ID, send your bot a message, open api.telegram.org/bot<token>/getUpdates and copy chat.id (a group's starts with -).",
+  "notify.help.ntfy":
+    "The topic's URL, on ntfy.sh or your own server, then subscribe to the same topic in the ntfy app. Pick a hard-to-guess topic, or use an access token on your server.",
+  "notify.help.discord":
+    "In the Discord channel: Edit channel → Integrations → Webhooks → New webhook → Copy webhook URL.",
+  "notify.help.slack":
+    "Create an incoming webhook for the channel (api.slack.com/messaging/webhooks) and paste its URL.",
+  "notify.help.webhook":
+    "keyhall POSTs JSON (event approval.requested) to this URL. With a secret, the body is signed with HMAC-SHA256 in the X-Keyhall-Signature header.",
 } as const

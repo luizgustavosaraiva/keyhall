@@ -83,6 +83,9 @@ deploy/                   compose files (default, Caddy, Tailscale) and systemd 
 - `connection.approval_tools` lists the tools that need approval; each such call becomes a
   `tool_approval` row (`call_key` = SHA-256 of token, connection, tool and canonical arguments)
   that the gateway waits on (`approvals.ts`).
+- `notification_channel` holds where approval requests are announced (`notifications.ts`);
+  `config_enc` is encrypted and re-encrypted by key rotation. `setting` keeps instance settings
+  saved from the panel, such as approval timing (`settings.ts`).
 - `secret_version` keeps every value: `value_enc` (encrypted with a random data key) and
   `key_enc` (that data key encrypted with the master key). `secret_access` logs every read.
 

@@ -18,6 +18,9 @@ All notable changes to keyhall are documented here. The format is based on
   arguments; the call waits up to 45 s, then the agent is told to repeat it, and an approval
   holds for that exact call for 15 minutes, once. Both times are set on **Approvals → Timing**
   (starting values from `KEYHALL_APPROVAL_WAIT_SECONDS` and `KEYHALL_APPROVAL_VALID_MINUTES`).
+- **Notifications**: **Approvals → Notifications** announces each new request on Telegram,
+  ntfy, Discord, Slack or a signed webhook, with a link to approve it. Arguments are sent only
+  where you turn them on. Channel credentials are encrypted and covered by key rotation.
 
 ## [0.2.0] - 2026-11-17
 

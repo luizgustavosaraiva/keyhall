@@ -5,7 +5,7 @@
 import { and, eq } from "drizzle-orm"
 import { decrypt, encrypt, key } from "../crypto.js"
 import { db } from "../db/index.js"
-import { connection, secretVersion } from "../db/schema.js"
+import { connection, notificationChannel, secretVersion } from "../db/schema.js"
 
 const oldKey = key()
 const newKey = key("KEYHALL_NEW_ENCRYPTION_KEY")
@@ -20,6 +20,7 @@ const fields = [
 const rows = db.select().from(connection).all()
 // Vault: only each version's key is under the master key; the values stay as they are.
 const versions = db.select().from(secretVersion).all()
+const channels = db.select().from(notificationChannel).all()
 let values = 0
 db.transaction((tx) => {
   for (const row of rows) {
@@ -31,6 +32,12 @@ db.transaction((tx) => {
     }
     if (Object.keys(set).length)
       tx.update(connection).set(set).where(eq(connection.id, row.id)).run()
+  }
+  for (const ch of channels) {
+    tx.update(notificationChannel)
+      .set({ configEnc: encrypt(decrypt(ch.configEnc, oldKey), newKey) })
+      .where(eq(notificationChannel.id, ch.id))
+      .run()
   }
   for (const v of versions) {
     tx.update(secretVersion)
@@ -45,5 +52,5 @@ db.transaction((tx) => {
   }
 })
 console.log(
-  `${values} connection secrets and ${versions.length} vault versions re-encrypted. Now set KEYHALL_ENCRYPTION_KEY to the new key.`
+  `${values} connection secrets, ${channels.length} notification channels and ${versions.length} vault versions re-encrypted. Now set KEYHALL_ENCRYPTION_KEY to the new key.`
 )

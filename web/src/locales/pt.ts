@@ -557,4 +557,51 @@ export const pt: Record<keyof typeof en, string> = {
   "approvals.valid": "Aprovação vale por (minutos)",
   "approvals.validHint":
     "Por quanto tempo a aprovação vale para o agente repetir a chamada, uma vez. Até {max} (24 horas).",
+  "common.edit": "Editar",
+  "common.optional": "opcional",
+  "notify.add": "Adicionar canal",
+  "notify.button": "Notificações",
+  "notify.title": "Notificações",
+  "notify.description":
+    "Onde o keyhall avisa que uma chamada espera aprovação, com um link para aprovar aqui. Todo canal ligado recebe cada pedido novo.",
+  "notify.empty":
+    "Nenhum canal ainda. Adicione Telegram, ntfy, Discord, Slack ou um webhook.",
+  "notify.enabled": "Ligado",
+  "notify.lastSent": "último envio {at}",
+  "notify.neverSent": "nada enviado ainda",
+  "notify.lastError": "falhou: {error}",
+  "notify.withArgs": "Com argumentos",
+  "notify.test": "Enviar um teste",
+  "notify.testSent": "Teste enviado para {name}",
+  "notify.testFailed": "O teste falhou: {error}",
+  "notify.deleteTitle": "Apagar {name}?",
+  "notify.deleteDescription":
+    "O keyhall para de avisar neste canal. O token ou a URL guardados são apagados.",
+  "notify.kind": "Serviço",
+  "notify.namePlaceholder": "Meu celular",
+  "notify.keep": "Guardado; deixe vazio para manter",
+  "notify.includeArgs": "Incluir os argumentos da chamada",
+  "notify.includeArgsHint":
+    "Ajuda a decidir pelo celular, mas os argumentos (texto de e-mail, IDs, valores) saem do keyhall para esse serviço. Desligado por padrão.",
+  "notify.kind.telegram": "Telegram",
+  "notify.kind.ntfy": "ntfy",
+  "notify.kind.discord": "Discord",
+  "notify.kind.slack": "Slack",
+  "notify.kind.webhook": "Webhook",
+  "notify.field.botToken": "Token do bot",
+  "notify.field.chatId": "ID do chat",
+  "notify.field.url": "URL",
+  "notify.field.token": "Token de acesso",
+  "notify.field.webhookUrl": "URL do webhook",
+  "notify.field.secret": "Segredo de assinatura",
+  "notify.help.telegram":
+    "Crie um bot com o @BotFather e cole o token. Para o ID do chat, mande uma mensagem ao bot, abra api.telegram.org/bot<token>/getUpdates e copie chat.id (o de um grupo começa com -).",
+  "notify.help.ntfy":
+    "A URL do tópico, no ntfy.sh ou no seu servidor; depois assine o mesmo tópico no app do ntfy. Escolha um tópico difícil de adivinhar, ou use um token de acesso no seu servidor.",
+  "notify.help.discord":
+    "No canal do Discord: Editar canal → Integrações → Webhooks → Novo webhook → Copiar URL do webhook.",
+  "notify.help.slack":
+    "Crie um incoming webhook para o canal (api.slack.com/messaging/webhooks) e cole a URL.",
+  "notify.help.webhook":
+    "O keyhall faz POST de um JSON (evento approval.requested) nesta URL. Com um segredo, o corpo é assinado com HMAC-SHA256 no header X-Keyhall-Signature.",
 }
