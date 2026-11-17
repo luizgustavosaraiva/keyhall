@@ -7,16 +7,13 @@ import type { Access, Link } from "./access.js"
 import { db } from "./db/index.js"
 import { connection, project, toolApproval, user } from "./db/schema.js"
 import { type AdminEnv, requireAdmin } from "./routes/middleware.js"
+import { APPROVAL_LIMITS, approvalTiming, writeSetting } from "./settings.js"
 
 // Tools that need an admin's approval on every call. The agent's call waits a little for the
 // decision (in the panel), so an admin watching approves it in place. Past that, the agent is
 // told to repeat the same call later: the approval then holds for that exact call (same token,
 // tool and arguments) until it expires, once. Unattended runs never hang; they get a clear
 // "waiting for approval".
-
-const waitMs = () =>
-  Number(process.env.KEYHALL_APPROVAL_WAIT_SECONDS ?? 45) * 1000
-const VALID_MS = 15 * 60_000
 
 const decided = new EventEmitter()
 decided.setMaxListeners(0)
@@ -71,6 +68,7 @@ export async function requestApproval(
   args: unknown
 ): Promise<Outcome> {
   const callKey = callKeyOf(access.token.id, link.conn.id, tool, args)
+  const timing = approvalTiming()
   const now = new Date()
   const open = await db
     .select()
@@ -103,7 +101,7 @@ export async function requestApproval(
         tokenId: access.token.id,
         tokenName: access.token.name,
         requestedBy: owner?.email ?? access.token.userId,
-        expiresAt: new Date(now.getTime() + VALID_MS),
+        expiresAt: new Date(now.getTime() + timing.validMinutes * 60_000),
       })
       .returning()
   }
@@ -115,7 +113,7 @@ export async function requestApproval(
         decided.off(id, done)
         resolve(d)
       }
-      const timer = setTimeout(() => done("timeout"), waitMs())
+      const timer = setTimeout(() => done("timeout"), timing.waitSeconds * 1000)
       decided.on(id, done)
     }
   )
@@ -190,6 +188,23 @@ export const approvals = new Hono<AdminEnv>()
     if (res.changes !== 1) return c.json({ error: "no longer pending" }, 409)
     decided.emit(id, approve ? "approved" : "denied")
     return c.body(null, 204)
+  })
+  // How long calls wait and approvals hold; the environment gives only the starting values.
+  .get("/settings", (c) =>
+    c.json({ ...approvalTiming(), limits: APPROVAL_LIMITS })
+  )
+  .put("/settings", async (c) => {
+    const { waitSeconds: w, validMinutes: v } = APPROVAL_LIMITS
+    const input = z
+      .object({
+        waitSeconds: z.number().int().min(w.min).max(w.max),
+        validMinutes: z.number().int().min(v.min).max(v.max),
+      })
+      .safeParse(await c.req.json())
+    if (!input.success)
+      return c.json({ error: z.prettifyError(input.error) }, 400)
+    writeSetting("approvals", input.data)
+    return c.json(approvalTiming())
   })
   // Which tools of a connection need approval.
   .put("/rules/:connectionId", async (c) => {

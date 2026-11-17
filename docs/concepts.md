@@ -142,14 +142,17 @@ publishing. In a connection's menu, **Approval** picks which of its tools wait f
 each call, whatever the token or member. Their description tells agents so up front.
 
 When an agent calls one, the request shows up on **Approvals** with the token, its owner, the
-tool and the arguments. The call waits a little (45 seconds by default,
-`KEYHALL_APPROVAL_WAIT_SECONDS`):
+tool and the arguments. The call waits a little (45 seconds by default):
 
 - approved in that time, it runs and returns as usual;
 - denied, the agent gets an error saying so;
 - no decision yet, the agent is told to repeat the same call once it's approved. The approval
-  then holds for that exact call (same token, tool and arguments) for 15 minutes, and is used
-  once.
+  then holds for that exact call (same token, tool and arguments) for 15 minutes by default,
+  and is used once.
+
+Both times are set on **Approvals → Timing**: the wait from 0 to 55 seconds (0 answers at once;
+keep it under your MCP clients' timeout, often 60 s, which is also Code Mode's run limit), and
+the approval from 1 minute to 24 hours.
 
 So an admin watching approves in place, and an unattended run never hangs: it stops with a
 clear "waiting for approval". Only admins decide; members can't approve their own calls.

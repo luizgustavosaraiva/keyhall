@@ -525,7 +525,7 @@ export const pt: Record<keyof typeof en, string> = {
   "approvals.deny": "Negar",
   "approvals.denied": "Negado",
   "approvals.description":
-    "Chamadas a ferramentas que pedem aprovação. O agente espera cerca de 45 segundos; depois disso, a aprovação vale para a mesma chamada por 15 minutos, uma vez.",
+    "Chamadas a ferramentas que pedem aprovação. O agente espera {wait} s; depois disso, a aprovação vale para a mesma chamada por {valid} min, uma vez.",
   "approvals.emptyDescription":
     "Escolha quais ferramentas pedem aprovação no menu da conexão, em Aprovação.",
   "approvals.emptyTitle": "Nada esperando",
@@ -547,4 +547,14 @@ export const pt: Record<keyof typeof en, string> = {
   "approvals.when": "Pedida {at} · vale até {until}",
   "approvals.who": "Token {token} ({person}) · {connection} em {project}",
   "nav.approvals": "Aprovações",
+  "approvals.settings": "Tempos",
+  "approvals.settingsSaved": "Tempos salvos",
+  "approvals.settingsDescription":
+    "Para todas as ferramentas que pedem aprovação, em todas as organizações.",
+  "approvals.wait": "Espera (segundos)",
+  "approvals.waitHint":
+    "Quanto a chamada do agente espera uma decisão antes de ele ser orientado a repetir. 0 responde na hora; até {max}, abaixo do limite comum de 60 s dos clientes.",
+  "approvals.valid": "Aprovação vale por (minutos)",
+  "approvals.validHint":
+    "Por quanto tempo a aprovação vale para o agente repetir a chamada, uma vez. Até {max} (24 horas).",
 }

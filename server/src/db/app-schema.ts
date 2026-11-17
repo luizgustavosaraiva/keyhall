@@ -284,3 +284,11 @@ export const toolApproval = sqliteTable("tool_approval", {
   expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
   createdAt: timestamps.createdAt,
 })
+
+// Instance settings changed from the panel (key → JSON value). Environment variables only give
+// the starting values.
+export const setting = sqliteTable("setting", {
+  key: text("key").primaryKey(),
+  value: text("value", { mode: "json" }).$type<unknown>().notNull(),
+  updatedAt: timestamps.updatedAt,
+})

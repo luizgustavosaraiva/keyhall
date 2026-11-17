@@ -628,6 +628,23 @@ describe("keyhall", () => {
       throw new Error(`no pending approval for ${text}`)
     }
 
+    // Timing: the environment gives the starting values; the panel changes them.
+    const timing = await call("/api/admin/approvals/settings", { admin: true })
+    assert.equal(timing.json.waitSeconds, 2)
+    assert.equal(timing.json.validMinutes, 15)
+    const tooLong = await call("/api/admin/approvals/settings", {
+      method: "PUT",
+      admin: true,
+      body: { waitSeconds: 60, validMinutes: 30 },
+    })
+    assert.equal(tooLong.status, 400)
+    const saved = await call("/api/admin/approvals/settings", {
+      method: "PUT",
+      admin: true,
+      body: { waitSeconds: 2, validMinutes: 30 },
+    })
+    assert.equal(saved.status, 200, saved.text)
+
     // Nobody decides in time: the agent is told to repeat the call once approved.
     const waiting = await echo("a")
     assert.equal(waiting.result.isError, true)
@@ -636,6 +653,8 @@ describe("keyhall", () => {
     assert.equal(req.tool, "echo")
     assert.equal(req.tokenName, "project")
     assert.equal(req.requestedBy, "admin@example.com")
+    const validFor = new Date(req.expiresAt) - new Date(req.createdAt)
+    assert.ok(Math.abs(validFor - 30 * 60_000) < 2000, String(validFor))
     const approve = (id, decision = "approve") =>
       call(`/api/admin/approvals/${id}/${decision}`, {
         method: "POST",

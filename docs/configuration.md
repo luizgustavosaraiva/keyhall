@@ -12,7 +12,8 @@ projects, tokens, secrets) lives in the database and is managed from the panel.
 | `BETTER_AUTH_URL` | yes | | Public URL of the panel, exactly as people type it, e.g. `https://keyhall.example.com`. Used for cookies and as the OAuth callback base. |
 | `TRUSTED_ORIGINS` | yes | | Origins allowed to call the auth API, comma-separated. Usually the same value as `BETTER_AUTH_URL`. |
 | `KEYHALL_GOOGLE_CLIENT_ID`, `KEYHALL_GOOGLE_CLIENT_SECRET` | no | | Turn on **Continue with Google** on the sign-in page. See [Signing in with Google](google.md#signing-in-to-the-panel-with-google). |
-| `KEYHALL_APPROVAL_WAIT_SECONDS` | no | `45` | How long a call to a tool that needs [approval](concepts.md#approval) waits for a decision before telling the agent to repeat it later. Keep it under your MCP clients' timeout (often 60 s; Code Mode runs stop at 60 s). |
+| `KEYHALL_APPROVAL_WAIT_SECONDS` | no | `45` | Starting value for how long a call to a tool that needs [approval](concepts.md#approval) waits for a decision (0 to 55). Change it later on **Approvals → Timing**; the saved value wins. |
+| `KEYHALL_APPROVAL_VALID_MINUTES` | no | `15` | Starting value for how long an approval holds for the agent to repeat the call (1 to 1440). Also on **Approvals → Timing**. |
 | `KEYHALL_ALLOW_STDIO` | no | `true` | `false` disables local (command) MCP connections. See [Security](security.md#local-connections). |
 | `DATABASE_PATH` | no | `/data/keyhall.db` in the image, `../data/keyhall.db` from source | SQLite file. Its directory is created if missing. |
 | `HOST` | no | `0.0.0.0` in the image, `127.0.0.1` from source | Address the HTTP server binds to. |
