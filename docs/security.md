@@ -27,8 +27,12 @@ reference a secret.
 ## Who can do what
 
 - **The administrator** (panel account) can see and change everything, including revealing
-  secrets. Sign-up is closed after the first account; there's no way to register from outside.
-- **A token** reaches only its organization, project or scope. Within that reach, it can call
+  secrets. Sign-up is closed after the first account; the only way in from outside is an invitation link.
+- **A member** (invited from **Team**) sees only what an admin granted, by name, and can't
+  edit or reveal anything. Their tokens reach only those grants, checked on every call. An
+  invitation link is the only credential until it's accepted: it works once, for 7 days, and
+  keyhall stores only its hash, so send it over a channel you trust.
+- **A token** reaches only its organization, project or scope (a member's: their grants). Within that reach, it can call
   tools, use the proxy for API connections, and read secrets through REST. Through MCP it reads
   only secrets marked "Readable by agents".
 - **Upstream credentials never reach consumers.** A consumer sees tool names and results, not

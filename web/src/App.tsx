@@ -6,7 +6,9 @@ import { authClient } from "@/lib/auth-client"
 import { useI18n } from "@/lib/i18n"
 import { Authorize } from "@/pages/authorize"
 import { Dashboard } from "@/pages/dashboard"
+import { Invite, pendingInvite } from "@/pages/invite"
 import { Login } from "@/pages/login"
+import { MemberHome } from "@/pages/member"
 import { Setup } from "@/pages/setup"
 
 export function App() {
@@ -28,6 +30,8 @@ export function App() {
       .finally(() => setLinking(false))
   }, [])
   // No users yet: show the first-run setup instead of the sign-in.
+  // Opened from an invitation link (#invite=...): the invitation page, signed in or not.
+  const [invite, setInvite] = useState(pendingInvite)
   const [setupNeeded, setSetupNeeded] = useState<boolean>()
   const [google, setGoogle] = useState(false)
   useEffect(() => {
@@ -43,12 +47,27 @@ export function App() {
 
   return (
     <>
-      {isPending || linking ? null : session ? (
+      {isPending || linking ? null : invite ? (
+        <Invite
+          code={invite}
+          session={session ? { email: session.user.email } : null}
+          onDone={() => {
+            setInvite(null)
+            refetch()
+          }}
+        />
+      ) : session ? (
         // An MCP client asking for access by OAuth: the consent page instead of the panel.
         window.location.pathname === "/oauth/authorize" ? (
-          <Authorize />
-        ) : (
+          <Authorize member={session.user.role !== "admin"} />
+        ) : session.user.role === "admin" ? (
           <Dashboard
+            user={{ name: session.user.name, email: session.user.email }}
+            sessionToken={session.session.token}
+          />
+        ) : (
+          // Invited people see only what was granted to them.
+          <MemberHome
             user={{ name: session.user.name, email: session.user.email }}
             sessionToken={session.session.token}
           />

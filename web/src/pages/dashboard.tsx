@@ -15,6 +15,7 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import {
   api,
   type Connection,
+  type Member,
   type Org,
   type Project,
   type Scope,
@@ -27,6 +28,7 @@ import { useI18n } from "@/lib/i18n"
 import { Connections } from "./connections"
 import { Scopes } from "./scopes"
 import { Secrets } from "./secrets"
+import { Team } from "./team"
 import { Tokens } from "./tokens"
 
 // Messages after the OAuth return (/api/oauth/callback redirects to /?oauth=...).
@@ -46,7 +48,7 @@ function useOAuthNotice() {
 }
 
 const VIEW_KEY = "keyhall:view"
-const pages: Page[] = ["connections", "scopes", "secrets", "tokens"]
+const pages: Page[] = ["connections", "scopes", "secrets", "tokens", "team"]
 
 function savedView(orgs: Org[]): View | null {
   let saved: string | null = null
@@ -99,6 +101,7 @@ export function Dashboard({
   const [scopes, setScopes] = useState<Scope[]>([])
   const [tokens, setTokens] = useState<Token[]>([])
   const [secrets, setSecrets] = useState<Secret[]>([])
+  const [members, setMembers] = useState<Member[]>([])
   const [page, setPage] = usePage()
   const [menuOpen, setMenuOpen] = useState(false)
   const [naming, setNaming] = useState<NameRequest>()
@@ -138,12 +141,14 @@ export function Dashboard({
       api<Scope[]>("/scopes"),
       api<Token[]>("/tokens"),
       api<Secret[]>("/secrets"),
+      api<Member[]>("/members"),
     ])
-      .then(([c, s, tk, sec]) => {
+      .then(([c, s, tk, sec, m]) => {
         setConnections(c)
         setScopes(s)
         setTokens(tk)
         setSecrets(sec)
+        setMembers(m)
       })
       .catch((err: Error) => toast.error(err.message))
   }, [reloadOrgs])
@@ -161,6 +166,8 @@ export function Dashboard({
         tokens: [],
         secrets: [],
         orgSecrets: [],
+        orgScopes: [],
+        members: [],
       }
     const projectIds = new Set(view.org.projects.map((p) => p.id))
     const orgConnections = connections.filter((c) =>
@@ -190,8 +197,11 @@ export function Dashboard({
         : orgConnections,
       scopes: viewScopes,
       tokens: viewTokens,
+      orgScopes: scopes.filter((s) => s.orgId === view.org.id),
+      // People belong to the organization, so every project view shows the same team.
+      members: members.filter((m) => m.orgId === view.org.id),
     }
-  }, [view, connections, scopes, tokens, secrets])
+  }, [view, connections, scopes, tokens, secrets, members])
 
   const actions: SidebarActions = {
     newOrg: () =>
@@ -311,6 +321,7 @@ export function Dashboard({
         scopes: inView.scopes.length,
         secrets: inView.secrets.length,
         tokens: inView.tokens.length,
+        team: inView.members.length,
       }}
       user={user}
       actions={actions}
@@ -394,6 +405,16 @@ export function Dashboard({
               view={view}
               tokens={inView.tokens}
               scopes={scopes}
+              reload={reload}
+            />
+          )}
+          {page === "team" && (
+            <Team
+              view={view}
+              members={inView.members}
+              connections={inView.orgConnections}
+              scopes={inView.orgScopes}
+              secrets={inView.orgSecrets}
               reload={reload}
             />
           )}

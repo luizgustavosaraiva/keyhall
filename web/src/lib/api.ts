@@ -167,7 +167,8 @@ export type Token = {
   id: string
   name: string | null
   start: string | null
-  target: { kind: "org" | "project" | "scope"; id: string }
+  // "member": everything granted to a member (their own tokens).
+  target: { kind: "org" | "project" | "scope" | "member"; id: string }
   // "code": the client sees search and execute (Code Mode); "tools": every tool.
   mode: "tools" | "code"
   expiresAt: string | null
@@ -180,18 +181,70 @@ export type ConnectResult =
   | { status: "authorize"; authorizationUrl: string }
   | { status: "error"; error: string }
 
-export async function api<T = void>(
+// A person invited to an organization, with what they were granted.
+export type Member = {
+  id: string
+  orgId: string
+  email: string
+  name: string | null
+  status: "invited" | "expired" | "active"
+  inviteExpires: string | null
+  joinedAt: string | null
+  createdAt: string
+  // Per connection: allowed tools; null = all.
+  connections: Record<string, string[] | null>
+  scopeIds: string[]
+  secretIds: string[]
+}
+
+// The member's side: what was granted in each organization (names only, no credentials).
+export type Reach = {
+  memberId: string
+  org: { id: string; name: string; slug: string }
+  connections: {
+    id: string
+    name: string
+    slug: string
+    kind: Connection["kind"]
+    plugin: string | null
+    status: Connection["status"]
+    project: { name: string; slug: string }
+    allowedTools: string[] | null
+  }[]
+  scopes: { id: string; name: string; slug: string }[]
+  secrets: {
+    id: string
+    name: string
+    description: string | null
+    agentAccess: boolean
+    project: { name: string; slug: string }
+  }[]
+}
+
+export type ApiClient = <T = void>(
   path: string,
   init?: { method?: string; body?: unknown }
-): Promise<T> {
-  const res = await fetch(`/api/admin${path}`, {
-    method: init?.method ?? (init?.body ? "POST" : "GET"),
-    headers: init?.body ? { "content-type": "application/json" } : undefined,
-    body: init?.body ? JSON.stringify(init.body) : undefined,
-  })
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}))
-    throw new Error(data.error ?? `erro ${res.status}`)
+) => Promise<T>
+
+const client =
+  (prefix: string): ApiClient =>
+  async <T = void>(
+    path: string,
+    init?: { method?: string; body?: unknown }
+  ) => {
+    const res = await fetch(`${prefix}${path}`, {
+      method: init?.method ?? (init?.body ? "POST" : "GET"),
+      headers: init?.body ? { "content-type": "application/json" } : undefined,
+      body: init?.body ? JSON.stringify(init.body) : undefined,
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.error ?? `erro ${res.status}`)
+    }
+    return (res.status === 204 ? undefined : res.json()) as Promise<T>
   }
-  return res.status === 204 ? (undefined as T) : res.json()
-}
+
+// A member's own API (their reach and tokens).
+export const meApi = client("/api/me")
+
+export const api = client("/api/admin")

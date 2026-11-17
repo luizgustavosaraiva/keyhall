@@ -18,6 +18,7 @@ import {
   SunIcon,
   SwatchBookIcon,
   Trash2Icon,
+  UsersIcon,
 } from "lucide-react"
 import { type ReactNode, useEffect, useState } from "react"
 import { toast } from "sonner"
@@ -42,7 +43,7 @@ import { authClient } from "@/lib/auth-client"
 import { type Locale, locales, useI18n } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 
-export type Page = "connections" | "scopes" | "secrets" | "tokens"
+export type Page = "connections" | "scopes" | "secrets" | "tokens" | "team"
 
 export type SidebarActions = {
   newOrg: () => void
@@ -96,7 +97,7 @@ function GoogleAccountItem() {
   )
 }
 
-function NavItem({
+export function NavItem({
   active,
   icon,
   label,
@@ -147,7 +148,7 @@ function NavItem({
   )
 }
 
-function SectionLabel({
+export function SectionLabel({
   children,
   action,
 }: {
@@ -186,8 +187,7 @@ export function AppSidebar({
   user: { name: string; email: string }
   actions: SidebarActions
 }) {
-  const { t, locale, setLocale } = useI18n()
-  const { theme, setTheme } = useTheme()
+  const { t } = useI18n()
   const { org } = view
 
   return (
@@ -337,110 +337,137 @@ export function AppSidebar({
           count={counts.tokens}
           onClick={() => onPageChange("tokens")}
         />
+        <NavItem
+          active={page === "team"}
+          icon={<UsersIcon />}
+          label={t("nav.team")}
+          count={counts.team}
+          onClick={() => onPageChange("team")}
+        />
       </nav>
 
       {/* Account */}
       <div className="mt-auto">
-        <DropdownMenu>
-          <DropdownMenuTrigger className="hover:bg-sidebar-accent/70 focus-visible:ring-ring/50 aria-expanded:bg-sidebar-accent/70 flex w-full items-center gap-2.5 rounded-xl p-2 text-left transition-colors outline-none focus-visible:ring-3">
-            <span className="bg-muted text-foreground flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-medium">
-              {(user.name || user.email)[0]?.toUpperCase()}
-            </span>
-            <span className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate text-sm font-medium">
-                {user.name || user.email}
-              </span>
-              <span className="text-muted-foreground truncate text-xs">
-                {user.email}
-              </span>
-            </span>
-            <ChevronsUpDownIcon className="text-muted-foreground size-4 shrink-0" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent side="top" className="w-60">
-            <DropdownMenuItem onClick={actions.devices}>
-              <QrCodeIcon />
-              {t("devices.menu")}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={actions.changePassword}>
-              <LockKeyholeIcon />
-              {t("account.changePassword")}
-            </DropdownMenuItem>
-            <GoogleAccountItem />
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                <LanguagesIcon />
-                {t("account.language")}
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent>
-                <DropdownMenuRadioGroup
-                  value={locale}
-                  onValueChange={(v) => setLocale(v as Locale)}
-                >
-                  {locales.map((l) => (
-                    <DropdownMenuRadioItem key={l.id} value={l.id}>
-                      {l.label}
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                {theme === "dark" ? (
-                  <MoonIcon />
-                ) : theme === "light" ? (
-                  <SunIcon />
-                ) : (
-                  <MonitorIcon />
-                )}
-                {t("account.theme")}
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent>
-                <DropdownMenuRadioGroup
-                  value={theme}
-                  onValueChange={(v) => setTheme(v as typeof theme)}
-                >
-                  <DropdownMenuRadioItem value="system">
-                    {t("theme.system")}
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="light">
-                    {t("theme.light")}
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="dark">
-                    {t("theme.dark")}
-                  </DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={actions.signOut}>
-              <LogOutIcon />
-              {t("account.signOut")}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <a
-              href={`https://github.com/luizgustavosaraiva/keyhall/releases/tag/v${__APP_VERSION__}`}
-              target="_blank"
-              rel="noreferrer"
-              className="text-muted-foreground hover:text-foreground block px-2 py-1 text-xs"
-            >
-              keyhall v{__APP_VERSION__}
-            </a>
-            {/* Appropriate Legal Notices (AGPL-3.0, section 0) and the attribution in NOTICE. */}
-            <p className="text-muted-foreground px-2 pb-1.5 text-xs leading-relaxed">
-              {t("account.legal")}{" "}
-              <a
-                href="https://github.com/luizgustavosaraiva/keyhall"
-                target="_blank"
-                rel="noreferrer"
-                className="hover:text-foreground underline underline-offset-2"
-              >
-                {t("account.source")}
-              </a>
-            </p>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <AccountMenu user={user} actions={actions} />
       </div>
     </div>
+  )
+}
+
+export type AccountActions = Pick<
+  SidebarActions,
+  "changePassword" | "devices" | "signOut"
+>
+
+// The account menu at the foot of the sidebar: devices, password, Google, language, theme.
+export function AccountMenu({
+  user,
+  actions,
+}: {
+  user: { name: string; email: string }
+  actions: AccountActions
+}) {
+  const { t, locale, setLocale } = useI18n()
+  const { theme, setTheme } = useTheme()
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="hover:bg-sidebar-accent/70 focus-visible:ring-ring/50 aria-expanded:bg-sidebar-accent/70 flex w-full items-center gap-2.5 rounded-xl p-2 text-left transition-colors outline-none focus-visible:ring-3">
+        <span className="bg-muted text-foreground flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-medium">
+          {(user.name || user.email)[0]?.toUpperCase()}
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate text-sm font-medium">
+            {user.name || user.email}
+          </span>
+          <span className="text-muted-foreground truncate text-xs">
+            {user.email}
+          </span>
+        </span>
+        <ChevronsUpDownIcon className="text-muted-foreground size-4 shrink-0" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="top" className="w-60">
+        <DropdownMenuItem onClick={actions.devices}>
+          <QrCodeIcon />
+          {t("devices.menu")}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={actions.changePassword}>
+          <LockKeyholeIcon />
+          {t("account.changePassword")}
+        </DropdownMenuItem>
+        <GoogleAccountItem />
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <LanguagesIcon />
+            {t("account.language")}
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            <DropdownMenuRadioGroup
+              value={locale}
+              onValueChange={(v) => setLocale(v as Locale)}
+            >
+              {locales.map((l) => (
+                <DropdownMenuRadioItem key={l.id} value={l.id}>
+                  {l.label}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            {theme === "dark" ? (
+              <MoonIcon />
+            ) : theme === "light" ? (
+              <SunIcon />
+            ) : (
+              <MonitorIcon />
+            )}
+            {t("account.theme")}
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            <DropdownMenuRadioGroup
+              value={theme}
+              onValueChange={(v) => setTheme(v as typeof theme)}
+            >
+              <DropdownMenuRadioItem value="system">
+                {t("theme.system")}
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="light">
+                {t("theme.light")}
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="dark">
+                {t("theme.dark")}
+              </DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={actions.signOut}>
+          <LogOutIcon />
+          {t("account.signOut")}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <a
+          href={`https://github.com/luizgustavosaraiva/keyhall/releases/tag/v${__APP_VERSION__}`}
+          target="_blank"
+          rel="noreferrer"
+          className="text-muted-foreground hover:text-foreground block px-2 py-1 text-xs"
+        >
+          keyhall v{__APP_VERSION__}
+        </a>
+        {/* Appropriate Legal Notices (AGPL-3.0, section 0) and the attribution in NOTICE. */}
+        <p className="text-muted-foreground px-2 pb-1.5 text-xs leading-relaxed">
+          {t("account.legal")}{" "}
+          <a
+            href="https://github.com/luizgustavosaraiva/keyhall"
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-foreground underline underline-offset-2"
+          >
+            {t("account.source")}
+          </a>
+        </p>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }

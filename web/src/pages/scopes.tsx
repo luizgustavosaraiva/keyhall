@@ -4,20 +4,17 @@ import {
   MoreHorizontalIcon,
   PencilIcon,
   PlusIcon,
-  SearchIcon,
   SlidersHorizontalIcon,
   Trash2Icon,
 } from "lucide-react"
-import { type FormEvent, useEffect, useState } from "react"
+import { type FormEvent, useState } from "react"
 import { toast } from "sonner"
+import { AccessPicker } from "@/components/access-picker"
 import { useConfirm } from "@/components/confirm"
-import { Monogram } from "@/components/monogram"
 import { NameDialog, type NameRequest } from "@/components/name-dialog"
 import { EmptyState, PageHeader } from "@/components/page-header"
 import { SlugField } from "@/components/slug-field"
-import { ToolTree } from "@/components/tool-tree"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -35,128 +32,17 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { Switch } from "@/components/ui/switch"
 import {
   api,
   type Connection,
   type Scope,
   type Secret,
-  type Tool,
   type View,
 } from "@/lib/api"
 import { useI18n } from "@/lib/i18n"
 import { slugify } from "@/lib/slug"
-import { cn } from "@/lib/utils"
 
 type AllowedTools = Scope["allowedTools"]
-
-// Right pane of the editor: a connection's tools within the scope.
-function ToolPanel({
-  connection,
-  tools,
-  error,
-  value,
-  onChange,
-}: {
-  connection: Connection
-  tools?: Tool[]
-  error?: string
-  value: string[] | null
-  onChange: (tools: string[] | null) => void
-}) {
-  const { t } = useI18n()
-  const [query, setQuery] = useState("")
-  // biome-ignore lint/correctness/useExhaustiveDependencies: clears the search when the connection changes
-  useEffect(() => setQuery(""), [connection.id])
-
-  return (
-    <div className="flex flex-col gap-4 md:min-h-0 md:flex-1">
-      <div className="flex items-center gap-3">
-        <Monogram name={connection.name} className="size-9 rounded-lg" />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate font-medium">{connection.name}</span>
-          <span className="text-muted-foreground truncate font-mono text-xs">
-            {connection.slug}__…
-          </span>
-        </div>
-      </div>
-
-      <div className="bg-muted/50 ring-border flex items-center justify-between gap-4 rounded-xl px-4 py-3 ring-1 ring-inset">
-        <label
-          htmlFor="scope-all-tools"
-          className="flex cursor-pointer flex-col gap-0.5"
-        >
-          <span className="text-sm font-medium">{t("scopes.allTools")}</span>
-          <span className="text-muted-foreground text-xs">
-            {t("scopes.allToolsHint")}
-          </span>
-        </label>
-        <Switch
-          id="scope-all-tools"
-          checked={value === null}
-          disabled={!tools}
-          onCheckedChange={(checked) =>
-            // When restricting, everything starts checked; the admin unchecks what isn't wanted.
-            onChange(checked ? null : (tools?.map((tool) => tool.name) ?? []))
-          }
-        />
-      </div>
-
-      {error && <p className="text-destructive text-sm">{error}</p>}
-      {!tools && !error && (
-        <p className="text-muted-foreground text-sm">{t("common.loading")}</p>
-      )}
-
-      {tools && value !== null && (
-        <>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-48 flex-1">
-              <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={t("tools.search")}
-                className="pl-9"
-              />
-            </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={() => onChange(tools.map((tool) => tool.name))}
-            >
-              {t("scopes.selectAll")}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={() => onChange([])}
-            >
-              {t("scopes.clear")}
-            </Button>
-          </div>
-          <p className="text-muted-foreground -mt-2 text-xs">
-            {value.length === 0
-              ? t("scopes.noneSelected")
-              : t("scopes.selectedOf", {
-                  n: value.length,
-                  total: tools.length,
-                })}
-          </p>
-          <div className="-mx-2 px-2 md:min-h-0 md:flex-1 md:overflow-y-auto">
-            <ToolTree
-              tools={tools}
-              selected={value}
-              onChange={onChange}
-              query={query}
-            />
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
 
 export function Scopes({
   view,
@@ -184,9 +70,6 @@ export function Scopes({
   const [picked, setPicked] = useState<string[]>([])
   const [pickedSecrets, setPickedSecrets] = useState<string[]>([])
   const [allowed, setAllowed] = useState<AllowedTools>({})
-  const [active, setActive] = useState<string>()
-  const [tools, setTools] = useState<Record<string, Tool[]>>({})
-  const [toolErrors, setToolErrors] = useState<Record<string, string>>({})
   const [naming, setNaming] = useState<NameRequest>()
   const [saving, setSaving] = useState(false)
 
@@ -205,36 +88,16 @@ export function Scopes({
   const available = scopeProject
     ? connections.filter((c) => c.projectId === scopeProject)
     : connections
-  const activeConn = available.find((c) => c.id === active)
   const availableSecrets = scopeProject
     ? secrets.filter((x) => x.projectId === scopeProject)
     : secrets
-
-  // Loads the tools of the connection open in the pane (once per connection).
-  useEffect(() => {
-    if (!active || tools[active] || toolErrors[active]) return
-    api<Tool[]>(`/connections/${active}/tools`)
-      .then((list) => setTools((prev) => ({ ...prev, [active]: list })))
-      .catch((err: Error) =>
-        setToolErrors((prev) => ({ ...prev, [active]: err.message }))
-      )
-  }, [active, tools, toolErrors])
 
   function open(scope: Scope | null) {
     setName("")
     setPicked(scope?.connectionIds ?? [])
     setPickedSecrets(scope?.secretIds ?? [])
     setAllowed(scope?.allowedTools ?? {})
-    const first = scope?.connectionIds[0]
-    setActive(first)
     setEditing(scope)
-  }
-
-  function togglePicked(id: string, checked: boolean) {
-    setPicked((prev) =>
-      checked ? [...prev, id] : prev.filter((x) => x !== id)
-    )
-    if (checked) setActive(id)
   }
 
   async function save(e: FormEvent<HTMLFormElement>) {
@@ -471,133 +334,22 @@ export function Scopes({
               </div>
             )}
 
-            <div className="flex flex-col gap-4 md:grid md:min-h-0 md:flex-1 md:grid-cols-[minmax(240px,300px)_1fr]">
-              {/* Connections */}
-              <div className="bg-muted/40 ring-border flex max-h-48 flex-col gap-1 overflow-y-auto rounded-2xl p-2 ring-1 ring-inset md:max-h-none md:min-h-0">
-                <span className="text-muted-foreground px-2 pt-1 pb-1.5 text-xs font-medium">
-                  {t("scopes.connections")}
-                </span>
-                {available.length === 0 && (
-                  <p className="text-muted-foreground px-2 text-sm">
-                    {t("scopes.createConnectionFirst")}
-                  </p>
-                )}
-                {available.map((c) => {
-                  const included = picked.includes(c.id)
-                  const list = allowed[c.id]
-                  return (
-                    <div
-                      key={c.id}
-                      className={cn(
-                        "flex items-center gap-2.5 rounded-xl px-2 py-2 transition-colors",
-                        active === c.id
-                          ? "bg-card ring-border shadow-[var(--shadow-surface)] ring-1"
-                          : "hover:bg-card/60"
-                      )}
-                    >
-                      <Checkbox
-                        checked={included}
-                        onCheckedChange={(checked) =>
-                          togglePicked(c.id, checked)
-                        }
-                        aria-label={c.name}
-                      />
-                      <button
-                        type="button"
-                        className="flex min-w-0 flex-1 flex-col text-left outline-none"
-                        onClick={() => setActive(c.id)}
-                      >
-                        <span className="truncate text-sm font-medium">
-                          {scopeProject
-                            ? c.name
-                            : `${projectName(c.projectId) ?? "?"} / ${c.name}`}
-                        </span>
-                        <span className="text-muted-foreground truncate text-xs">
-                          {included
-                            ? toolSummary(list)
-                            : t("scopes.notIncluded")}
-                        </span>
-                      </button>
-                    </div>
-                  )
-                })}
-                {availableSecrets.length > 0 && (
-                  <>
-                    <span className="text-muted-foreground mt-3 px-2 pt-1 pb-1.5 text-xs font-medium">
-                      {t("scopes.secrets")}
-                    </span>
-                    {availableSecrets.map((x) => (
-                      <div
-                        key={x.id}
-                        className="hover:bg-card/60 flex items-center gap-2.5 rounded-xl px-2 py-2"
-                      >
-                        <Checkbox
-                          id={`sec-${x.id}`}
-                          checked={pickedSecrets.includes(x.id)}
-                          onCheckedChange={(checked) =>
-                            setPickedSecrets((prev) =>
-                              checked
-                                ? [...prev, x.id]
-                                : prev.filter((id) => id !== x.id)
-                            )
-                          }
-                        />
-                        <label
-                          htmlFor={`sec-${x.id}`}
-                          className="flex min-w-0 flex-1 cursor-pointer flex-col"
-                        >
-                          <span className="truncate font-mono text-xs font-medium">
-                            {scopeProject
-                              ? x.name
-                              : `${projectName(x.projectId) ?? "?"} / ${x.name}`}
-                          </span>
-                          <span className="text-muted-foreground truncate text-xs">
-                            {x.agentAccess
-                              ? t("scopes.secretAgents")
-                              : t("scopes.secretRest")}
-                          </span>
-                        </label>
-                      </div>
-                    ))}
-                  </>
-                )}
-              </div>
-
-              {/* Tools */}
-              <div className="ring-border flex min-h-64 flex-col rounded-2xl p-4 ring-1 ring-inset md:min-h-0">
-                {!activeConn ? (
-                  <div className="text-muted-foreground m-auto flex max-w-xs flex-col items-center gap-2 text-center text-sm">
-                    <SlidersHorizontalIcon className="size-6" />
-                    {t("scopes.pickConnection")}
-                  </div>
-                ) : !picked.includes(activeConn.id) ? (
-                  <div className="m-auto flex max-w-xs flex-col items-center gap-3 text-center">
-                    <Monogram name={activeConn.name} />
-                    <p className="text-muted-foreground text-sm">
-                      {t("scopes.notIncludedHint", { name: activeConn.name })}
-                    </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => togglePicked(activeConn.id, true)}
-                    >
-                      <PlusIcon />
-                      {t("scopes.include")}
-                    </Button>
-                  </div>
-                ) : (
-                  <ToolPanel
-                    connection={activeConn}
-                    tools={tools[activeConn.id]}
-                    error={toolErrors[activeConn.id]}
-                    value={allowed[activeConn.id] ?? null}
-                    onChange={(list) =>
-                      setAllowed((prev) => ({ ...prev, [activeConn.id]: list }))
-                    }
-                  />
-                )}
-              </div>
-            </div>
+            <AccessPicker
+              key={editing?.id ?? "new"}
+              connections={available}
+              secrets={availableSecrets}
+              projectName={scopeProject ? undefined : (id) => projectName(id)}
+              value={{
+                connectionIds: picked,
+                allowedTools: allowed,
+                secretIds: pickedSecrets,
+              }}
+              onChange={(v) => {
+                setPicked(v.connectionIds)
+                setAllowed(v.allowedTools)
+                setPickedSecrets(v.secretIds)
+              }}
+            />
 
             <DialogFooter>
               <span className="text-muted-foreground mr-auto hidden text-xs sm:block">

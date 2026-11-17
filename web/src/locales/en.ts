@@ -257,7 +257,7 @@ export const en = {
   "scopes.noneSelected":
     "None selected: this scope won't see any tool from this connection.",
   "scopes.notIncluded": "Not included",
-  "scopes.notIncludedHint": "{name} isn't part of this scope yet.",
+  "scopes.notIncludedHint": "{name} isn't included yet.",
   "scopes.pickConnection": "Pick a connection on the left to choose its tools.",
   "scopes.rename": "Rename scope",
   "scopes.selectAll": "Select all",
@@ -441,4 +441,76 @@ export const en = {
   "tools.noParams": "No parameters.",
   "tools.params": "Parameters",
   "tools.required": "required",
+  "invite.create": "Create account and join",
+  "invite.description":
+    "You were invited as {email}. Create your account to see what was shared with you.",
+  "invite.googleHint": "Use the Google account of {email}.",
+  "invite.invalid":
+    "This invitation is invalid, expired or already used. Ask for a new link.",
+  "invite.join": "Accept the invitation",
+  "invite.leave": "Continue without it",
+  "invite.loading": "Opening the invitation…",
+  "invite.passwordHint": "At least 8 characters.",
+  "invite.title": "Invitation to {org}",
+  "invite.wrongAccount":
+    "You are signed in as {current}, but this invitation is for {email}. Sign out and open the link again.",
+  "member.access": "Your access",
+  "member.accessDescription":
+    "What {org} shared with you. Use it with a token or by signing in from an MCP client; the admin decides what's here and can change it at any time.",
+  "member.accessTitle": "Your access",
+  "member.allTools": "All tools",
+  "member.emptyDescription":
+    "Ask the organization's admin to grant you connections, scopes or secrets.",
+  "member.emptyTitle": "Nothing shared with you yet",
+  "member.nav": "Your space",
+  "member.noneDescription": "You are not a member of any organization anymore.",
+  "member.noneTitle": "No organization",
+  "member.role": "Member",
+  "member.scopesHint":
+    "Ready-made sets of connections and tools. A token for a scope reaches only it.",
+  "nav.team": "Team",
+  "team.access": "Access",
+  "team.accessDescription":
+    "Pick what this person may use: connections (all tools or only some), secrets and scopes. Changes apply on their next call.",
+  "team.accessHint":
+    "Members use what is granted here but never see addresses, headers or credentials, and can't edit anything.",
+  "team.accessTitle": "Access for {name}",
+  "team.active": "Active",
+  "team.countConnections": "{n} connections",
+  "team.countConnections_one": "1 connection",
+  "team.countScopes": "{n} scopes",
+  "team.countScopes_one": "1 scope",
+  "team.countSecrets": "{n} secrets",
+  "team.countSecrets_one": "1 secret",
+  "team.createLink": "Create invitation link",
+  "team.description":
+    "People invited to {org}. Each one signs in to keyhall and uses only what you grant them, with their own tokens.",
+  "team.email": "E-mail",
+  "team.emptyDescription":
+    "Invite someone by link, then pick which connections, tools, scopes and secrets they may use.",
+  "team.emptyTitle": "No one invited yet",
+  "team.expired": "Invitation expired",
+  "team.invite": "Invite",
+  "team.invited": "Invited",
+  "team.inviteDescription":
+    "keyhall makes a link for you to send. The person signs in with a password or Google, using this e-mail.",
+  "team.invitedUntil": "Link valid until {date}",
+  "team.inviteTitle": "Invite to {org}",
+  "team.linkDescription":
+    "Send this link to the person. It works once, for 7 days, and only shows now; you can make a new one from the member's menu.",
+  "team.linkTitle": "Invitation link",
+  "team.newLink": "New invitation link",
+  "team.remove": "Remove",
+  "team.removeDescription":
+    "Their tokens stop working at once. If they belong to no other organization, their account is deleted too.",
+  "team.removeTitle": "Remove {name}?",
+  "team.saved": "Access saved",
+  "team.scopeHint": "Scope · {n} connections",
+  "team.scopeHint_one": "Scope · 1 connection",
+  "team.scopes": "Scopes",
+  "team.title": "Team",
+  "tokens.levelMember": "My access",
+  "tokens.levelMemberHint":
+    "Everything shared with you in this organization, as it changes.",
+  "tokens.targetMember": "My access",
 } as const

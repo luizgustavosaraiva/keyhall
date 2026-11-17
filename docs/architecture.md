@@ -74,7 +74,12 @@ deploy/                   compose files (default, Caddy, Tailscale) and systemd 
   `scope_connection.allowed_tools` is `null` for "all tools, including future ones", or a list.
   `scope_secret` lists the secrets a scope may read.
 - Tokens are Better Auth API keys (prefix `kh_`) whose `permissions` hold the target:
-  `{ org: [id] }`, `{ project: [id] }` or `{ scope: [id] }`.
+  `{ org: [id] }`, `{ project: [id] }`, `{ scope: [id] }` or `{ member: [id] }`. Every call
+  checks the token's owner: an admin reaches any target; anyone else reaches only a scope granted
+  to them, or their own grants (`access.ts`, `findTarget`).
+- `member` is a person in an organization: an invitation while `user_id` is null (only the
+  SHA-256 of the link's code is stored), a member once accepted. `member_connection` (with
+  `allowed_tools`), `member_scope` and `member_secret` hold the grants.
 - `secret_version` keeps every value: `value_enc` (encrypted with a random data key) and
   `key_enc` (that data key encrypted with the master key). `secret_access` logs every read.
 

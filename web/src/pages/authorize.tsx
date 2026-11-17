@@ -12,7 +12,14 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field"
-import { api, type Org, type Scope, type Token } from "@/lib/api"
+import {
+  api,
+  meApi,
+  type Org,
+  type Reach,
+  type Scope,
+  type Token,
+} from "@/lib/api"
 import { useI18n } from "@/lib/i18n"
 
 type Level = Token["target"]["kind"]
@@ -35,8 +42,10 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 
 // Consent for an MCP client that asked keyhall for access by OAuth: the admin picks what it
 // reaches, like a token, and the client gets one.
-export function Authorize() {
+export function Authorize({ member = false }: { member?: boolean }) {
   const { t } = useI18n()
+  // A member grants a client their own reach: everything granted to them, or a granted scope.
+  const [reach, setReach] = useState<Reach[]>([])
   const [client, setClient] = useState<{
     client: string
     redirectHost: string
@@ -53,6 +62,17 @@ export function Authorize() {
     post<{ client: string; redirectHost: string }>("/check", request())
       .then(setClient)
       .catch((err: Error) => setError(err.message))
+    if (member) {
+      meApi<Reach[]>("/reach")
+        .then((r) => {
+          setReach(r)
+          setOrgs(r.map((x) => ({ ...x.org, projects: [] })))
+          setOrgId(r[0]?.org.id)
+          setLevel("member")
+        })
+        .catch((err: Error) => setError(err.message))
+      return
+    }
     Promise.all([api<Org[]>("/orgs"), api<Scope[]>("/scopes")])
       .then(([o, s]) => {
         setOrgs(o)
@@ -61,12 +81,16 @@ export function Authorize() {
         if (!s.length) setLevel("project")
       })
       .catch((err: Error) => setError(err.message))
-  }, [])
+  }, [member])
 
   const org = orgs.find((o) => o.id === orgId)
+  const granted = reach.find((r) => r.org.id === orgId)
   const orgScopes = useMemo(
-    () => scopes.filter((s) => s.orgId === orgId),
-    [scopes, orgId]
+    () =>
+      member
+        ? (granted?.scopes ?? [])
+        : scopes.filter((s) => s.orgId === orgId),
+    [member, granted, scopes, orgId]
   )
 
   async function decide(approve: boolean, form?: FormData) {
@@ -76,9 +100,11 @@ export function Authorize() {
       const target = {
         kind: level,
         id:
-          level === "org"
-            ? orgId
-            : String(form?.get(level === "project" ? "project" : "scope")),
+          level === "member"
+            ? granted?.memberId
+            : level === "org"
+              ? orgId
+              : String(form?.get(level === "project" ? "project" : "scope")),
       }
       if (approve) door.open()
       const { redirect } = await post<{ redirect: string }>(
@@ -131,15 +157,23 @@ export function Authorize() {
                 aria-label={t("tokens.access")}
                 value={level}
                 onChange={setLevel}
-                options={[
-                  { value: "scope", label: t("tokens.levelScope") },
-                  { value: "project", label: t("tokens.levelProject") },
-                  { value: "org", label: t("tokens.levelOrg") },
-                ]}
+                options={
+                  member
+                    ? [
+                        { value: "member", label: t("tokens.levelMember") },
+                        { value: "scope", label: t("tokens.levelScope") },
+                      ]
+                    : [
+                        { value: "scope", label: t("tokens.levelScope") },
+                        { value: "project", label: t("tokens.levelProject") },
+                        { value: "org", label: t("tokens.levelOrg") },
+                      ]
+                }
               />
               <FieldDescription>
                 {
                   {
+                    member: t("tokens.levelMemberHint"),
                     scope: t("tokens.levelScopeHint"),
                     project: t("tokens.levelProjectHint"),
                     org: t("tokens.levelOrgHint", { name: org?.name ?? "" }),
@@ -147,7 +181,7 @@ export function Authorize() {
                 }
               </FieldDescription>
             </Field>
-            {level !== "scope" && (
+            {(level === "project" || level === "org") && (
               <p className="bg-warning/12 dark:text-warning flex gap-2 rounded-xl px-3 py-2 text-xs text-amber-800">
                 <ShieldAlertIcon className="size-4 shrink-0" />
                 {t("tokens.broadWarning")}

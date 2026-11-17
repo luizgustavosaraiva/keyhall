@@ -3,7 +3,7 @@
 | Start here | |
 |---|---|
 | [Getting started](getting-started.md) | From install to an agent calling tools, step by step. |
-| [Concepts](concepts.md) | Organizations, projects, connections, scopes, tokens and secrets. |
+| [Concepts](concepts.md) | Organizations, projects, connections, scopes, tokens, secrets and team. |
 | [Google](google.md) | Gmail, Drive, Sheets and Calendar with your own Google Cloud OAuth client. |
 
 | Run it | |
