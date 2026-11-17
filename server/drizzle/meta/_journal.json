@@ -43,6 +43,13 @@
       "when": 1793719581963,
       "tag": "0005_catalog_plugins",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1794931819954,
+      "tag": "0006_team",
+      "breakpoints": true
     }
   ]
 }

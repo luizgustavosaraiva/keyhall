@@ -4,6 +4,7 @@ import type { Target } from "../access.js"
 import { unseal } from "../crypto.js"
 import { db } from "../db/index.js"
 import {
+  memberSecret,
   project,
   scopeSecret,
   secret,
@@ -91,6 +92,15 @@ export async function reachableSecrets(target: Target): Promise<Reachable[]> {
   if (target.kind === "org") return base.where(eq(project.orgId, target.org.id))
   if (target.kind === "project")
     return base.where(eq(secret.projectId, target.project.id))
+  if (target.kind === "member") {
+    const granted = (
+      await db
+        .select({ id: memberSecret.secretId })
+        .from(memberSecret)
+        .where(eq(memberSecret.memberId, target.member.id))
+    ).map((r) => r.id)
+    return granted.length ? base.where(inArray(secret.id, granted)) : []
+  }
   const ids = (
     await db
       .select({ id: scopeSecret.secretId })

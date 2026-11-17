@@ -598,6 +598,192 @@ describe("keyhall", () => {
     assert.match(got.result.content[0].text, /s3cret-v2/)
   })
 
+  test("team: an invited member reaches only what was granted", async () => {
+    const asMember = (memberCookie) => ({ cookie: memberCookie, origin: base })
+    const invited = await call("/api/admin/members", {
+      method: "POST",
+      admin: true,
+      body: { orgId: "org-default", email: "Ana@Example.com" },
+    })
+    assert.equal(invited.status, 201, invited.text)
+    const code = invited.json.link.split("#invite=")[1]
+    assert.ok(code)
+    const memberId = invited.json.id
+    const again = await call("/api/admin/members", {
+      method: "POST",
+      admin: true,
+      body: { orgId: "org-default", email: "ana@example.com" },
+    })
+    assert.equal(again.status, 409)
+    const adminInvite = await call("/api/admin/members", {
+      method: "POST",
+      admin: true,
+      body: { orgId: "org-default", email: "admin@example.com" },
+    })
+    assert.equal(adminInvite.status, 409)
+
+    // Grants: one tool of the local server, the "bot" scope and the secret.
+    const foreign = await call(`/api/admin/members/${memberId}/grants`, {
+      method: "PUT",
+      admin: true,
+      body: { scopeIds: ["no-such-scope"] },
+    })
+    assert.equal(foreign.status, 400)
+    const grants = await call(`/api/admin/members/${memberId}/grants`, {
+      method: "PUT",
+      admin: true,
+      body: {
+        connections: { [ids.stdio]: ["echo"] },
+        scopeIds: [ids.scope],
+        secretIds: [ids.secret],
+      },
+    })
+    assert.equal(grants.status, 204, grants.text)
+    const listed = await call("/api/admin/members", { admin: true })
+    const row = listed.json.find((m) => m.id === memberId)
+    assert.equal(row.email, "ana@example.com")
+    assert.equal(row.status, "invited")
+    assert.deepEqual(row.connections, { [ids.stdio]: ["echo"] })
+
+    // The link: who and where, then an account with a password. It works once.
+    const info = await call(`/api/invite/${code}`)
+    assert.equal(info.status, 200)
+    assert.equal(info.json.email, "ana@example.com")
+    assert.equal(info.json.existing, false)
+    const accepted = await call(`/api/invite/${code}/accept`, {
+      method: "POST",
+      body: { name: "Ana", password: "ana-long-password" },
+    })
+    assert.equal(accepted.status, 200, accepted.text)
+    assert.equal((await call(`/api/invite/${code}`)).status, 404)
+
+    const signIn = await call("/api/auth/sign-in/email", {
+      method: "POST",
+      headers: { origin: base },
+      body: { email: "ana@example.com", password: "ana-long-password" },
+    })
+    assert.equal(signIn.status, 200)
+    const memberCookie = signIn.headers
+      .getSetCookie()
+      .map((c) => c.split(";")[0])
+      .join("; ")
+    const headers = asMember(memberCookie)
+
+    // Not an admin: the admin API is closed; their own side lists the grants, without secrets.
+    assert.equal(
+      (await call("/api/admin/connections", { headers })).status,
+      403
+    )
+    const reach = await call("/api/me/reach", { headers })
+    assert.equal(reach.json.length, 1)
+    assert.equal(reach.json[0].memberId, memberId)
+    assert.deepEqual(
+      reach.json[0].connections.map((c) => [c.slug, c.allowedTools]),
+      [["echo", ["echo"]]]
+    )
+    assert.ok(!("url" in reach.json[0].connections[0]))
+    assert.deepEqual(
+      reach.json[0].scopes.map((s) => s.slug),
+      ["bot"]
+    )
+    assert.deepEqual(
+      reach.json[0].secrets.map((s) => s.name),
+      ["ECHO_KEY"]
+    )
+
+    // Their tokens: only their grants or a granted scope.
+    const outside = await call("/api/me/tokens", {
+      method: "POST",
+      headers,
+      body: { name: "x", target: { kind: "member", id: "someone-else" } },
+    })
+    assert.equal(outside.status, 404)
+    const created = await call("/api/me/tokens", {
+      method: "POST",
+      headers,
+      body: {
+        name: "ana",
+        target: { kind: "member", id: memberId },
+        mode: "tools",
+      },
+    })
+    assert.equal(created.status, 201, created.text)
+    const token = created.json.key
+    const names = (await mcp(token, "tools/list")).result.tools.map(
+      (t) => t.name
+    )
+    assert.ok(names.includes("default__echo__echo"), names.join(", "))
+    assert.ok(!names.includes("default__echo__show_env"))
+    assert.ok(names.includes("keyhall__get_secret"))
+    const blocked = await mcp(token, "tools/call", {
+      name: "default__echo__show_env",
+      arguments: {},
+    })
+    assert.ok(blocked.error || blocked.result?.isError)
+    const echo = await mcp(token, "tools/call", {
+      name: "default__echo__echo",
+      arguments: { text: "oi" },
+    })
+    assert.equal(echo.result.content[0].text, "oi")
+    assert.equal((await call("/api/secrets/ECHO_KEY", { token })).status, 200)
+    const mine = await call("/api/me/tokens", { headers })
+    assert.deepEqual(
+      mine.json.map((k) => k.name),
+      ["ana"]
+    )
+
+    // A member approves OAuth clients within their grants only.
+    const registered = await call("/oauth/register", {
+      method: "POST",
+      body: { redirect_uris: ["https://client.example/cb"] },
+    })
+    const request = {
+      response_type: "code",
+      client_id: registered.json.client_id,
+      redirect_uri: "https://client.example/cb",
+      code_challenge: "c".repeat(43),
+      code_challenge_method: "S256",
+    }
+    const approve = (target) =>
+      call("/api/mcp-oauth/approve", {
+        method: "POST",
+        headers,
+        body: { request, target },
+      })
+    assert.equal(
+      (await approve({ kind: "project", id: "prj-default" })).status,
+      404
+    )
+    assert.equal((await approve({ kind: "scope", id: ids.scope })).status, 200)
+
+    // Taking grants away takes effect on the next call.
+    await call(`/api/admin/members/${memberId}/grants`, {
+      method: "PUT",
+      admin: true,
+      body: {},
+    })
+    const after = (await mcp(token, "tools/list")).result.tools.map(
+      (t) => t.name
+    )
+    assert.ok(!after.includes("default__echo__echo"), after.join(", "))
+    assert.equal((await call("/api/secrets/ECHO_KEY", { token })).status, 404)
+
+    // Removing the member ends their tokens, sessions and account.
+    const removed = await call(`/api/admin/members/${memberId}`, {
+      method: "DELETE",
+      admin: true,
+    })
+    assert.equal(removed.status, 204)
+    assert.equal((await mcp(token, "tools/list")).status, 401)
+    assert.equal((await call("/api/me/reach", { headers })).status, 401)
+    const gone = await call("/api/auth/sign-in/email", {
+      method: "POST",
+      headers: { origin: base },
+      body: { email: "ana@example.com", password: "ana-long-password" },
+    })
+    assert.notEqual(gone.status, 200)
+  })
+
   test("Code Mode: search finds tools and execute calls them from code", async () => {
     const created = await call("/api/admin/tokens", {
       method: "POST",
