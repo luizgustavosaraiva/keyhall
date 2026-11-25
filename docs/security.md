@@ -40,6 +40,9 @@ reference a secret.
 
 Tokens are rate-limited to 600 requests per minute each.
 
+Tools marked for [approval](concepts.md#approval) run only after an admin approves that exact
+call in the panel; the request, its arguments and the decision are kept.
+
 ### Code Mode
 
 A token in Code Mode runs agent-written JavaScript inside keyhall, so the code runs isolated:

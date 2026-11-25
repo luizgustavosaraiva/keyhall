@@ -520,4 +520,41 @@ export const pt: Record<keyof typeof en, string> = {
   "tokens.levelMemberHint":
     "Tudo o que foi compartilhado com você nesta organização, conforme mudar.",
   "tokens.targetMember": "Meu acesso",
+  "approvals.approve": "Aprovar",
+  "approvals.approved": "Aprovado",
+  "approvals.deny": "Negar",
+  "approvals.denied": "Negado",
+  "approvals.description":
+    "Chamadas a ferramentas que pedem aprovação. O agente espera {wait} s; depois disso, a aprovação vale para a mesma chamada por {valid} min, uma vez.",
+  "approvals.emptyDescription":
+    "Escolha quais ferramentas pedem aprovação no menu da conexão, em Aprovação.",
+  "approvals.emptyTitle": "Nada esperando",
+  "approvals.history": "Últimas decisões",
+  "approvals.rulesCount": "{n} ferramentas pedem aprovação",
+  "approvals.rulesCount_one": "1 ferramenta pede aprovação",
+  "approvals.rulesDescription":
+    "Cada chamada a uma ferramenta marcada espera um admin, qualquer que seja o token ou o membro. Use no que não tem volta ou fala com o mundo: enviar, apagar, pagar, publicar.",
+  "approvals.rulesMenu": "Aprovação",
+  "approvals.rulesNone": "Nenhuma ferramenta pede aprovação.",
+  "approvals.rulesSaved": "Regras de aprovação salvas",
+  "approvals.rulesTitle": "Aprovação em {name}",
+  "approvals.status.approved": "Aprovada, ainda não usada",
+  "approvals.status.denied": "Negada",
+  "approvals.status.expired": "Expirou",
+  "approvals.status.pending": "Esperando",
+  "approvals.status.used": "Aprovada",
+  "approvals.title": "Aprovações",
+  "approvals.when": "Pedida {at} · vale até {until}",
+  "approvals.who": "Token {token} ({person}) · {connection} em {project}",
+  "nav.approvals": "Aprovações",
+  "approvals.settings": "Tempos",
+  "approvals.settingsSaved": "Tempos salvos",
+  "approvals.settingsDescription":
+    "Para todas as ferramentas que pedem aprovação, em todas as organizações.",
+  "approvals.wait": "Espera (segundos)",
+  "approvals.waitHint":
+    "Quanto a chamada do agente espera uma decisão antes de ele ser orientado a repetir. 0 responde na hora; até {max}, abaixo do limite comum de 60 s dos clientes.",
+  "approvals.valid": "Aprovação vale por (minutos)",
+  "approvals.validHint":
+    "Por quanto tempo a aprovação vale para o agente repetir a chamada, uma vez. Até {max} (24 horas).",
 }

@@ -246,6 +246,7 @@ before(async () => {
       KEYHALL_GOOGLE_CLIENT_ID: "login-client.apps.googleusercontent.com",
       KEYHALL_GOOGLE_CLIENT_SECRET: "login-secret",
       KEYHALL_GOOGLE_BASE: `http://127.0.0.1:${googleServer.address().port}`,
+      KEYHALL_APPROVAL_WAIT_SECONDS: "2",
     },
   })
   proc.stdout.on("data", (d) => (log += d))
@@ -596,6 +597,99 @@ describe("keyhall", () => {
       arguments: { name: "ECHO_KEY" },
     })
     assert.match(got.result.content[0].text, /s3cret-v2/)
+  })
+
+  test("tools that need approval wait for an admin", async () => {
+    const rules = await call(`/api/admin/approvals/rules/${ids.stdio}`, {
+      method: "PUT",
+      admin: true,
+      body: { tools: ["echo"] },
+    })
+    assert.equal(rules.status, 204, rules.text)
+    const listed = (await mcp(tokens.project, "tools/list")).result.tools
+    assert.match(
+      listed.find((t) => t.name === "echo__echo").description,
+      /^\[Needs approval/
+    )
+    const echo = (text) =>
+      mcp(tokens.project, "tools/call", {
+        name: "echo__echo",
+        arguments: { text },
+      })
+    const pendingFor = async (text) => {
+      for (let i = 0; i < 50; i++) {
+        const list = await call("/api/admin/approvals", { admin: true })
+        const found = list.json.find(
+          (a) => a.status === "pending" && a.args?.text === text
+        )
+        if (found) return found
+        await new Promise((r) => setTimeout(r, 50))
+      }
+      throw new Error(`no pending approval for ${text}`)
+    }
+
+    // Timing: the environment gives the starting values; the panel changes them.
+    const timing = await call("/api/admin/approvals/settings", { admin: true })
+    assert.equal(timing.json.waitSeconds, 2)
+    assert.equal(timing.json.validMinutes, 15)
+    const tooLong = await call("/api/admin/approvals/settings", {
+      method: "PUT",
+      admin: true,
+      body: { waitSeconds: 60, validMinutes: 30 },
+    })
+    assert.equal(tooLong.status, 400)
+    const saved = await call("/api/admin/approvals/settings", {
+      method: "PUT",
+      admin: true,
+      body: { waitSeconds: 2, validMinutes: 30 },
+    })
+    assert.equal(saved.status, 200, saved.text)
+
+    // Nobody decides in time: the agent is told to repeat the call once approved.
+    const waiting = await echo("a")
+    assert.equal(waiting.result.isError, true)
+    assert.match(waiting.result.content[0].text, /waiting for an admin/)
+    const req = await pendingFor("a")
+    assert.equal(req.tool, "echo")
+    assert.equal(req.tokenName, "project")
+    assert.equal(req.requestedBy, "admin@example.com")
+    const validFor = new Date(req.expiresAt) - new Date(req.createdAt)
+    assert.ok(Math.abs(validFor - 30 * 60_000) < 2000, String(validFor))
+    const approve = (id, decision = "approve") =>
+      call(`/api/admin/approvals/${id}/${decision}`, {
+        method: "POST",
+        admin: true,
+      })
+    assert.equal((await approve(req.id)).status, 204)
+    assert.equal((await approve(req.id)).status, 409)
+    assert.equal((await echo("a")).result.content[0].text, "a")
+    // Used once: the same call asks again.
+    assert.equal((await echo("a")).result.isError, true)
+
+    // Approved while the call waits: it runs in place.
+    const live = echo("b")
+    await approve((await pendingFor("b")).id)
+    assert.equal((await live).result.content[0].text, "b")
+
+    // Denied while it waits.
+    const refused = echo("c")
+    await approve((await pendingFor("c")).id, "deny")
+    const denied = await refused
+    assert.equal(denied.result.isError, true)
+    assert.match(denied.result.content[0].text, /denied/)
+
+    // Other tools of the connection never wait; without rules, nothing does.
+    const env = await mcp(tokens.project, "tools/call", {
+      name: "echo__show_env",
+      arguments: {},
+    })
+    assert.ok(!env.result.isError)
+    await call(`/api/admin/approvals/rules/${ids.stdio}`, {
+      method: "PUT",
+      admin: true,
+      body: { tools: [] },
+    })
+    assert.equal((await echo("d")).result.content[0].text, "d")
   })
 
   test("team: an invited member reaches only what was granted", async () => {

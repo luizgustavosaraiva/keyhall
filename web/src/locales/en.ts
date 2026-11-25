@@ -513,4 +513,41 @@ export const en = {
   "tokens.levelMemberHint":
     "Everything shared with you in this organization, as it changes.",
   "tokens.targetMember": "My access",
+  "approvals.approve": "Approve",
+  "approvals.approved": "Approved",
+  "approvals.deny": "Deny",
+  "approvals.denied": "Denied",
+  "approvals.description":
+    "Calls to tools that need approval. The agent waits {wait} s; after that, an approval holds for the same call for {valid} min, once.",
+  "approvals.emptyDescription":
+    "Pick which tools need approval in a connection's menu, under Approval.",
+  "approvals.emptyTitle": "Nothing waiting",
+  "approvals.history": "Latest decisions",
+  "approvals.rulesCount": "{n} tools need approval",
+  "approvals.rulesCount_one": "1 tool needs approval",
+  "approvals.rulesDescription":
+    "Each call to a checked tool waits for an admin, whatever the token or member. Use it for what can't be undone or talks to the world: sending, deleting, paying, publishing.",
+  "approvals.rulesMenu": "Approval",
+  "approvals.rulesNone": "No tool needs approval.",
+  "approvals.rulesSaved": "Approval rules saved",
+  "approvals.rulesTitle": "Approval for {name}",
+  "approvals.status.approved": "Approved, not used yet",
+  "approvals.status.denied": "Denied",
+  "approvals.status.expired": "Expired",
+  "approvals.status.pending": "Waiting",
+  "approvals.status.used": "Approved",
+  "approvals.title": "Approvals",
+  "approvals.when": "Asked {at} · valid until {until}",
+  "approvals.who": "Token {token} ({person}) · {connection} in {project}",
+  "nav.approvals": "Approvals",
+  "approvals.settings": "Timing",
+  "approvals.settingsSaved": "Timing saved",
+  "approvals.settingsDescription":
+    "For every tool that needs approval, in all organizations.",
+  "approvals.wait": "Wait (seconds)",
+  "approvals.waitHint":
+    "How long the agent's call waits for a decision before being told to repeat it. 0 answers at once; up to {max}, under the usual 60 s client timeout.",
+  "approvals.valid": "Approval valid for (minutes)",
+  "approvals.validHint":
+    "How long an approval holds for the agent to repeat the call, once. Up to {max} (24 hours).",
 } as const

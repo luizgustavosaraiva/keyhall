@@ -15,6 +15,7 @@ import {
   PlugIcon,
   PlusIcon,
   QrCodeIcon,
+  ShieldCheckIcon,
   SunIcon,
   SwatchBookIcon,
   Trash2Icon,
@@ -43,7 +44,13 @@ import { authClient } from "@/lib/auth-client"
 import { type Locale, locales, useI18n } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 
-export type Page = "connections" | "scopes" | "secrets" | "tokens" | "team"
+export type Page =
+  | "connections"
+  | "scopes"
+  | "secrets"
+  | "tokens"
+  | "team"
+  | "approvals"
 
 export type SidebarActions = {
   newOrg: () => void
@@ -102,6 +109,7 @@ export function NavItem({
   icon,
   label,
   count,
+  highlight,
   onClick,
   menu,
 }: {
@@ -109,6 +117,8 @@ export function NavItem({
   icon: ReactNode
   label: string
   count?: number
+  // Draws attention to the count (something waiting for you).
+  highlight?: boolean
   onClick: () => void
   menu?: ReactNode
 }) {
@@ -131,6 +141,8 @@ export function NavItem({
           <span
             className={cn(
               "text-muted-foreground text-xs tabular-nums",
+              highlight &&
+                "bg-primary text-primary-foreground rounded-full px-1.5 font-medium",
               menu && "group-hover/item:opacity-0 pointer-coarse:hidden"
             )}
           >
@@ -343,6 +355,14 @@ export function AppSidebar({
           label={t("nav.team")}
           count={counts.team}
           onClick={() => onPageChange("team")}
+        />
+        <NavItem
+          active={page === "approvals"}
+          icon={<ShieldCheckIcon />}
+          label={t("nav.approvals")}
+          count={counts.approvals || undefined}
+          highlight={counts.approvals > 0}
+          onClick={() => onPageChange("approvals")}
         />
       </nav>
 
