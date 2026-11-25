@@ -16,8 +16,17 @@ export type CatalogKey = {
   placeholder?: string
 }
 
+export type CatalogOAuthClient = {
+  // Default name in the vault (e.g. GOOGLE → GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET).
+  vaultName: string
+  // One-click setup link at the provider's console.
+  consoleUrl: string
+  guide?: string
+  links?: { label: Text; url: string }[]
+}
+
 export type CatalogConnect =
-  | { kind: "mcp"; url: string }
+  | { kind: "mcp"; url: string; oauthClient?: CatalogOAuthClient }
   | {
       kind: "mcp"
       url: string
@@ -29,6 +38,7 @@ export type CatalogConnect =
         optional?: boolean
         endpoint?: string
       }
+      oauthClient?: CatalogOAuthClient
     }
   | {
       kind: "stdio"
@@ -114,6 +124,32 @@ const npx = (pkg: string, env: string, keyUrl: string): CatalogConnect => ({
 const GOOGLE_GUIDE =
   "https://github.com/luizgustavosaraiva/keyhall/blob/main/docs/google.md"
 
+const GOOGLE_MCP_CONSOLE =
+  "https://console.cloud.google.com/auth/overview/personal?apis=ws,wsmcp,tasksmcp&clientType=web&isAgent=true"
+
+const GOOGLE_ENABLE_ALL_NATIVE =
+  "https://console.cloud.google.com/flows/enableapi?apiid=gmail.googleapis.com,drive.googleapis.com,sheets.googleapis.com,calendar-json.googleapis.com"
+
+const googleMcp = (
+  url: string,
+  apis: string[],
+  enableLabel: Text
+): CatalogConnect => ({
+  kind: "mcp",
+  url,
+  oauthClient: {
+    vaultName: "GOOGLE",
+    consoleUrl: GOOGLE_MCP_CONSOLE,
+    guide: GOOGLE_GUIDE,
+    links: [
+      {
+        label: enableLabel,
+        url: `https://console.cloud.google.com/flows/enableapi?apiid=${apis.join(",")}`,
+      },
+    ],
+  },
+})
+
 export const catalog: CatalogEntry[] = [
   {
     slug: "gmail",
@@ -133,8 +169,11 @@ export const catalog: CatalogEntry[] = [
       guide: GOOGLE_GUIDE,
       links: [
         {
-          label: { en: "Enable the Gmail API", pt: "Ativar a Gmail API" },
-          url: "https://console.cloud.google.com/apis/library/gmail.googleapis.com",
+          label: {
+            en: "Enable Workspace APIs",
+            pt: "Ativar APIs do Workspace",
+          },
+          url: GOOGLE_ENABLE_ALL_NATIVE,
         },
       ],
     },
@@ -158,10 +197,10 @@ export const catalog: CatalogEntry[] = [
       links: [
         {
           label: {
-            en: "Enable the Google Drive API",
-            pt: "Ativar a Google Drive API",
+            en: "Enable Workspace APIs",
+            pt: "Ativar APIs do Workspace",
           },
-          url: "https://console.cloud.google.com/apis/library/drive.googleapis.com",
+          url: GOOGLE_ENABLE_ALL_NATIVE,
         },
       ],
     },
@@ -185,10 +224,10 @@ export const catalog: CatalogEntry[] = [
       links: [
         {
           label: {
-            en: "Enable the Google Sheets API",
-            pt: "Ativar a Google Sheets API",
+            en: "Enable Workspace APIs",
+            pt: "Ativar APIs do Workspace",
           },
-          url: "https://console.cloud.google.com/apis/library/sheets.googleapis.com",
+          url: GOOGLE_ENABLE_ALL_NATIVE,
         },
       ],
     },
@@ -212,13 +251,158 @@ export const catalog: CatalogEntry[] = [
       links: [
         {
           label: {
-            en: "Enable the Google Calendar API",
-            pt: "Ativar a Google Calendar API",
+            en: "Enable Workspace APIs",
+            pt: "Ativar APIs do Workspace",
           },
-          url: "https://console.cloud.google.com/apis/library/calendar-json.googleapis.com",
+          url: GOOGLE_ENABLE_ALL_NATIVE,
         },
       ],
     },
+  },
+  {
+    slug: "google-workspace-mcp",
+    name: "Google Workspace MCP",
+    iconUrl:
+      "https://ssl.gstatic.com/images/branding/product/2x/drive_2020q4_48dp.png",
+    category: "productivity",
+    tagline: {
+      en: "Official universal search across Gmail, Drive, Calendar and Chat",
+      pt: "Busca universal oficial no Gmail, Drive, Agenda e Chat",
+    },
+    website: "https://workspace.google.com",
+    connect: googleMcp(
+      "https://workspacemcp.googleapis.com/mcp/v1",
+      [
+        "workspacemcp.googleapis.com",
+        "gmail.googleapis.com",
+        "drive.googleapis.com",
+        "calendar-json.googleapis.com",
+      ],
+      {
+        en: "Enable Workspace MCP APIs",
+        pt: "Ativar APIs do Workspace MCP",
+      }
+    ),
+  },
+  {
+    slug: "google-tasks-mcp",
+    name: "Google Tasks MCP",
+    iconUrl:
+      "https://ssl.gstatic.com/images/branding/product/2x/calendar_2020q4_48dp.png",
+    category: "productivity",
+    tagline: {
+      en: "Official Google MCP server for task lists and tasks",
+      pt: "Servidor MCP oficial do Google para listas e tarefas",
+    },
+    website: "https://tasks.google.com",
+    connect: googleMcp(
+      "https://tasksmcp.googleapis.com/mcp/v1",
+      ["tasks.googleapis.com", "tasksmcp.googleapis.com"],
+      {
+        en: "Enable Google Tasks MCP APIs",
+        pt: "Ativar APIs do Google Tasks MCP",
+      }
+    ),
+  },
+  {
+    slug: "gmail-mcp",
+    name: "Gmail MCP",
+    iconUrl:
+      "https://ssl.gstatic.com/images/branding/product/2x/gmail_2020q4_48dp.png",
+    category: "productivity",
+    tagline: {
+      en: "Official Google MCP server for Gmail (threads, drafts, labels)",
+      pt: "Servidor MCP oficial do Google para Gmail (threads, rascunhos, marcadores)",
+    },
+    website: "https://mail.google.com",
+    connect: googleMcp(
+      "https://gmailmcp.googleapis.com/mcp/v1",
+      ["gmail.googleapis.com", "gmailmcp.googleapis.com"],
+      {
+        en: "Enable Gmail MCP APIs",
+        pt: "Ativar APIs do Gmail MCP",
+      }
+    ),
+  },
+  {
+    slug: "google-drive-mcp",
+    name: "Google Drive MCP",
+    iconUrl:
+      "https://ssl.gstatic.com/images/branding/product/2x/drive_2020q4_48dp.png",
+    category: "productivity",
+    tagline: {
+      en: "Official Google MCP server for Drive files and permissions",
+      pt: "Servidor MCP oficial do Google para arquivos e permissões do Drive",
+    },
+    website: "https://drive.google.com",
+    connect: googleMcp(
+      "https://drivemcp.googleapis.com/mcp/v1",
+      ["drive.googleapis.com", "drivemcp.googleapis.com"],
+      {
+        en: "Enable Google Drive MCP APIs",
+        pt: "Ativar APIs do Google Drive MCP",
+      }
+    ),
+  },
+  {
+    slug: "google-docs-mcp",
+    name: "Google Docs MCP",
+    iconUrl:
+      "https://ssl.gstatic.com/images/branding/product/2x/docs_2020q4_48dp.png",
+    category: "productivity",
+    tagline: {
+      en: "Official Google MCP server for reading and editing Docs",
+      pt: "Servidor MCP oficial do Google para ler e editar documentos",
+    },
+    website: "https://docs.google.com",
+    connect: googleMcp(
+      "https://docsmcp.googleapis.com/mcp/v1",
+      ["docs.googleapis.com", "docsmcp.googleapis.com"],
+      {
+        en: "Enable Google Docs MCP APIs",
+        pt: "Ativar APIs do Google Docs MCP",
+      }
+    ),
+  },
+  {
+    slug: "google-sheets-mcp",
+    name: "Google Sheets MCP",
+    iconUrl:
+      "https://ssl.gstatic.com/images/branding/product/2x/sheets_2020q4_48dp.png",
+    category: "productivity",
+    tagline: {
+      en: "Official Google MCP server for spreadsheets",
+      pt: "Servidor MCP oficial do Google para planilhas",
+    },
+    website: "https://sheets.google.com",
+    connect: googleMcp(
+      "https://sheetsmcp.googleapis.com/mcp/v1",
+      ["sheets.googleapis.com", "sheetsmcp.googleapis.com"],
+      {
+        en: "Enable Google Sheets MCP APIs",
+        pt: "Ativar APIs do Google Sheets MCP",
+      }
+    ),
+  },
+  {
+    slug: "google-calendar-mcp",
+    name: "Google Calendar MCP",
+    iconUrl:
+      "https://ssl.gstatic.com/images/branding/product/2x/calendar_2020q4_48dp.png",
+    category: "productivity",
+    tagline: {
+      en: "Official Google MCP server for events and calendars",
+      pt: "Servidor MCP oficial do Google para eventos e agendas",
+    },
+    website: "https://calendar.google.com",
+    connect: googleMcp(
+      "https://calendarmcp.googleapis.com/mcp/v1",
+      ["calendar-json.googleapis.com", "calendarmcp.googleapis.com"],
+      {
+        en: "Enable Google Calendar MCP APIs",
+        pt: "Ativar APIs do Google Calendar MCP",
+      }
+    ),
   },
   {
     slug: "notion",

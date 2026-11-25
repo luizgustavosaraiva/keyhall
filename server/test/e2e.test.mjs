@@ -1691,4 +1691,81 @@ describe("keyhall", () => {
     assert.equal(google.eventQuery.get("conferenceDataVersion"), "1")
     assert.equal(google.eventQuery.get("sendUpdates"), "none")
   })
+
+  test("remote MCP connection with a static OAuth client uses vault references", async () => {
+    const projectId = "prj-default"
+    for (const [name, value] of [
+      ["GMCP_CLIENT_ID", "static-cid.apps.googleusercontent.com"],
+      ["GMCP_CLIENT_SECRET", "static-csec-123"],
+    ]) {
+      const res = await call("/api/admin/secrets", {
+        method: "POST",
+        admin: true,
+        body: { projectId, name, value },
+      })
+      assert.equal(res.status, 201, res.text)
+    }
+
+    const created = await call("/api/admin/connections", {
+      method: "POST",
+      admin: true,
+      body: {
+        kind: "mcp",
+        projectId,
+        name: "Google Tasks MCP",
+        slug: "google-tasks-mcp",
+        plugin: "google-tasks-mcp",
+        url: "https://tasksmcp.googleapis.com/mcp/v1",
+        oauthClient: {
+          clientId: "{{secret:GMCP_CLIENT_ID}}",
+          clientSecret: "{{secret:GMCP_CLIENT_SECRET}}",
+        },
+      },
+    })
+    assert.equal(created.status, 201, created.text)
+    assert.equal(created.json.status, "pending")
+    assert.deepEqual(created.json.oauthClient, {
+      clientId: "{{secret:GMCP_CLIENT_ID}}",
+      clientSecretRef: "{{secret:GMCP_CLIENT_SECRET}}",
+      hasSecret: true,
+    })
+
+    // Secrets referenced by the static OAuth client show the MCP connection in usedBy.
+    const secrets = await call("/api/admin/secrets", { admin: true })
+    const cidSecret = secrets.json.find((s) => s.name === "GMCP_CLIENT_ID")
+    assert.ok(cidSecret.usedBy.includes(created.json.id))
+
+    // PATCH with a raw secret never exposes the secret value back to the panel.
+    const patched = await call(`/api/admin/connections/${created.json.id}`, {
+      method: "PATCH",
+      admin: true,
+      body: {
+        oauthClient: {
+          clientId: "raw-cid",
+          clientSecret: "raw-secret-value",
+        },
+      },
+    })
+    assert.equal(patched.status, 200, patched.text)
+    assert.deepEqual(patched.json.oauthClient, {
+      clientId: "raw-cid",
+      clientSecretRef: null,
+      hasSecret: true,
+    })
+    assert.ok(!patched.text.includes("raw-secret-value"))
+
+    // Clearing the static OAuth client returns oauthClient: null.
+    const cleared = await call(`/api/admin/connections/${created.json.id}`, {
+      method: "PATCH",
+      admin: true,
+      body: { oauthClient: null },
+    })
+    assert.equal(cleared.status, 200, cleared.text)
+    assert.equal(cleared.json.oauthClient, null)
+
+    await call(`/api/admin/connections/${created.json.id}`, {
+      method: "DELETE",
+      admin: true,
+    })
+  })
 })

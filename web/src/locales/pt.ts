@@ -162,6 +162,11 @@ export const pt: Record<keyof typeof en, string> = {
   "mcp.headers": "Cabeçalhos",
   "mcp.headersHint":
     "Enviados em toda chamada ao servidor e cifrados no keyhall. Um Authorization fixo substitui o OAuth, para servidores que usam chave.",
+  "mcp.oauthClient": "Cliente OAuth (opcional)",
+  "mcp.oauthClientHint":
+    "Para servidores MCP sem registro dinâmico de cliente (como os do Google). Deixe em branco para registrar automaticamente.",
+  "mcp.oauthClientId": "ID do cliente OAuth",
+  "mcp.oauthClientSecret": "Chave secreta do cliente OAuth",
   "mcp.removeHeader": "Remover cabeçalho",
 
   "native.badName":

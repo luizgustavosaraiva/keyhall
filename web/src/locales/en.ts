@@ -157,6 +157,11 @@ export const en = {
   "mcp.headers": "Headers",
   "mcp.headersHint":
     "Sent on every request to the server and encrypted in keyhall. A fixed Authorization replaces OAuth, for servers that take a key.",
+  "mcp.oauthClient": "OAuth client (optional)",
+  "mcp.oauthClientHint":
+    "For MCP servers that don't support dynamic client registration (such as Google's). Leave empty to register automatically.",
+  "mcp.oauthClientId": "OAuth client ID",
+  "mcp.oauthClientSecret": "OAuth client secret",
   "mcp.removeHeader": "Remove header",
 
   "native.badName":

@@ -12,8 +12,16 @@ import { eq } from "drizzle-orm"
 import { decrypt, encrypt } from "../crypto.js"
 import { db } from "../db/index.js"
 import { connection } from "../db/schema.js"
+import { resolveRefs } from "../secrets/store.js"
 
 type Connection = typeof connection.$inferSelect
+
+// Static OAuth clients (for MCP servers without dynamic client registration, e.g. Google's)
+// live in clientInfoEnc alongside DCR clients, marked with static: true. Their values may be
+// vault references ({{secret:…}}), resolved on read and preserved on SDK writes.
+export type StoredClientInfo = OAuthClientInformationMixed & {
+  static?: boolean
+}
 
 export function oauthRedirectUrl() {
   const base = process.env.BETTER_AUTH_URL ?? "http://127.0.0.1:8787"
@@ -56,11 +64,39 @@ export class ConnectionOAuthProvider implements OAuthClientProvider {
     return state
   }
 
-  clientInformation() {
-    return decrypt<OAuthClientInformationMixed>(this.conn.clientInfoEnc)
+  clientInformation(): OAuthClientInformationMixed | undefined {
+    const info = decrypt<StoredClientInfo>(this.conn.clientInfoEnc)
+    if (!info) return undefined
+    if (!info.static || !this.conn.projectId) return info
+    const { static: _, ...rest } = info
+    return {
+      ...rest,
+      client_id: resolveRefs(info.client_id, this.conn.projectId),
+      ...(info.client_secret !== undefined
+        ? {
+            client_secret: resolveRefs(info.client_secret, this.conn.projectId),
+          }
+        : {}),
+    }
   }
 
   async saveClientInformation(info: OAuthClientInformationMixed) {
+    const existing = decrypt<StoredClientInfo>(this.conn.clientInfoEnc)
+    if (existing?.static) {
+      // Keep the admin's static credentials (and any vault references) intact; only persist
+      // non-credential metadata the SDK may stamp (such as issuer).
+      await this.save({
+        clientInfoEnc: encrypt({
+          ...info,
+          client_id: existing.client_id,
+          ...(existing.client_secret !== undefined
+            ? { client_secret: existing.client_secret }
+            : {}),
+          static: true,
+        }),
+      })
+      return
+    }
     await this.save({ clientInfoEnc: encrypt(info) })
   }
 
@@ -73,6 +109,13 @@ export class ConnectionOAuthProvider implements OAuthClientProvider {
   }
 
   redirectToAuthorization(url: URL) {
+    // Google only returns a refresh token when offline access and consent are requested.
+    if (url.hostname === "accounts.google.com") {
+      if (!url.searchParams.has("access_type"))
+        url.searchParams.set("access_type", "offline")
+      if (!url.searchParams.has("prompt"))
+        url.searchParams.set("prompt", "consent")
+    }
     this.authorizationUrl = url
   }
 
@@ -98,9 +141,13 @@ export class ConnectionOAuthProvider implements OAuthClientProvider {
   async invalidateCredentials(
     scope: "all" | "client" | "tokens" | "verifier" | "discovery"
   ) {
+    const existing = decrypt<StoredClientInfo>(this.conn.clientInfoEnc)
+    const keepStaticClient = !!existing?.static
     const all = scope === "all"
     await this.save({
-      ...(all || scope === "client" ? { clientInfoEnc: null } : {}),
+      ...(!keepStaticClient && (all || scope === "client")
+        ? { clientInfoEnc: null }
+        : {}),
       ...(all || scope === "tokens" ? { tokensEnc: null } : {}),
       ...(all || scope === "verifier" ? { codeVerifierEnc: null } : {}),
       ...(all || scope === "discovery" ? { discoveryEnc: null } : {}),

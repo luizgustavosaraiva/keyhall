@@ -66,6 +66,7 @@ import {
   api,
   type Catalog,
   type CatalogEntry,
+  type CatalogOAuthClient,
   type Connection,
   type ConnectResult,
   type NativeSpec,
@@ -323,9 +324,43 @@ function savedClients(spec: NativeSpec, projectId: string, secrets: Secret[]) {
 
 const refOf = (name: string, suffix: string) => `{{secret:${name}_${suffix}}}`
 
+// Turns a catalog MCP's static OAuth client config into the same spec NativeFields uses,
+// so native plugins and remote MCP servers share saved vault clients (e.g. GOOGLE).
+function mcpOAuthSpec(cfg: CatalogOAuthClient): NativeSpec {
+  return {
+    vaultName: cfg.vaultName,
+    consoleUrl: cfg.consoleUrl,
+    features: [],
+    fields: [
+      {
+        name: "clientId",
+        label: { en: "OAuth client ID", pt: "ID do cliente OAuth" },
+        placeholder: "1234…apps.googleusercontent.com",
+        vault: "CLIENT_ID",
+      },
+      {
+        name: "clientSecret",
+        label: {
+          en: "OAuth client secret",
+          pt: "Chave secreta do cliente OAuth",
+        },
+        secret: true,
+        vault: "CLIENT_SECRET",
+      },
+    ],
+  }
+}
+
 // Client name a connection points at, when all its fields reference one saved client.
 function clientOf(spec: NativeSpec, connection?: Connection) {
-  const fields = connection?.native?.fields
+  const fields =
+    connection?.native?.fields ??
+    (connection?.oauthClient
+      ? {
+          clientId: connection.oauthClient.clientId,
+          clientSecret: connection.oauthClient.clientSecretRef,
+        }
+      : undefined)
   const [first] = spec.fields
   if (!fields || !first) return undefined
   const ref = fields[first.name]?.match(/^\{\{secret:([A-Za-z0-9_]+)\}\}$/)?.[1]
@@ -591,6 +626,16 @@ function entryBody(
         withKey && connect.key
           ? { [connect.key.header]: connect.key.prefix + key.trim() }
           : {},
+      ...(connect.oauthClient && fields.clientId
+        ? {
+            oauthClient: {
+              clientId: fields.clientId,
+              ...(fields.clientSecret
+                ? { clientSecret: fields.clientSecret }
+                : {}),
+            },
+          }
+        : {}),
     }
   }
   if (connect.kind === "stdio")
@@ -604,7 +649,14 @@ function entryBody(
 }
 
 const nativeLinks = (entry?: CatalogEntry) =>
-  entry?.connect.kind === "native" ? entry.connect.links : undefined
+  entry?.connect.kind === "native"
+    ? entry.connect.links
+    : entry?.connect.kind === "mcp"
+      ? entry.connect.oauthClient?.links
+      : undefined
+
+const mcpOAuthEntry = (entry?: CatalogEntry) =>
+  entry?.connect.kind === "mcp" ? entry.connect.oauthClient : undefined
 
 const PILL = "h-5 shrink-0 gap-1 px-2 text-[11px]"
 
@@ -753,9 +805,10 @@ function HeaderFields({
       : Object.entries(initial ?? {}).map(([name, value]) => ({ name, value }))
     return start.map((r) => ({ ...r, id: crypto.randomUUID() }))
   })
-  const [open, setOpen] = useState(rows.length > 0)
+  const [open, setOpen] = useState(rows.length > 0 || !!connection?.oauthClient)
   const add = () =>
     setRows((r) => [...r, { id: crypto.randomUUID(), name: "", value: "" }])
+  const redirect = `${window.location.origin}/api/oauth/callback`
 
   return (
     <div className="flex flex-col gap-3">
@@ -831,10 +884,67 @@ function HeaderFields({
             {t("mcp.addHeader")}
           </Button>
           <FieldDescription>{t("mcp.headersHint")}</FieldDescription>
+          <div className="border-border mt-1 flex flex-col gap-3 border-t pt-3">
+            <FieldLabel>{t("mcp.oauthClient")}</FieldLabel>
+            <FieldDescription>{t("mcp.oauthClientHint")}</FieldDescription>
+            <Field>
+              <FieldLabel htmlFor="m-oauth-id">
+                {t("mcp.oauthClientId")}
+              </FieldLabel>
+              <SecretInput
+                id="m-oauth-id"
+                name="oauthClientId"
+                defaultValue={connection?.oauthClient?.clientId ?? ""}
+                placeholder="{{secret:GOOGLE_CLIENT_ID}}"
+                {...vault}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="m-oauth-secret">
+                {t("mcp.oauthClientSecret")}
+              </FieldLabel>
+              <SecretInput
+                id="m-oauth-secret"
+                name="oauthClientSecret"
+                defaultValue={connection?.oauthClient?.clientSecretRef ?? ""}
+                placeholder={
+                  connection?.oauthClient?.hasSecret
+                    ? t("common.keepCurrent")
+                    : "{{secret:GOOGLE_CLIENT_SECRET}}"
+                }
+                {...vault}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="m-oauth-redirect">
+                {t("native.redirect")}
+              </FieldLabel>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="m-oauth-redirect"
+                  readOnly
+                  value={redirect}
+                  className="font-mono text-xs"
+                />
+                <CopyButton value={redirect} />
+              </div>
+            </Field>
+          </div>
         </div>
       )}
     </div>
   )
+}
+
+function customOAuthClientBody(form: FormData, editing?: Connection) {
+  if (!form.has("oauthClientId")) return undefined
+  const clientId = String(form.get("oauthClientId") ?? "").trim()
+  const clientSecret = String(form.get("oauthClientSecret") ?? "").trim()
+  if (!clientId) return editing?.oauthClient ? null : undefined
+  return {
+    clientId,
+    ...(clientSecret ? { clientSecret } : {}),
+  }
 }
 
 // Body of a stdio connection: command and args from the JSON, variable values from the
@@ -1322,13 +1432,18 @@ export function Connections({
         name: form.get("name"),
         slug: form.get("slug"),
       }
+      const oauthCfg = mcpOAuthEntry(entry)
       const spec =
         entry?.connect.kind === "native"
           ? catalog.native[entry.connect.plugin]
-          : undefined
+          : oauthCfg
+            ? mcpOAuthSpec(oauthCfg)
+            : undefined
       const fields = spec
         ? await nativeFieldsFrom(form, spec, targetProject, secrets, t)
         : {}
+      const customOAuth =
+        !entry && kind === "mcp" ? customOAuthClientBody(form) : undefined
       const created = await api<Connection>("/connections", {
         body: entry
           ? { ...base, plugin: entry.slug, ...entryBody(entry, form, fields) }
@@ -1338,7 +1453,10 @@ export function Connections({
               ...((kind === "mcp" || kind === "api") && {
                 url: form.get("url"),
               }),
-              ...(kind === "mcp" && { headers: headersBody(form) }),
+              ...(kind === "mcp" && {
+                headers: headersBody(form),
+                ...(customOAuth ? { oauthClient: customOAuth } : {}),
+              }),
               ...(kind === "api" && apiBody(form)),
               ...(kind === "stdio" && stdio && stdioBody(form, stdio)),
             },
@@ -1364,13 +1482,43 @@ export function Connections({
     setBusy("update")
     try {
       const form = new FormData(e.currentTarget)
+      const editOAuthCfg =
+        editing.kind === "mcp"
+          ? mcpOAuthEntry(entryOf(editing.plugin))
+          : undefined
+      let mcpBody: Record<string, unknown> | undefined
+      if (editing.kind === "mcp") {
+        if (editOAuthCfg) {
+          const fields = await nativeFieldsFrom(
+            form,
+            mcpOAuthSpec(editOAuthCfg),
+            editing.projectId,
+            secrets,
+            t
+          )
+          mcpBody = {
+            oauthClient: {
+              clientId: fields.clientId,
+              ...(fields.clientSecret
+                ? { clientSecret: fields.clientSecret }
+                : {}),
+            },
+          }
+        } else {
+          const oauthClient = customOAuthClientBody(form, editing)
+          mcpBody = {
+            headers: headersBody(form),
+            ...(oauthClient !== undefined ? { oauthClient } : {}),
+          }
+        }
+      }
       const updated = await api<Connection>(`/connections/${editing.id}`, {
         method: "PATCH",
         body:
           editing.kind === "stdio"
             ? stdio && stdioBody(form, stdio)
             : editing.kind === "mcp"
-              ? { headers: headersBody(form) }
+              ? mcpBody
               : editing.kind === "native"
                 ? {
                     fields: await nativeFieldsFrom(
@@ -1761,12 +1909,14 @@ export function Connections({
                     slug: slug || "cloudflare",
                   })}
                 />
-                {entry && entry.connect.kind !== "native" && (
-                  <EntryKeyField
-                    entry={entry}
-                    vault={vaultFor(targetProject)}
-                  />
-                )}
+                {entry &&
+                  entry.connect.kind !== "native" &&
+                  !mcpOAuthEntry(entry) && (
+                    <EntryKeyField
+                      entry={entry}
+                      vault={vaultFor(targetProject)}
+                    />
+                  )}
                 {entry?.connect.kind === "native" &&
                   catalog.native[entry.connect.plugin] && (
                     <NativeFields
@@ -1778,6 +1928,18 @@ export function Connections({
                       links={entry.connect.links}
                     />
                   )}
+                {mcpOAuthEntry(entry) && (
+                  <NativeFields
+                    key={targetProject}
+                    spec={mcpOAuthSpec(
+                      mcpOAuthEntry(entry) as CatalogOAuthClient
+                    )}
+                    projectId={targetProject}
+                    secrets={secrets}
+                    guide={mcpOAuthEntry(entry)?.guide}
+                    links={mcpOAuthEntry(entry)?.links}
+                  />
+                )}
                 {!entry && (kind === "mcp" || kind === "api") && (
                   <Field>
                     <FieldLabel htmlFor="c-url">
@@ -1907,7 +2069,9 @@ export function Connections({
               {editing?.kind === "stdio"
                 ? t("stdio.editHint")
                 : editing?.kind === "mcp"
-                  ? t("mcp.editHint")
+                  ? mcpOAuthEntry(entryOf(editing.plugin))
+                    ? t("native.editHint")
+                    : t("mcp.editHint")
                   : editing?.kind === "native"
                     ? t("native.editHint")
                     : t("api.editHint")}
@@ -1937,10 +2101,25 @@ export function Connections({
                     />
                   )
                 ) : editing.kind === "mcp" ? (
-                  <HeaderFields
-                    connection={editing}
-                    vault={vaultFor(editing.projectId)}
-                  />
+                  mcpOAuthEntry(entryOf(editing.plugin)) ? (
+                    <NativeFields
+                      spec={mcpOAuthSpec(
+                        mcpOAuthEntry(
+                          entryOf(editing.plugin)
+                        ) as CatalogOAuthClient
+                      )}
+                      connection={editing}
+                      projectId={editing.projectId}
+                      secrets={secrets}
+                      guide={mcpOAuthEntry(entryOf(editing.plugin))?.guide}
+                      links={nativeLinks(entryOf(editing.plugin))}
+                    />
+                  ) : (
+                    <HeaderFields
+                      connection={editing}
+                      vault={vaultFor(editing.projectId)}
+                    />
+                  )
                 ) : (
                   <ApiFields
                     connection={editing}

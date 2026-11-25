@@ -18,7 +18,10 @@ import {
   scopeSecret,
   secret,
 } from "../db/schema.js"
-import { ConnectionOAuthProvider } from "../mcp/oauth-provider.js"
+import {
+  ConnectionOAuthProvider,
+  type StoredClientInfo,
+} from "../mcp/oauth-provider.js"
 import { stdioAllowed, stopStdio } from "../mcp/stdio.js"
 import { hasAuthHeader, withUpstream } from "../mcp/upstream.js"
 import { nativeTools, plugins } from "../native/index.js"
@@ -144,6 +147,13 @@ const remoteHeaders = z
 const commandLine = (command: string, args: string[]) =>
   [command, ...args].join(" ")
 
+// Static OAuth client for remote MCP servers that don't support dynamic client registration.
+// Values may hold {{secret:…}} vault references.
+const oauthClientInput = z.object({
+  clientId: z.string().trim().min(1),
+  clientSecret: z.string().trim().optional(),
+})
+
 const connectionInput = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("mcp").default("mcp"),
@@ -155,6 +165,7 @@ const connectionInput = z.discriminatedUnion("kind", [
     headers: remoteHeaders
       .refine((h) => Object.values(h).every(Boolean), "header without a value")
       .default({}),
+    oauthClient: oauthClientInput.optional(),
   }),
   apiFields.extend({
     kind: z.literal("api"),
@@ -212,7 +223,28 @@ const rename = z.object({ name: z.string().trim().min(1) })
 // Stored connection texts that may hold {{secret:…}} references.
 function storedRefs(c: typeof connection.$inferSelect) {
   if (c.kind === "api") return [decrypt<string>(c.secretEnc) ?? ""]
-  return Object.values(decrypt<Record<string, string>>(c.secretEnc) ?? {})
+  const refs = Object.values(decrypt<Record<string, string>>(c.secretEnc) ?? {})
+  if (c.kind === "mcp") {
+    const client = decrypt<StoredClientInfo>(c.clientInfoEnc)
+    if (client?.static) {
+      refs.push(client.client_id)
+      if (client.client_secret) refs.push(client.client_secret)
+    }
+  }
+  return refs
+}
+
+// Remote MCP with a static OAuth client: clientId goes back to the panel; clientSecret only
+// when it is a vault reference.
+function mcpOAuthPublic(c: typeof connection.$inferSelect) {
+  if (c.kind !== "mcp") return null
+  const client = decrypt<StoredClientInfo>(c.clientInfoEnc)
+  if (!client?.static) return null
+  return {
+    clientId: client.client_id,
+    clientSecretRef: asRef(client.client_secret),
+    hasSecret: !!client.client_secret,
+  }
 }
 
 // stdio env or remote MCP headers: names, and the values that are only a vault reference.
@@ -276,6 +308,7 @@ const publicConnection = (c: typeof connection.$inferSelect) => {
     envNames: c.kind === "stdio" ? named.names : [],
     headerNames: c.kind === "mcp" ? named.names : [],
     headerRefs: c.kind === "mcp" ? named.refs : {},
+    oauthClient: mcpOAuthPublic(c),
     plugin: c.plugin,
     native: nativePublic(c),
     // Tools that wait for an admin's approval on each call.
@@ -644,7 +677,19 @@ export const admin = new Hono<AdminEnv>()
         ? [data.secret]
         : data.kind === "native"
           ? Object.values(data.fields)
-          : Object.values(data.kind === "stdio" ? data.env : data.headers)
+          : data.kind === "stdio"
+            ? Object.values(data.env)
+            : [
+                ...Object.values(data.headers),
+                ...(data.oauthClient
+                  ? [
+                      data.oauthClient.clientId,
+                      ...(data.oauthClient.clientSecret
+                        ? [data.oauthClient.clientSecret]
+                        : []),
+                    ]
+                  : []),
+              ]
     const missing = badRefs(refs, data.projectId)
     if (missing.length) return c.json({ error: refError(missing) }, 400)
     let upload = {}
@@ -696,11 +741,22 @@ export const admin = new Hono<AdminEnv>()
                 url: commandLine(rest.command, rest.args),
                 secretEnc: encrypt(env),
               }))(data)
-            : (({ headers, ...rest }) => ({
+            : (({ headers, oauthClient, ...rest }) => ({
                 ...rest,
                 secretEnc: Object.keys(headers).length
                   ? encrypt(headers)
                   : null,
+                ...(oauthClient
+                  ? {
+                      clientInfoEnc: encrypt({
+                        client_id: oauthClient.clientId,
+                        ...(oauthClient.clientSecret
+                          ? { client_secret: oauthClient.clientSecret }
+                          : {}),
+                        static: true,
+                      } satisfies StoredClientInfo),
+                    }
+                  : {}),
               }))(data)
     const [row] = await db
       .insert(connection)
@@ -798,47 +854,80 @@ export const admin = new Hono<AdminEnv>()
         .returning()
       return c.json(publicConnection(row))
     }
-    // Remote MCP: the name and the fixed headers change; the URL stays.
+    // Remote MCP: the name, fixed headers and static OAuth client change; the URL stays.
     if (conn.kind === "mcp") {
       const input = z
         .object({
           name: z.string().trim().min(1).optional(),
           headers: remoteHeaders.optional(),
+          oauthClient: oauthClientInput.nullable().optional(),
         })
         .safeParse(await c.req.json())
       if (!input.success)
         return c.json({ error: z.prettifyError(input.error) }, 400)
-      const { headers, ...rest } = input.data
-      if (!headers) {
-        const [row] = await db
-          .update(connection)
-          .set(rest)
-          .where(eq(connection.id, conn.id))
-          .returning()
-        return c.json(publicConnection(row))
-      }
-      // An empty value keeps the current one; a missing header is removed.
-      const current = decrypt<Record<string, string>>(conn.secretEnc) ?? {}
-      const next = Object.fromEntries(
-        Object.entries(headers).map(([k, v]) => [k, v || current[k] || ""])
-      )
-      const empty = Object.keys(next).filter((k) => !next[k])
-      if (empty.length)
-        return c.json(
-          { error: `header without a value: ${empty.join(", ")}` },
-          400
+      const { headers, oauthClient, ...rest } = input.data
+      const updates: Partial<typeof connection.$inferInsert> = { ...rest }
+      let reconnect = false
+      let reauthorize = false
+      if (headers !== undefined) {
+        // An empty value keeps the current one; a missing header is removed.
+        const current = decrypt<Record<string, string>>(conn.secretEnc) ?? {}
+        const next = Object.fromEntries(
+          Object.entries(headers).map(([k, v]) => [k, v || current[k] || ""])
         )
-      const missing = badRefs(Object.values(next), conn.projectId ?? "")
-      if (missing.length) return c.json({ error: refError(missing) }, 400)
+        const empty = Object.keys(next).filter((k) => !next[k])
+        if (empty.length)
+          return c.json(
+            { error: `header without a value: ${empty.join(", ")}` },
+            400
+          )
+        const missing = badRefs(Object.values(next), conn.projectId ?? "")
+        if (missing.length) return c.json({ error: refError(missing) }, 400)
+        updates.secretEnc = Object.keys(next).length ? encrypt(next) : null
+        reconnect = true
+      }
+      if (oauthClient !== undefined) {
+        const current = decrypt<StoredClientInfo>(conn.clientInfoEnc)
+        if (oauthClient === null) {
+          if (current?.static) {
+            updates.clientInfoEnc = null
+            reauthorize = true
+          }
+        } else {
+          const clientSecret =
+            oauthClient.clientSecret ||
+            (current?.static ? current.client_secret : undefined)
+          const refs = [
+            oauthClient.clientId,
+            ...(clientSecret ? [clientSecret] : []),
+          ]
+          const missing = badRefs(refs, conn.projectId ?? "")
+          if (missing.length) return c.json({ error: refError(missing) }, 400)
+          const changed =
+            !current?.static ||
+            current.client_id !== oauthClient.clientId ||
+            (current.client_secret ?? "") !== (clientSecret ?? "")
+          updates.clientInfoEnc = encrypt({
+            client_id: oauthClient.clientId,
+            ...(clientSecret ? { client_secret: clientSecret } : {}),
+            static: true,
+          } satisfies StoredClientInfo)
+          if (changed) reauthorize = true
+        }
+      }
+      if (reauthorize) {
+        updates.tokensEnc = null
+        updates.discoveryEnc = null
+        updates.codeVerifierEnc = null
+        updates.status = "pending"
+        updates.lastError = null
+      }
       const [row] = await db
         .update(connection)
-        .set({
-          ...rest,
-          secretEnc: Object.keys(next).length ? encrypt(next) : null,
-        })
+        .set(updates)
         .where(eq(connection.id, conn.id))
         .returning()
-      await connect(row)
+      if (reconnect && !reauthorize) await connect(row)
       return c.json(publicConnection((await getConnection(row.id)) ?? row))
     }
     const input = apiFields

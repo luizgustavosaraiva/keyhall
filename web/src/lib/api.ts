@@ -13,6 +13,13 @@ export type View = { org: Org; project: Project | null }
 // Panel text in each language (catalog entries and native plugin fields).
 export type Text = { en: string; pt: string }
 
+export type CatalogOAuthClient = {
+  vaultName: string
+  consoleUrl: string
+  guide?: string
+  links?: { label: Text; url: string }[]
+}
+
 export type CatalogConnect =
   | {
       kind: "mcp"
@@ -26,6 +33,7 @@ export type CatalogConnect =
         optional?: boolean
         endpoint?: string
       }
+      oauthClient?: CatalogOAuthClient
     }
   | {
       kind: "stdio"
@@ -95,6 +103,12 @@ export type Connection = {
   // (optionally after a scheme: "Bearer {{secret:KEY}}").
   headerNames: string[]
   headerRefs: Record<string, string>
+  // Remote MCP with a static OAuth client (for servers without dynamic client registration).
+  oauthClient: {
+    clientId: string
+    clientSecretRef: string | null
+    hasSecret: boolean
+  } | null
   // Catalog entry the connection came from (null = custom).
   plugin: string | null
   // Native plugin: field values (secret ones only as vault references), features on, and the

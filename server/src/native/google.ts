@@ -1133,7 +1133,8 @@ const SCOPES: Record<string, string[]> = {
 export const google: NativePlugin = {
   id: "google",
   vaultName: "GOOGLE",
-  consoleUrl: "https://console.cloud.google.com/apis/credentials",
+  consoleUrl:
+    "https://console.cloud.google.com/auth/overview/personal?apis=ws&clientType=web",
   fields: [
     {
       name: "clientId",
