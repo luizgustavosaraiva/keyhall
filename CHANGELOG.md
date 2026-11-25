@@ -4,12 +4,12 @@ All notable changes to keyhall are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.0] - 2026-11-25
 
 ### Added
 
 - **Team**: invite people to an organization by link (7 days, single use), and grant each one
-  connections (all tools or only some), scopes and secrets. They sign in with a password or
+  connections (all tools or only some), scopes, secrets and skills. They sign in with a password or
   Google, see only what was granted (names only, no credentials), and make their own tokens or
   approve MCP clients by OAuth within it. Grants are checked on every call; removing a member
   ends their tokens.
@@ -21,6 +21,16 @@ All notable changes to keyhall are documented here. The format is based on
 - **Notifications**: **Approvals → Notifications** announces each new request on Telegram,
   ntfy, Discord, Slack or a signed webhook, with a link to approve it. Arguments are sent only
   where you turn them on. Channel credentials are encrypted and covered by key rotation.
+- **Google Workspace MCP & static OAuth clients**: remote MCP connections now accept a static
+  OAuth client ID and secret (including vault references) for servers without dynamic client
+  registration. Added official Google Workspace MCP entries (`workspacemcp`, `tasksmcp`,
+  `gmailmcp`, `drivemcp`, `docsmcp`, `sheetsmcp`, `calendarmcp`) with one-click Google Auth
+  Platform setup links.
+- **Versioned Skills over MCP (`io.modelcontextprotocol/skills`)**: create, import (skill folder,
+  `SKILL.md` or `.zip`/`.skill`), version (`1.0`, `1.1`, `2.0`…), inspect and roll back Agent
+  Skills on the new **Skills** page, scoped per project, scope or member. Served on `/mcp` via
+  `skills/list`, `skills/get`, `resources/list`, `resources/read` and `resources/directory/read`
+  with SHA-256 digests and pinned version URIs (`skill://v<ver>/<slug>/SKILL.md`).
 
 ## [0.2.0] - 2026-11-17
 

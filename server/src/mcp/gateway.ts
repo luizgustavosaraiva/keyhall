@@ -403,7 +403,7 @@ function buildServer(
   mode: ToolMode
 ) {
   const server = new Server(
-    { name: "keyhall", version: "0.2.0" },
+    { name: "keyhall", version: "0.3.0" },
     {
       capabilities: {
         tools: {},
