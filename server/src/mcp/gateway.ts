@@ -4,9 +4,14 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import {
   CallToolRequestSchema,
   type CallToolResult,
+  ErrorCode,
+  ListResourcesRequestSchema,
   ListToolsRequestSchema,
+  McpError,
+  ReadResourceRequestSchema,
   type Tool,
 } from "@modelcontextprotocol/sdk/types.js"
+import * as z from "zod"
 import type { Access, Link, ToolMode } from "../access.js"
 import { callOperation, operations } from "../api/openapi.js"
 import { needsApproval, requestApproval } from "../approvals.js"
@@ -18,8 +23,61 @@ import {
   type Reachable,
   reachableSecrets,
 } from "../secrets/store.js"
+import {
+  buildMcpSkillEntry,
+  inferMimeType,
+  isMultiProjectTarget,
+  type ReachableSkill,
+  reachableSkills,
+  readSkillDirectory,
+  readSkillFile,
+  resolveSkillUri,
+  skillBasePath,
+} from "../skills/store.js"
 import { callCodeMode, codeModeTools } from "./code-mode.js"
 import { withUpstream } from "./upstream.js"
+
+// SEP-2640 (io.modelcontextprotocol/skills) extension request schemas.
+const ListSkillsRequestSchema = z.object({
+  method: z.literal("skills/list"),
+  params: z
+    .object({
+      cursor: z.string().optional(),
+      _meta: z.record(z.string(), z.unknown()).optional(),
+    })
+    .optional(),
+})
+
+const GetSkillRequestSchema = z.object({
+  method: z.literal("skills/get"),
+  params: z.object({
+    uri: z.string(),
+    _meta: z.record(z.string(), z.unknown()).optional(),
+  }),
+})
+
+const ReadResourceDirectoryRequestSchema = z.object({
+  method: z.literal("resources/directory/read"),
+  params: z.object({
+    uri: z.string(),
+    cursor: z.string().optional(),
+    _meta: z.record(z.string(), z.unknown()).optional(),
+  }),
+})
+
+const SKILL_PAGE_SIZE = 100
+const SKILL_CACHE_TTL_MS = 60_000
+
+function paginate<T>(items: T[], cursor?: string) {
+  const start = cursor ? Number.parseInt(cursor, 10) : 0
+  const offset = Number.isFinite(start) && start >= 0 ? start : 0
+  const slice = items.slice(offset, offset + SKILL_PAGE_SIZE)
+  const next = offset + SKILL_PAGE_SIZE
+  return {
+    items: slice,
+    ...(next < items.length ? { nextCursor: String(next) } : {}),
+  }
+}
 
 export const allowed = (list: string[] | null, tool: string) =>
   list === null || list.includes(tool)
@@ -235,15 +293,131 @@ async function callTool(
   )
 }
 
+function registerSkillHandlers(
+  server: Server,
+  skills: ReachableSkill[],
+  multi: boolean
+) {
+  server.setRequestHandler(ListSkillsRequestSchema, async (req) => {
+    const entries = skills.map((item) =>
+      buildMcpSkillEntry(item, item.active, multi)
+    )
+    const page = paginate(entries, req.params?.cursor)
+    return {
+      resultType: "complete" as const,
+      skills: page.items,
+      ...(page.nextCursor ? { nextCursor: page.nextCursor } : {}),
+      ttlMs: SKILL_CACHE_TTL_MS,
+      cacheScope: "private" as const,
+    }
+  })
+
+  server.setRequestHandler(GetSkillRequestSchema, async (req) => {
+    const { uri } = req.params
+    const match = resolveSkillUri(skills, multi, uri)
+    if (match?.relPath !== "SKILL.md")
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        `No skill is served at ${uri}`
+      )
+    const entry = buildMcpSkillEntry(
+      match.item,
+      match.version,
+      multi,
+      match.pinned ? match.version.version : undefined
+    )
+    return {
+      resultType: "complete" as const,
+      skill: entry,
+      ttlMs: SKILL_CACHE_TTL_MS,
+      cacheScope: "private" as const,
+    }
+  })
+
+  server.setRequestHandler(ListResourcesRequestSchema, async (req) => {
+    const all = skills.flatMap((item) => {
+      const base = skillBasePath(item.project.slug, item.skill.slug, multi)
+      return [
+        {
+          uri: `skill://${base}/SKILL.md`,
+          name: item.skill.slug,
+          description: item.active.description,
+          mimeType: "text/markdown",
+          _meta: {
+            "io.modelcontextprotocol.skills/version": item.active.version,
+          },
+        },
+        ...item.active.files.map((f) => ({
+          uri: `skill://${base}/${f.path}`,
+          name: f.path.split("/").pop() ?? f.path,
+          mimeType: inferMimeType(f.path, f.mimeType),
+        })),
+      ]
+    })
+    const page = paginate(all, req.params?.cursor)
+    return {
+      resources: page.items,
+      ...(page.nextCursor ? { nextCursor: page.nextCursor } : {}),
+    }
+  })
+
+  server.setRequestHandler(ReadResourceRequestSchema, async (req) => {
+    const { uri } = req.params
+    const file = readSkillFile(skills, multi, uri)
+    if (!file)
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        `No resource is served at ${uri}`
+      )
+    return {
+      resultType: "complete" as const,
+      contents: [file],
+      ttlMs: SKILL_CACHE_TTL_MS,
+      cacheScope: "private" as const,
+    }
+  })
+
+  server.setRequestHandler(ReadResourceDirectoryRequestSchema, async (req) => {
+    const { uri, cursor } = req.params
+    const children = readSkillDirectory(skills, multi, uri)
+    if (!children)
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        `${uri} is not a directory resource`
+      )
+    const page = paginate(children, cursor)
+    return {
+      resultType: "complete" as const,
+      resources: page.items,
+      ...(page.nextCursor ? { nextCursor: page.nextCursor } : {}),
+      ttlMs: SKILL_CACHE_TTL_MS,
+      cacheScope: "private" as const,
+    }
+  })
+}
+
 function buildServer(
   access: Access,
   agentSecrets: Reachable[],
+  skills: ReachableSkill[],
   mode: ToolMode
 ) {
   const server = new Server(
     { name: "keyhall", version: "0.2.0" },
-    { capabilities: { tools: {} } }
+    {
+      capabilities: {
+        tools: {},
+        resources: {},
+        extensions: {
+          "io.modelcontextprotocol/skills": {
+            directoryRead: true,
+          },
+        },
+      },
+    }
   )
+
+  registerSkillHandlers(server, skills, isMultiProjectTarget(access.target))
 
   if (mode === "code") {
     const ctx = {
@@ -275,10 +449,12 @@ function buildServer(
 
 // Stateless mode: one server and one transport per request, as in the SDK's official example.
 export async function handleMcp(access: Access, req: Request) {
-  const agentSecrets = (await reachableSecrets(access.target)).filter(
-    (r) => r.secret.agentAccess
-  )
-  const server = buildServer(access, agentSecrets, access.mode)
+  const [allSecrets, skills] = await Promise.all([
+    reachableSecrets(access.target),
+    reachableSkills(access.target),
+  ])
+  const agentSecrets = allSecrets.filter((r) => r.secret.agentAccess)
+  const server = buildServer(access, agentSecrets, skills, access.mode)
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,

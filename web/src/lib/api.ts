@@ -134,8 +134,53 @@ export type Scope = {
   name: string
   connectionIds: string[]
   secretIds: string[]
+  skillIds: string[]
   // Per connection: allowed tools; null = all.
   allowedTools: Record<string, string[] | null>
+}
+
+export type SkillFile = {
+  path: string
+  content: string
+  mimeType?: string
+}
+
+export type Skill = {
+  id: string
+  projectId: string
+  slug: string
+  activeVersion: string
+  latestVersion: string
+  versionCount: number
+  description: string
+  fileCount: number
+  digest: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type SkillVersionSummary = {
+  version: string
+  seq: number
+  description: string
+  changelog: string | null
+  fileCount: number
+  digest: string
+  size: number
+  createdBy: string | null
+  createdAt: string
+}
+
+export type SkillVersionDetail = SkillVersionSummary & {
+  body: string
+  frontmatterExtra: Record<string, unknown> | null
+  files: SkillFile[]
+  renderedSkillMd: string
+}
+
+export type SkillDetail = Skill & {
+  active: SkillVersionDetail | null
+  versions: SkillVersionSummary[]
 }
 
 export type Secret = {
@@ -211,6 +256,7 @@ export type Member = {
   connections: Record<string, string[] | null>
   scopeIds: string[]
   secretIds: string[]
+  skillIds: string[]
 }
 
 // The member's side: what was granted in each organization (names only, no credentials).

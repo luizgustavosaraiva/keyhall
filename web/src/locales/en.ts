@@ -188,6 +188,7 @@ export const en = {
   "nav.manage": "Manage",
   "nav.menu": "Open menu",
   "nav.scopes": "Scopes",
+  "nav.skills": "Skills",
   "nav.tokens": "Tokens",
 
   "oauth.expired": "Authorization invalid or expired; try again",
@@ -267,11 +268,88 @@ export const en = {
   "scopes.rename": "Rename scope",
   "scopes.selectAll": "Select all",
   "scopes.selectedOf": "{n} of {total} selected",
+  "scopes.skillCount": "{n} skills",
+  "scopes.skills": "Skills",
   "scopes.slugHintOrg": "Organization scope in {org}.",
   "scopes.slugHintProject": "Scope of project {project}.",
   "scopes.summary": "{n} connections in this scope",
   "scopes.summary_one": "1 connection in this scope",
   "scopes.title": "Scopes",
+
+  "skills.activate": "Activate v{version}",
+  "skills.activated": "{slug} is now serving v{version}",
+  "skills.active": "active",
+  "skills.addFile": "Add file",
+  "skills.body": "Instructions (SKILL.md body)",
+  "skills.bodyHint":
+    "Markdown instructions loaded by the agent on demand. YAML frontmatter (name, description, version) is generated automatically.",
+  "skills.bodyPlaceholder":
+    "# Workflow\n\n1. Inspect the inputs.\n2. Run the required tools.\n3. Verify the result.",
+  "skills.bump": "Version",
+  "skills.bumpCustom": "Custom",
+  "skills.bumpMajor": "Major (v{version})",
+  "skills.bumpMinor": "Minor (v{version})",
+  "skills.changelog": "Change note (optional)",
+  "skills.changelogPlaceholder": "What changed in this version?",
+  "skills.created": "Skill {slug} v{version} created",
+  "skills.customVersion": "Version number",
+  "skills.deleteDescription":
+    "Deletes {slug} and all {n} versions. Agents will no longer see it over MCP.",
+  "skills.deleteTitle": "Delete {slug}?",
+  "skills.description": "Description",
+  "skills.descriptionHint":
+    "Shown to agents during discovery (~100 tokens) so they know when to load this skill.",
+  "skills.descriptionOrg":
+    "Versioned Agent Skills served over MCP (io.modelcontextprotocol/skills) across every project.",
+  "skills.descriptionPlaceholder":
+    "Process customer refunds following company policy",
+  "skills.descriptionProject":
+    "Versioned Agent Skills served over MCP (io.modelcontextprotocol/skills) in {project}.",
+  "skills.editFrom": "New version from v{version}",
+  "skills.emptyDescription":
+    "Publish reusable, versioned Agent Skills over MCP. Clients discover them via skills/list and load SKILL.md on demand.",
+  "skills.emptyTitle": "No skills yet",
+  "skills.fileContent": "File content",
+  "skills.filePath": "Path (e.g. references/guide.md)",
+  "skills.files": "Supporting files",
+  "skills.filesCount": "{n} files",
+  "skills.filesHint":
+    "Optional references, templates or scripts bundled alongside SKILL.md and verified by SHA-256 digest.",
+  "skills.history": "Versions",
+  "skills.historyDescription":
+    "Every saved edit creates an immutable version. Switch the active version at any time.",
+  "skills.importDrop": "Drop a skill folder, SKILL.md or .zip here",
+  "skills.importFile": "SKILL.md / .zip",
+  "skills.importFolder": "Choose folder",
+  "skills.importHint":
+    "Reads YAML frontmatter (name, description, version) and loads all supporting files automatically.",
+  "skills.importLoaded": "Loaded {source} · {n} supporting files",
+  "skills.importLoaded_one": "Loaded {source} · 1 supporting file",
+  "skills.importLoadedNone": "Loaded {source}",
+  "skills.importSkippedBinary":
+    "Skipped {n} binary files (only UTF-8 text files are included).",
+  "skills.initialVersion": "Initial version",
+  "skills.makeActive": "Set as active version immediately",
+  "skills.makeActiveHint":
+    "Agents reading the canonical URI receive this version as soon as it is saved.",
+  "skills.mcpUri": "MCP URI",
+  "skills.new": "New skill",
+  "skills.newDescription":
+    "Create a versioned Agent Skill served over MCP via skills/list, skills/get and resources/read.",
+  "skills.newVersion": "New version",
+  "skills.newVersionDescription":
+    "Publishing creates a new immutable version of {slug} without overwriting previous ones.",
+  "skills.noFiles": "No supporting files in this version.",
+  "skills.pinnedUri": "Pinned version URI",
+  "skills.published": "Published {slug} v{version}",
+  "skills.removeFile": "Remove file",
+  "skills.rendered": "Rendered SKILL.md",
+  "skills.slug": "Skill name (slug)",
+  "skills.slugHint":
+    "Matches the Agent Skills name field and URI: skill://{slug}/SKILL.md",
+  "skills.title": "Skills",
+  "skills.versionsCount": "{n} versions",
+  "skills.versionsCount_one": "1 version",
 
   "setup.code": "Setup code",
   "setup.codeHint":

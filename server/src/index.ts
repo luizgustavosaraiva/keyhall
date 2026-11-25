@@ -13,6 +13,7 @@ import { handleMcp } from "./mcp/gateway.js"
 import { notifications } from "./notifications.js"
 import { admin } from "./routes/admin.js"
 import { adminSecrets } from "./routes/admin-secrets.js"
+import { adminSkills } from "./routes/admin-skills.js"
 import {
   mcpOAuth,
   mcpOAuthConsent,
@@ -38,6 +39,7 @@ const app = new Hono()
 app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw))
 app.get("/api/health", (c) => c.json({ ok: true, version }))
 app.route("/api/admin/secrets", adminSecrets)
+app.route("/api/admin/skills", adminSkills)
 app.route("/api/admin/members", adminTeam)
 app.route("/api/admin/approvals", approvals)
 app.route("/api/admin/notifications", notifications)

@@ -64,6 +64,13 @@
       "when": 1794935048790,
       "tag": "0008_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1795630531979,
+      "tag": "0009_skills",
+      "breakpoints": true
     }
   ]
 }

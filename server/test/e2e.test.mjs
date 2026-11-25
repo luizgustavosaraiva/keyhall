@@ -1768,4 +1768,219 @@ describe("keyhall", () => {
       admin: true,
     })
   })
+
+  test("versioned skills over MCP (io.modelcontextprotocol/skills): list, get, read, directory, rollback and scopes", async () => {
+    const projectId = "prj-default"
+    const sha256 = (text) =>
+      `sha256:${createHash("sha256").update(Buffer.from(text, "utf8")).digest("hex")}`
+
+    // Create skill at v1.0 with a supporting reference file.
+    const created = await call("/api/admin/skills", {
+      method: "POST",
+      admin: true,
+      body: {
+        projectId,
+        slug: "refund-policy",
+        version: "1.0",
+        description: "Process customer refund requests",
+        body: "# Refunds\n\nFollow `references/rules.md`.",
+        files: [
+          {
+            path: "references/rules.md",
+            content: "# Rules v1\n\nUp to 30 days.\n",
+          },
+        ],
+      },
+    })
+    assert.equal(created.status, 201, created.text)
+    assert.equal(created.json.activeVersion, "1.0")
+    assert.equal(created.json.versionCount, 1)
+    const skillId = created.json.id
+
+    // Minor bump -> 1.1 with updated body and an extra template file.
+    const v11 = await call(`/api/admin/skills/${skillId}/versions`, {
+      method: "POST",
+      admin: true,
+      body: {
+        bump: "minor",
+        description: "Process customer refund requests with templates",
+        body: "# Refunds\n\nFollow `references/rules.md` and `templates/reply.md`.",
+        changelog: "Added reply template",
+        files: [
+          {
+            path: "references/rules.md",
+            content: "# Rules v1.1\n\nUp to 30 days with receipt.\n",
+          },
+          {
+            path: "templates/reply.md",
+            content: "Hello,\n\nYour refund is approved.\n",
+          },
+        ],
+      },
+    })
+    assert.equal(v11.status, 201, v11.text)
+    assert.equal(v11.json.activeVersion, "1.1")
+    assert.equal(v11.json.versionCount, 2)
+
+    // Major bump -> 2.0 (inactive draft first, active stays 1.1).
+    const v20 = await call(`/api/admin/skills/${skillId}/versions`, {
+      method: "POST",
+      admin: true,
+      body: {
+        bump: "major",
+        description: "Automated refund workflow v2",
+        body: "# Refunds v2\n\nFully automated.",
+        activate: false,
+      },
+    })
+    assert.equal(v20.status, 201, v20.text)
+    assert.equal(v20.json.activeVersion, "1.1")
+    assert.equal(v20.json.latestVersion, "2.0")
+    assert.equal(v20.json.versionCount, 3)
+
+    // Create a project token and verify MCP capability negotiation + skills/* methods.
+    const tok = await call("/api/admin/tokens", {
+      method: "POST",
+      admin: true,
+      body: { name: "skills-test", target: { kind: "project", id: projectId } },
+    })
+    assert.equal(tok.status, 201, tok.text)
+    const token = tok.json.key
+
+    const init = await mcp(token, "initialize", {
+      protocolVersion: "2025-03-26",
+      capabilities: {},
+      clientInfo: { name: "test", version: "1.0" },
+    })
+    assert.ok(init.result.capabilities.resources, JSON.stringify(init))
+    assert.deepEqual(
+      init.result.capabilities.extensions?.["io.modelcontextprotocol/skills"],
+      { directoryRead: true }
+    )
+
+    // skills/list returns active version (1.1) with complete manifest & digests.
+    const listed = await mcp(token, "skills/list")
+    assert.equal(listed.result.resultType, "complete")
+    assert.equal(listed.result.cacheScope, "private")
+    assert.equal(listed.result.skills.length, 1)
+    const entry = listed.result.skills[0]
+    assert.equal(entry.uri, "skill://refund-policy/SKILL.md")
+    assert.equal(entry.frontmatter.name, "refund-policy")
+    assert.equal(entry.frontmatter.metadata.version, "1.1")
+    assert.equal(entry.resources.length, 3)
+
+    // resources/read bytes match the declared SHA-256 digest and byte size.
+    const readMd = await mcp(token, "resources/read", {
+      uri: "skill://refund-policy/SKILL.md",
+    })
+    const mdText = readMd.result.contents[0].text
+    assert.equal(readMd.result.contents[0].mimeType, "text/markdown")
+    const mdManifest = entry.resources.find(
+      (r) => r.uri === "skill://refund-policy/SKILL.md"
+    )
+    assert.equal(sha256(mdText), mdManifest.digest)
+    assert.equal(Buffer.byteLength(mdText, "utf8"), mdManifest.size)
+    assert.match(mdText, /version: "1\.1"/)
+
+    // Pinned historical version (v1.0) is directly retrievable via skills/get and resources/read.
+    const pinnedGet = await mcp(token, "skills/get", {
+      uri: "skill://v1.0/refund-policy/SKILL.md",
+    })
+    assert.equal(pinnedGet.result.resultType, "complete")
+    assert.equal(pinnedGet.result.skill.frontmatter.metadata.version, "1.0")
+    assert.equal(pinnedGet.result.skill.resources.length, 2)
+    const pinnedRead = await mcp(token, "resources/read", {
+      uri: "skill://v1.0/refund-policy/references/rules.md",
+    })
+    assert.equal(
+      pinnedRead.result.contents[0].text,
+      "# Rules v1\n\nUp to 30 days.\n"
+    )
+
+    // Unknown skill URI returns JSON-RPC -32602 (Invalid params).
+    const unknown = await mcp(token, "skills/get", {
+      uri: "skill://does-not-exist/SKILL.md",
+    })
+    assert.equal(unknown.error.code, -32602)
+
+    // resources/directory/read lists root and subdirectories, rejects file URIs with -32602.
+    const rootDir = await mcp(token, "resources/directory/read", {
+      uri: "skill://refund-policy",
+    })
+    assert.equal(rootDir.result.resultType, "complete")
+    assert.deepEqual(
+      rootDir.result.resources.map((r) => [r.name, r.mimeType]),
+      [
+        ["references", "inode/directory"],
+        ["SKILL.md", "text/markdown"],
+        ["templates", "inode/directory"],
+      ]
+    )
+    const subDir = await mcp(token, "resources/directory/read", {
+      uri: "skill://refund-policy/templates",
+    })
+    assert.deepEqual(
+      subDir.result.resources.map((r) => r.uri),
+      ["skill://refund-policy/templates/reply.md"]
+    )
+    const notDir = await mcp(token, "resources/directory/read", {
+      uri: "skill://refund-policy/SKILL.md",
+    })
+    assert.equal(notDir.error.code, -32602)
+
+    // Rollback active version to 1.0 -> skills/list immediately reflects 1.0 & new digest.
+    const rolled = await call(`/api/admin/skills/${skillId}/active`, {
+      method: "PUT",
+      admin: true,
+      body: { version: "1.0" },
+    })
+    assert.equal(rolled.status, 200, rolled.text)
+    assert.equal(rolled.json.activeVersion, "1.0")
+    const afterRollback = await mcp(token, "skills/list")
+    assert.equal(
+      afterRollback.result.skills[0].frontmatter.metadata.version,
+      "1.0"
+    )
+    assert.notEqual(
+      afterRollback.result.skills[0].resources[0].digest,
+      mdManifest.digest
+    )
+
+    // Scope isolation: a scope without the skill sees 0 skills; with it, sees 1.
+    const emptyScope = await call("/api/admin/scopes", {
+      method: "POST",
+      admin: true,
+      body: {
+        orgId: "org-default",
+        projectId,
+        name: "No Skills",
+        slug: "no-skills",
+      },
+    })
+    assert.equal(emptyScope.status, 201, emptyScope.text)
+    const scopeTok = await call("/api/admin/tokens", {
+      method: "POST",
+      admin: true,
+      body: {
+        name: "scope-skills-test",
+        target: { kind: "scope", id: emptyScope.json.id },
+      },
+    })
+    const emptyList = await mcp(scopeTok.json.key, "skills/list")
+    assert.equal(emptyList.result.skills.length, 0)
+
+    await call(`/api/admin/scopes/${emptyScope.json.id}/connections`, {
+      method: "PUT",
+      admin: true,
+      body: { connectionIds: [], secretIds: [], skillIds: [skillId] },
+    })
+    const grantedList = await mcp(scopeTok.json.key, "skills/list")
+    assert.equal(grantedList.result.skills.length, 1)
+    assert.equal(grantedList.result.skills[0].frontmatter.name, "refund-policy")
+
+    await call(`/api/admin/skills/${skillId}`, {
+      method: "DELETE",
+      admin: true,
+    })
+  })
 })

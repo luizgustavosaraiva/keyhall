@@ -6,16 +6,23 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
-import { api, type Connection, type Secret, type Tool } from "@/lib/api"
+import {
+  api,
+  type Connection,
+  type Secret,
+  type Skill,
+  type Tool,
+} from "@/lib/api"
 import { useI18n } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 
-// Connections, their tools and secrets picked for a scope or granted to a member.
+// Connections, their tools, secrets and skills picked for a scope or granted to a member.
 export type AccessValue = {
   connectionIds: string[]
   // Per connection: allowed tools; missing or null = all.
   allowedTools: Record<string, string[] | null>
   secretIds: string[]
+  skillIds: string[]
 }
 
 // Right pane of the editor: a connection's tools within the scope.
@@ -131,6 +138,7 @@ function ToolPanel({
 export function AccessPicker({
   connections,
   secrets,
+  skills = [],
   value,
   onChange,
   projectName,
@@ -138,6 +146,7 @@ export function AccessPicker({
 }: {
   connections: Connection[]
   secrets: Secret[]
+  skills?: Skill[]
   value: AccessValue
   onChange: (value: AccessValue) => void
   projectName?: (projectId: string) => string | undefined
@@ -253,6 +262,43 @@ export function AccessPicker({
                     {x.agentAccess
                       ? t("scopes.secretAgents")
                       : t("scopes.secretRest")}
+                  </span>
+                </label>
+              </div>
+            ))}
+          </>
+        )}
+        {skills.length > 0 && (
+          <>
+            <span className="text-muted-foreground mt-3 px-2 pt-1 pb-1.5 text-xs font-medium">
+              {t("scopes.skills")}
+            </span>
+            {skills.map((sk) => (
+              <div
+                key={sk.id}
+                className="hover:bg-card/60 flex items-center gap-2.5 rounded-xl px-2 py-2"
+              >
+                <Checkbox
+                  id={`sk-${sk.id}`}
+                  checked={value.skillIds.includes(sk.id)}
+                  onCheckedChange={(checked) =>
+                    onChange({
+                      ...value,
+                      skillIds: checked
+                        ? [...value.skillIds, sk.id]
+                        : value.skillIds.filter((id) => id !== sk.id),
+                    })
+                  }
+                />
+                <label
+                  htmlFor={`sk-${sk.id}`}
+                  className="flex min-w-0 flex-1 cursor-pointer flex-col"
+                >
+                  <span className="truncate font-mono text-xs font-medium">
+                    {label(sk.projectId, sk.slug)}
+                  </span>
+                  <span className="text-muted-foreground truncate text-xs">
+                    v{sk.activeVersion}
                   </span>
                 </label>
               </div>

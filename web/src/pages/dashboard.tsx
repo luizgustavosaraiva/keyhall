@@ -21,6 +21,7 @@ import {
   type Project,
   type Scope,
   type Secret,
+  type Skill,
   type Token,
   type View,
 } from "@/lib/api"
@@ -30,6 +31,7 @@ import { Approvals } from "./approvals"
 import { Connections } from "./connections"
 import { Scopes } from "./scopes"
 import { Secrets } from "./secrets"
+import { Skills } from "./skills"
 import { Team } from "./team"
 import { Tokens } from "./tokens"
 
@@ -52,6 +54,7 @@ function useOAuthNotice() {
 const VIEW_KEY = "keyhall:view"
 const pages: Page[] = [
   "connections",
+  "skills",
   "scopes",
   "secrets",
   "tokens",
@@ -110,6 +113,7 @@ export function Dashboard({
   const [scopes, setScopes] = useState<Scope[]>([])
   const [tokens, setTokens] = useState<Token[]>([])
   const [secrets, setSecrets] = useState<Secret[]>([])
+  const [skills, setSkills] = useState<Skill[]>([])
   const [members, setMembers] = useState<Member[]>([])
   const [approvals, setApprovals] = useState<Approval[]>([])
   const [page, setPage] = usePage()
@@ -151,13 +155,15 @@ export function Dashboard({
       api<Scope[]>("/scopes"),
       api<Token[]>("/tokens"),
       api<Secret[]>("/secrets"),
+      api<Skill[]>("/skills"),
       api<Member[]>("/members"),
     ])
-      .then(([c, s, tk, sec, m]) => {
+      .then(([c, s, tk, sec, sk, m]) => {
         setConnections(c)
         setScopes(s)
         setTokens(tk)
         setSecrets(sec)
+        setSkills(sk)
         setMembers(m)
       })
       .catch((err: Error) => toast.error(err.message))
@@ -190,6 +196,8 @@ export function Dashboard({
         tokens: [],
         secrets: [],
         orgSecrets: [],
+        skills: [],
+        orgSkills: [],
         orgScopes: [],
         members: [],
       }
@@ -210,12 +218,17 @@ export function Dashboard({
       return viewScopes.some((s) => s.id === tk.target.id)
     })
     const orgSecrets = secrets.filter((s) => projectIds.has(s.projectId))
+    const orgSkills = skills.filter((s) => projectIds.has(s.projectId))
     return {
       orgConnections,
       orgSecrets,
+      orgSkills,
       secrets: view.project
         ? orgSecrets.filter((s) => s.projectId === view.project?.id)
         : orgSecrets,
+      skills: view.project
+        ? orgSkills.filter((s) => s.projectId === view.project?.id)
+        : orgSkills,
       connections: view.project
         ? connections.filter((c) => c.projectId === view.project?.id)
         : orgConnections,
@@ -225,7 +238,7 @@ export function Dashboard({
       // People belong to the organization, so every project view shows the same team.
       members: members.filter((m) => m.orgId === view.org.id),
     }
-  }, [view, connections, scopes, tokens, secrets, members])
+  }, [view, connections, scopes, tokens, secrets, skills, members])
 
   const actions: SidebarActions = {
     newOrg: () =>
@@ -343,6 +356,7 @@ export function Dashboard({
       }}
       counts={{
         connections: inView.connections.length,
+        skills: inView.skills.length,
         scopes: inView.scopes.length,
         secrets: inView.secrets.length,
         tokens: inView.tokens.length,
@@ -407,6 +421,14 @@ export function Dashboard({
               reload={reload}
             />
           )}
+          {page === "skills" && (
+            <Skills
+              view={view}
+              skills={inView.skills}
+              allSkills={skills}
+              reload={reload}
+            />
+          )}
           {page === "scopes" && (
             <Scopes
               view={view}
@@ -414,6 +436,7 @@ export function Dashboard({
               allScopes={scopes}
               connections={inView.orgConnections}
               secrets={inView.orgSecrets}
+              skills={inView.orgSkills}
               reload={reload}
             />
           )}
@@ -444,6 +467,7 @@ export function Dashboard({
               connections={inView.orgConnections}
               scopes={inView.orgScopes}
               secrets={inView.orgSecrets}
+              skills={inView.orgSkills}
               reload={reload}
             />
           )}

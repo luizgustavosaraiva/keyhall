@@ -16,6 +16,7 @@ import {
   PlusIcon,
   QrCodeIcon,
   ShieldCheckIcon,
+  SparklesIcon,
   SunIcon,
   SwatchBookIcon,
   Trash2Icon,
@@ -46,6 +47,7 @@ import { cn } from "@/lib/utils"
 
 export type Page =
   | "connections"
+  | "skills"
   | "scopes"
   | "secrets"
   | "tokens"
@@ -327,6 +329,13 @@ export function AppSidebar({
           label={t("nav.connections")}
           count={counts.connections}
           onClick={() => onPageChange("connections")}
+        />
+        <NavItem
+          active={page === "skills"}
+          icon={<SparklesIcon />}
+          label={t("nav.skills")}
+          count={counts.skills}
+          onClick={() => onPageChange("skills")}
         />
         <NavItem
           active={page === "scopes"}

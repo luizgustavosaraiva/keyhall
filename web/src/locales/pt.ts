@@ -193,6 +193,7 @@ export const pt: Record<keyof typeof en, string> = {
   "nav.manage": "Gerenciar",
   "nav.menu": "Abrir menu",
   "nav.scopes": "Escopos",
+  "nav.skills": "Skills",
   "nav.tokens": "Tokens",
 
   "oauth.expired": "Autorização inválida ou expirada; tente de novo",
@@ -274,11 +275,88 @@ export const pt: Record<keyof typeof en, string> = {
   "scopes.rename": "Renomear escopo",
   "scopes.selectAll": "Marcar todas",
   "scopes.selectedOf": "{n} de {total} marcadas",
+  "scopes.skillCount": "{n} skills",
+  "scopes.skills": "Skills",
   "scopes.slugHintOrg": "Escopo da organização {org}.",
   "scopes.slugHintProject": "Escopo do projeto {project}.",
   "scopes.summary": "{n} conexões neste escopo",
   "scopes.summary_one": "1 conexão neste escopo",
   "scopes.title": "Escopos",
+
+  "skills.activate": "Ativar v{version}",
+  "skills.activated": "{slug} agora está servindo a v{version}",
+  "skills.active": "ativa",
+  "skills.addFile": "Adicionar arquivo",
+  "skills.body": "Instruções (corpo do SKILL.md)",
+  "skills.bodyHint":
+    "Instruções em Markdown carregadas sob demanda pelo agente. O frontmatter YAML (name, description, version) é gerado automaticamente.",
+  "skills.bodyPlaceholder":
+    "# Fluxo\n\n1. Verifique os dados de entrada.\n2. Execute as ferramentas necessárias.\n3. Valide o resultado.",
+  "skills.bump": "Versão",
+  "skills.bumpCustom": "Personalizada",
+  "skills.bumpMajor": "Major (v{version})",
+  "skills.bumpMinor": "Minor (v{version})",
+  "skills.changelog": "Nota da alteração (opcional)",
+  "skills.changelogPlaceholder": "O que mudou nesta versão?",
+  "skills.created": "Skill {slug} v{version} criada",
+  "skills.customVersion": "Número da versão",
+  "skills.deleteDescription":
+    "Exclui {slug} e todas as suas {n} versões. Os agentes deixarão de enxergá-la via MCP.",
+  "skills.deleteTitle": "Excluir {slug}?",
+  "skills.description": "Descrição",
+  "skills.descriptionHint":
+    "Mostrada aos agentes na descoberta (~100 tokens) para saberem quando carregar esta skill.",
+  "skills.descriptionOrg":
+    "Agent Skills versionadas servidas via MCP (io.modelcontextprotocol/skills) em todos os projetos.",
+  "skills.descriptionPlaceholder":
+    "Processar reembolsos de clientes seguindo a política da empresa",
+  "skills.descriptionProject":
+    "Agent Skills versionadas servidas via MCP (io.modelcontextprotocol/skills) em {project}.",
+  "skills.editFrom": "Nova versão a partir da v{version}",
+  "skills.emptyDescription":
+    "Publique Agent Skills reutilizáveis e versionadas via MCP. Clientes descobrem via skills/list e carregam o SKILL.md sob demanda.",
+  "skills.emptyTitle": "Nenhuma skill ainda",
+  "skills.fileContent": "Conteúdo do arquivo",
+  "skills.filePath": "Caminho (ex.: references/guide.md)",
+  "skills.files": "Arquivos auxiliares",
+  "skills.filesCount": "{n} arquivos",
+  "skills.filesHint":
+    "Referências, templates ou scripts opcionais enviados junto com o SKILL.md e verificados por hash SHA-256.",
+  "skills.history": "Versões",
+  "skills.historyDescription":
+    "Cada edição salva gera uma versão imutável. Troque ou volte a versão ativa quando quiser.",
+  "skills.importDrop": "Arraste uma pasta de skill, SKILL.md ou .zip aqui",
+  "skills.importFile": "SKILL.md / .zip",
+  "skills.importFolder": "Escolher pasta",
+  "skills.importHint":
+    "Lê o frontmatter YAML (name, description, version) e carrega todos os arquivos auxiliares automaticamente.",
+  "skills.importLoaded": "Importado {source} · {n} arquivos auxiliares",
+  "skills.importLoaded_one": "Importado {source} · 1 arquivo auxiliar",
+  "skills.importLoadedNone": "Importado {source}",
+  "skills.importSkippedBinary":
+    "{n} arquivos binários ignorados (apenas arquivos de texto UTF-8 são incluídos).",
+  "skills.initialVersion": "Versão inicial",
+  "skills.makeActive": "Definir como versão ativa imediatamente",
+  "skills.makeActiveHint":
+    "Agentes que lerem a URI canônica passam a receber esta versão assim que ela for salva.",
+  "skills.mcpUri": "URI MCP",
+  "skills.new": "Nova skill",
+  "skills.newDescription":
+    "Crie uma Agent Skill versionada servida via MCP por skills/list, skills/get e resources/read.",
+  "skills.newVersion": "Nova versão",
+  "skills.newVersionDescription":
+    "Publicar cria uma nova versão imutável de {slug} sem sobrescrever as anteriores.",
+  "skills.noFiles": "Nenhum arquivo auxiliar nesta versão.",
+  "skills.pinnedUri": "URI da versão fixada",
+  "skills.published": "Publicada {slug} v{version}",
+  "skills.removeFile": "Remover arquivo",
+  "skills.rendered": "SKILL.md renderizado",
+  "skills.slug": "Nome da skill (slug)",
+  "skills.slugHint":
+    "Segue o campo name do Agent Skills e a URI: skill://{slug}/SKILL.md",
+  "skills.title": "Skills",
+  "skills.versionsCount": "{n} versões",
+  "skills.versionsCount_one": "1 versão",
 
   "setup.code": "Código de configuração",
   "setup.codeHint":

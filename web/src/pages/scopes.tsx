@@ -5,6 +5,7 @@ import {
   PencilIcon,
   PlusIcon,
   SlidersHorizontalIcon,
+  SparklesIcon,
   Trash2Icon,
 } from "lucide-react"
 import { type FormEvent, useState } from "react"
@@ -37,6 +38,7 @@ import {
   type Connection,
   type Scope,
   type Secret,
+  type Skill,
   type View,
 } from "@/lib/api"
 import { useI18n } from "@/lib/i18n"
@@ -50,6 +52,7 @@ export function Scopes({
   allScopes,
   connections,
   secrets,
+  skills,
   reload,
 }: {
   view: View
@@ -57,8 +60,9 @@ export function Scopes({
   allScopes: Scope[]
   // Every connection of the organization; a project scope only sees its project's.
   connections: Connection[]
-  // The organization's secrets; a project scope only sees its project's.
+  // The organization's secrets and skills; a project scope only sees its project's.
   secrets: Secret[]
+  skills: Skill[]
   reload: () => void
 }) {
   const { t } = useI18n()
@@ -69,6 +73,7 @@ export function Scopes({
   const [editing, setEditing] = useState<Scope | null>()
   const [picked, setPicked] = useState<string[]>([])
   const [pickedSecrets, setPickedSecrets] = useState<string[]>([])
+  const [pickedSkills, setPickedSkills] = useState<string[]>([])
   const [allowed, setAllowed] = useState<AllowedTools>({})
   const [naming, setNaming] = useState<NameRequest>()
   const [saving, setSaving] = useState(false)
@@ -91,11 +96,15 @@ export function Scopes({
   const availableSecrets = scopeProject
     ? secrets.filter((x) => x.projectId === scopeProject)
     : secrets
+  const availableSkills = scopeProject
+    ? skills.filter((x) => x.projectId === scopeProject)
+    : skills
 
   function open(scope: Scope | null) {
     setName("")
     setPicked(scope?.connectionIds ?? [])
     setPickedSecrets(scope?.secretIds ?? [])
+    setPickedSkills(scope?.skillIds ?? [])
     setAllowed(scope?.allowedTools ?? {})
     setEditing(scope)
   }
@@ -114,6 +123,7 @@ export function Scopes({
           body: {
             connectionIds: picked,
             secretIds: pickedSecrets,
+            skillIds: pickedSkills,
             allowedTools: kept,
           },
         })
@@ -126,6 +136,7 @@ export function Scopes({
             slug,
             connectionIds: picked,
             secretIds: pickedSecrets,
+            skillIds: pickedSkills,
             allowedTools: kept,
           },
         })
@@ -277,6 +288,12 @@ export function Scopes({
                     {t("scopes.secretCount", { n: s.secretIds.length })}
                   </span>
                 )}
+                {s.skillIds.length > 0 && (
+                  <span className="bg-muted text-muted-foreground inline-flex h-6 items-center gap-1 rounded-full px-2.5 text-xs">
+                    <SparklesIcon className="size-3" />
+                    {t("scopes.skillCount", { n: s.skillIds.length })}
+                  </span>
+                )}
               </div>
 
               <div className="mt-auto flex justify-end border-t pt-4">
@@ -338,16 +355,19 @@ export function Scopes({
               key={editing?.id ?? "new"}
               connections={available}
               secrets={availableSecrets}
+              skills={availableSkills}
               projectName={scopeProject ? undefined : (id) => projectName(id)}
               value={{
                 connectionIds: picked,
                 allowedTools: allowed,
                 secretIds: pickedSecrets,
+                skillIds: pickedSkills,
               }}
               onChange={(v) => {
                 setPicked(v.connectionIds)
                 setAllowed(v.allowedTools)
                 setPickedSecrets(v.secretIds)
+                setPickedSkills(v.skillIds)
               }}
             />
 

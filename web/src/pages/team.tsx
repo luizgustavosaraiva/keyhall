@@ -38,6 +38,7 @@ import {
   type Member,
   type Scope,
   type Secret,
+  type Skill,
   type View,
 } from "@/lib/api"
 import { useI18n } from "@/lib/i18n"
@@ -49,6 +50,7 @@ const grantsOf = (m: Member): Grants => ({
   connectionIds: Object.keys(m.connections),
   allowedTools: m.connections,
   secretIds: m.secretIds,
+  skillIds: m.skillIds ?? [],
   scopeIds: m.scopeIds,
 })
 
@@ -60,15 +62,17 @@ export function Team({
   connections,
   scopes,
   secrets,
+  skills,
   reload,
 }: {
   view: View
   // Members of the viewed organization.
   members: Member[]
-  // The organization's connections, scopes and secrets.
+  // The organization's connections, scopes, secrets and skills.
   connections: Connection[]
   scopes: Scope[]
   secrets: Secret[]
+  skills: Skill[]
   reload: () => void
 }) {
   const { t, date } = useI18n()
@@ -135,6 +139,7 @@ export function Team({
           ),
           scopeIds: grants.scopeIds,
           secretIds: grants.secretIds,
+          skillIds: grants.skillIds,
         },
       })
       setEditing(undefined)
@@ -357,6 +362,7 @@ export function Team({
                 key={editing.id}
                 connections={connections}
                 secrets={secrets}
+                skills={skills}
                 projectName={projectName}
                 value={grants}
                 onChange={(v) => setGrants({ ...grants, ...v })}

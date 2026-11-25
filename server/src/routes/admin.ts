@@ -16,7 +16,9 @@ import {
   scope,
   scopeConnection,
   scopeSecret,
+  scopeSkill,
   secret,
+  skill,
 } from "../db/schema.js"
 import {
   ConnectionOAuthProvider,
@@ -199,6 +201,7 @@ const scopeInput = z.object({
   slug,
   connectionIds: z.array(z.string()).default([]),
   secretIds: z.array(z.string()).default([]),
+  skillIds: z.array(z.string()).default([]),
   // Per connection: allowed tools. Missing or null = all.
   allowedTools: z
     .record(z.string(), z.array(z.string()).nullable())
@@ -369,6 +372,32 @@ async function secretsOutOfReach(
       .map((r) => r.id)
   )
   return secretIds.filter((id) => !ok.has(id))
+}
+
+// Skills a scope may include: its project's, or any project's in the organization.
+async function skillsOutOfReach(
+  orgId: string,
+  projectId: string | null,
+  skillIds: string[]
+) {
+  if (!skillIds.length) return []
+  const rows = await db
+    .select({
+      id: skill.id,
+      projectId: skill.projectId,
+      orgId: project.orgId,
+    })
+    .from(skill)
+    .innerJoin(project, eq(skill.projectId, project.id))
+    .where(inArray(skill.id, skillIds))
+  const ok = new Set(
+    rows
+      .filter(
+        (r) => r.orgId === orgId && (!projectId || r.projectId === projectId)
+      )
+      .map((r) => r.id)
+  )
+  return skillIds.filter((id) => !ok.has(id))
 }
 
 // Connections using a secret (by reference), for the panel and to block deletion.
@@ -629,11 +658,15 @@ export const admin = new Hono<AdminEnv>()
       .select({ id: secret.id })
       .from(secret)
       .where(eq(secret.projectId, id))
-    if (conn || sc || sec)
+    const [sk] = await db
+      .select({ id: skill.id })
+      .from(skill)
+      .where(eq(skill.projectId, id))
+    if (conn || sc || sec || sk)
       return c.json(
         {
           error:
-            "the project still has connections, scopes or secrets; move or delete them first",
+            "the project still has connections, scopes, secrets or skills; move or delete them first",
         },
         409
       )
@@ -1067,12 +1100,16 @@ export const admin = new Hono<AdminEnv>()
     const scopes = await db.select().from(scope).orderBy(scope.name)
     const links = await db.select().from(scopeConnection)
     const secretLinks = await db.select().from(scopeSecret)
+    const skillLinks = await db.select().from(scopeSkill)
     return c.json(
       scopes.map((s) => ({
         ...s,
         secretIds: secretLinks
           .filter((l) => l.scopeId === s.id)
           .map((l) => l.secretId),
+        skillIds: skillLinks
+          .filter((l) => l.scopeId === s.id)
+          .map((l) => l.skillId),
         connectionIds: links
           .filter((l) => l.scopeId === s.id)
           .map((l) => l.connectionId),
@@ -1088,12 +1125,15 @@ export const admin = new Hono<AdminEnv>()
     const input = scopeInput.safeParse(await c.req.json())
     if (!input.success)
       return c.json({ error: z.prettifyError(input.error) }, 400)
-    const { connectionIds, secretIds, allowedTools, ...data } = input.data
+    const { connectionIds, secretIds, skillIds, allowedTools, ...data } =
+      input.data
     const bad = await outOfReach(data.orgId, data.projectId, connectionIds)
     if (bad.length)
       return c.json({ error: "connections outside the scope's project" }, 400)
     if ((await secretsOutOfReach(data.orgId, data.projectId, secretIds)).length)
       return c.json({ error: "secrets outside the scope's project" }, 400)
+    if ((await skillsOutOfReach(data.orgId, data.projectId, skillIds)).length)
+      return c.json({ error: "skills outside the scope's project" }, 400)
     const [dup] = await db
       .select({ id: scope.id })
       .from(scope)
@@ -1119,6 +1159,8 @@ export const admin = new Hono<AdminEnv>()
       }
       for (const secretId of secretIds)
         tx.insert(scopeSecret).values({ scopeId: id, secretId }).run()
+      for (const skillId of skillIds)
+        tx.insert(scopeSkill).values({ scopeId: id, skillId }).run()
     })
     return c.json({ id }, 201)
   })
@@ -1127,6 +1169,7 @@ export const admin = new Hono<AdminEnv>()
       .object({
         connectionIds: scopeInput.shape.connectionIds,
         secretIds: scopeInput.shape.secretIds,
+        skillIds: scopeInput.shape.skillIds,
         allowedTools: scopeInput.shape.allowedTools,
       })
       .safeParse(await c.req.json())
@@ -1149,13 +1192,23 @@ export const admin = new Hono<AdminEnv>()
     )
     if (badSecrets.length)
       return c.json({ error: "secrets outside the scope's project" }, 400)
+    const badSkills = await skillsOutOfReach(
+      s.orgId ?? "",
+      s.projectId,
+      input.data.skillIds
+    )
+    if (badSkills.length)
+      return c.json({ error: "skills outside the scope's project" }, 400)
     db.transaction((tx) => {
       tx.delete(scopeConnection)
         .where(eq(scopeConnection.scopeId, scopeId))
         .run()
       tx.delete(scopeSecret).where(eq(scopeSecret.scopeId, scopeId)).run()
+      tx.delete(scopeSkill).where(eq(scopeSkill.scopeId, scopeId)).run()
       for (const secretId of input.data.secretIds)
         tx.insert(scopeSecret).values({ scopeId, secretId }).run()
+      for (const skillId of input.data.skillIds)
+        tx.insert(scopeSkill).values({ scopeId, skillId }).run()
       const { connectionIds, allowedTools } = input.data
       for (const connectionId of connectionIds) {
         tx.insert(scopeConnection)

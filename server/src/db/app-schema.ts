@@ -257,6 +257,79 @@ export const memberSecret = sqliteTable(
   (t) => [primaryKey({ columns: [t.memberId, t.secretId] })]
 )
 
+export type SkillFile = {
+  path: string
+  content: string
+  mimeType?: string
+}
+
+// Agent Skills served over MCP (io.modelcontextprotocol/skills, SEP-2640). Each skill has an
+// immutable version history (1.0, 1.1, 2.0…); activeVersion selects what agents get at the
+// canonical skill://<slug>/SKILL.md URI while past versions remain addressable at skill://v<ver>/….
+export const skill = sqliteTable(
+  "skill",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => project.id),
+    slug: text("slug").notNull(),
+    activeVersion: text("active_version").notNull(),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("skill_project_slug_unique").on(t.projectId, t.slug)]
+)
+
+export const skillVersion = sqliteTable(
+  "skill_version",
+  {
+    skillId: text("skill_id")
+      .notNull()
+      .references(() => skill.id, { onDelete: "cascade" }),
+    version: text("version").notNull(),
+    // Monotonic order per skill so version history sorts reliably (e.g. 1.10 after 1.9).
+    seq: integer("seq").notNull(),
+    description: text("description").notNull(),
+    body: text("body").notNull(),
+    frontmatterExtra: text("frontmatter_extra", { mode: "json" }).$type<Record<
+      string,
+      unknown
+    > | null>(),
+    files: text("files", { mode: "json" }).$type<SkillFile[]>().notNull(),
+    changelog: text("changelog"),
+    createdBy: text("created_by"),
+    createdAt: timestamps.createdAt,
+  },
+  (t) => [primaryKey({ columns: [t.skillId, t.version] })]
+)
+
+// Skills a scope may expose over MCP (project and organization tokens reach all of theirs).
+export const scopeSkill = sqliteTable(
+  "scope_skill",
+  {
+    scopeId: text("scope_id")
+      .notNull()
+      .references(() => scope.id, { onDelete: "cascade" }),
+    skillId: text("skill_id")
+      .notNull()
+      .references(() => skill.id, { onDelete: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.scopeId, t.skillId] })]
+)
+
+export const memberSkill = sqliteTable(
+  "member_skill",
+  {
+    memberId: text("member_id")
+      .notNull()
+      .references(() => member.id, { onDelete: "cascade" }),
+    skillId: text("skill_id")
+      .notNull()
+      .references(() => skill.id, { onDelete: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.memberId, t.skillId] })]
+)
+
 // A call to a tool that needs approval. The agent's call waits a little for the decision; an
 // approval then holds for that exact call (same token, tool and arguments) until it expires,
 // and is used once. callKey = SHA-256 of token, connection, tool and arguments.

@@ -12,10 +12,12 @@ import {
   memberConnection,
   memberScope,
   memberSecret,
+  memberSkill,
   organization,
   project,
   scope,
   secret,
+  skill,
   user,
 } from "../db/schema.js"
 import { type AdminEnv, requireAdmin, requireUser } from "./middleware.js"
@@ -52,8 +54,9 @@ const status = (m: Member) =>
       : "expired"
 
 async function grantsOf(memberIds: string[]) {
-  if (!memberIds.length) return { conns: [], scopes: [], secrets: [] }
-  const [conns, scopes, secrets] = await Promise.all([
+  if (!memberIds.length)
+    return { conns: [], scopes: [], secrets: [], skills: [] }
+  const [conns, scopes, secrets, skills] = await Promise.all([
     db
       .select()
       .from(memberConnection)
@@ -66,8 +69,12 @@ async function grantsOf(memberIds: string[]) {
       .select()
       .from(memberSecret)
       .where(inArray(memberSecret.memberId, memberIds)),
+    db
+      .select()
+      .from(memberSkill)
+      .where(inArray(memberSkill.memberId, memberIds)),
   ])
-  return { conns, scopes, secrets }
+  return { conns, scopes, secrets, skills }
 }
 
 const grantsInput = z.object({
@@ -75,12 +82,13 @@ const grantsInput = z.object({
   connections: z.record(z.string(), z.array(z.string()).nullable()).default({}),
   scopeIds: z.array(z.string()).default([]),
   secretIds: z.array(z.string()).default([]),
+  skillIds: z.array(z.string()).default([]),
 })
 
 // Ids outside the member's organization are refused, so a grant never crosses organizations.
 async function foreignIds(orgId: string, g: z.infer<typeof grantsInput>) {
   const connIds = Object.keys(g.connections)
-  const [conns, scopes, secrets] = await Promise.all([
+  const [conns, scopes, secrets, skills] = await Promise.all([
     connIds.length
       ? db
           .select({ id: connection.id })
@@ -101,9 +109,18 @@ async function foreignIds(orgId: string, g: z.infer<typeof grantsInput>) {
           .innerJoin(project, eq(secret.projectId, project.id))
           .where(and(inArray(secret.id, g.secretIds), eq(project.orgId, orgId)))
       : [],
+    g.skillIds.length
+      ? db
+          .select({ id: skill.id })
+          .from(skill)
+          .innerJoin(project, eq(skill.projectId, project.id))
+          .where(and(inArray(skill.id, g.skillIds), eq(project.orgId, orgId)))
+      : [],
   ])
-  const known = new Set([...conns, ...scopes, ...secrets].map((r) => r.id))
-  return [...connIds, ...g.scopeIds, ...g.secretIds].filter(
+  const known = new Set(
+    [...conns, ...scopes, ...secrets, ...skills].map((r) => r.id)
+  )
+  return [...connIds, ...g.scopeIds, ...g.secretIds, ...g.skillIds].filter(
     (id) => !known.has(id)
   )
 }
@@ -152,6 +169,9 @@ export const adminTeam = new Hono<AdminEnv>()
         secretIds: g.secrets
           .filter((x) => x.memberId === m.id)
           .map((x) => x.secretId),
+        skillIds: g.skills
+          .filter((x) => x.memberId === m.id)
+          .map((x) => x.skillId),
       }))
     )
   })
@@ -217,13 +237,14 @@ export const adminTeam = new Hono<AdminEnv>()
         { error: `not in this organization: ${foreign.join(", ")}` },
         400
       )
-    const { connections, scopeIds, secretIds } = input.data
+    const { connections, scopeIds, secretIds, skillIds } = input.data
     db.transaction((tx) => {
       tx.delete(memberConnection)
         .where(eq(memberConnection.memberId, m.id))
         .run()
       tx.delete(memberScope).where(eq(memberScope.memberId, m.id)).run()
       tx.delete(memberSecret).where(eq(memberSecret.memberId, m.id)).run()
+      tx.delete(memberSkill).where(eq(memberSkill.memberId, m.id)).run()
       const conns = Object.entries(connections)
       if (conns.length)
         tx.insert(memberConnection)
@@ -242,6 +263,10 @@ export const adminTeam = new Hono<AdminEnv>()
       if (secretIds.length)
         tx.insert(memberSecret)
           .values(secretIds.map((secretId) => ({ memberId: m.id, secretId })))
+          .run()
+      if (skillIds.length)
+        tx.insert(memberSkill)
+          .values(skillIds.map((skillId) => ({ memberId: m.id, skillId })))
           .run()
     })
     return c.body(null, 204)
