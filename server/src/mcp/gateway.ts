@@ -31,6 +31,7 @@ import {
   reachableSkills,
   readSkillDirectory,
   readSkillFile,
+  renderSkillMd,
   resolveSkillUri,
   skillBasePath,
 } from "../skills/store.js"
@@ -190,11 +191,138 @@ async function callSecretTool(
   return text(currentValue(result.found.secret))
 }
 
+// Skill tools. Alongside the native io.modelcontextprotocol/skills extension (skills/list,
+// skills/get, resources/read), these let Code Mode and MCP clients without the skills
+// extension discover and load versioned skills and supporting files on demand.
+const LIST_SKILLS = "keyhall__list_skills"
+const GET_SKILL = "keyhall__get_skill"
+
+function skillTools(multi: boolean): Tool[] {
+  const project: Record<string, object> = multi
+    ? {
+        project: {
+          type: "string",
+          description:
+            "Project slug, when the same skill slug exists in several projects",
+        },
+      }
+    : {}
+  return [
+    {
+      name: LIST_SKILLS,
+      description:
+        "List the versioned Agent Skills stored in keyhall that you may read: slug, active version, available versions, description, supporting file paths and MCP URI. Skill instructions are not included; call keyhall__get_skill to load one.",
+      inputSchema: { type: "object", properties: {} },
+      annotations: { readOnlyHint: true },
+    },
+    {
+      name: GET_SKILL,
+      description:
+        "Read a versioned Agent Skill (SKILL.md) or one of its supporting files from keyhall. Omit version for the active version, or pass a specific version (e.g. '1.0'). Omit file for SKILL.md, or pass a relative file path from keyhall__list_skills.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          slug: {
+            type: "string",
+            description: "Skill slug from keyhall__list_skills",
+          },
+          ...project,
+          version: {
+            type: "string",
+            description:
+              "Optional specific version (e.g. 1.0); defaults to the active version",
+          },
+          file: {
+            type: "string",
+            description:
+              "Optional supporting file path (e.g. references/guide.md); defaults to SKILL.md",
+          },
+        },
+        required: ["slug"],
+      },
+      annotations: { readOnlyHint: true },
+    },
+  ]
+}
+
+function callSkillTool(
+  name: string,
+  args: Record<string, unknown> | undefined,
+  skills: ReachableSkill[],
+  multi: boolean
+): CallToolResult {
+  const text = (value: unknown, isError = false): CallToolResult => ({
+    ...(isError ? { isError } : {}),
+    content: [
+      {
+        type: "text" as const,
+        text:
+          typeof value === "string" ? value : JSON.stringify(value, null, 2),
+      },
+    ],
+  })
+  if (name === LIST_SKILLS)
+    return text(
+      skills.map((item) => {
+        const base = skillBasePath(item.project.slug, item.skill.slug, multi)
+        return {
+          slug: item.skill.slug,
+          ...(multi ? { project: item.project.slug } : {}),
+          version: item.active.version,
+          versions: item.versions.map((v) => v.version),
+          description: item.active.description,
+          uri: `skill://${base}/SKILL.md`,
+          files: item.active.files.map((f) => f.path),
+        }
+      })
+    )
+  const slug = String(args?.slug ?? "").trim()
+  const projectSlug = args?.project ? String(args.project).trim() : undefined
+  const found = skills.filter(
+    (item) =>
+      item.skill.slug === slug &&
+      (!projectSlug || item.project.slug === projectSlug)
+  )
+  if (found.length > 1)
+    return text(
+      `skill ${slug} exists in several projects (${found.map((r) => r.project.slug).join(", ")}); pass the project`,
+      true
+    )
+  const item = found[0]
+  if (!item) return text(`skill ${slug || "(empty)"} not found`, true)
+
+  const requestedVer = args?.version
+    ? String(args.version).trim().replace(/^v/i, "")
+    : undefined
+  const ver = requestedVer
+    ? item.versions.find((v) => v.version === requestedVer)
+    : item.active
+  if (!ver)
+    return text(
+      `version ${requestedVer} not found for skill ${slug} (available: ${item.versions.map((v) => v.version).join(", ")})`,
+      true
+    )
+
+  const requestedFile = args?.file
+    ? String(args.file).trim().replace(/^\/+/, "")
+    : undefined
+  if (!requestedFile || requestedFile === "SKILL.md")
+    return text(renderSkillMd(item.skill.slug, ver))
+  const file = ver.files.find((f) => f.path === requestedFile)
+  if (!file)
+    return text(
+      `file ${requestedFile} not found in skill ${slug} v${ver.version} (available: ${ver.files.map((f) => f.path).join(", ") || "none"})`,
+      true
+    )
+  return text(file.content)
+}
+
 // Every tool the token reaches, with the names consumers call. full keeps long names whole
 // (Code Mode passes them inside code, where the client's 64-character limit doesn't apply).
 async function catalog(
   access: Access,
   agentSecrets: Reachable[],
+  skills: ReachableSkill[],
   full = false
 ): Promise<Tool[]> {
   const results = await Promise.allSettled(
@@ -218,9 +346,13 @@ async function catalog(
           )
       )
   )
-  const tools: Tool[] = agentSecrets.length
-    ? secretTools(new Set(agentSecrets.map((r) => r.project.id)).size > 1)
-    : []
+  const tools: Tool[] = []
+  if (agentSecrets.length)
+    tools.push(
+      ...secretTools(new Set(agentSecrets.map((r) => r.project.id)).size > 1)
+    )
+  if (skills.length)
+    tools.push(...skillTools(isMultiProjectTarget(access.target)))
   for (const r of results) {
     if (r.status === "fulfilled") tools.push(...r.value)
     else console.error("upstream failed on tools/list:", r.reason)
@@ -231,6 +363,7 @@ async function catalog(
 async function callTool(
   access: Access,
   agentSecrets: Reachable[],
+  skills: ReachableSkill[],
   name: string,
   args: Record<string, unknown> | undefined
 ): Promise<CallToolResult> {
@@ -240,6 +373,13 @@ async function callTool(
       args,
       agentSecrets,
       `token ${access.token.name}`
+    )
+  if (skills.length && (name === LIST_SKILLS || name === GET_SKILL))
+    return callSkillTool(
+      name,
+      args,
+      skills,
+      isMultiProjectTarget(access.target)
     )
   // The prefix ends in "__", so only one connection matches.
   const link = access.links.find((l) => name.startsWith(l.prefix))
@@ -421,13 +561,14 @@ function buildServer(
 
   if (mode === "code") {
     const ctx = {
-      catalog: () => catalog(access, agentSecrets, true),
+      catalog: () => catalog(access, agentSecrets, skills, true),
       call: (name: string, args: Record<string, unknown> | undefined) =>
-        callTool(access, agentSecrets, name, args),
+        callTool(access, agentSecrets, skills, name, args),
       connections: access.links
         .filter((l) => l.conn.status === "connected")
         .map((l) => ({ prefix: l.prefix, name: l.conn.name })),
       secrets: agentSecrets.length > 0,
+      skills: skills.length > 0,
     }
     server.setRequestHandler(ListToolsRequestSchema, async () => ({
       tools: codeModeTools(ctx),
@@ -439,10 +580,16 @@ function buildServer(
   }
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: await catalog(access, agentSecrets),
+    tools: await catalog(access, agentSecrets, skills),
   }))
   server.setRequestHandler(CallToolRequestSchema, (req) =>
-    callTool(access, agentSecrets, req.params.name, req.params.arguments)
+    callTool(
+      access,
+      agentSecrets,
+      skills,
+      req.params.name,
+      req.params.arguments
+    )
   )
   return server
 }

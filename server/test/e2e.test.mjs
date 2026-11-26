@@ -1978,6 +1978,112 @@ describe("keyhall", () => {
     assert.equal(grantedList.result.skills.length, 1)
     assert.equal(grantedList.result.skills[0].frontmatter.name, "refund-policy")
 
+    // Tool-based access WITHOUT Code Mode (mode: "tools"): keyhall__list_skills & keyhall__get_skill.
+    const toolNames = (await mcp(token, "tools/list")).result.tools.map(
+      (t) => t.name
+    )
+    assert.ok(toolNames.includes("keyhall__list_skills"))
+    assert.ok(toolNames.includes("keyhall__get_skill"))
+    const listedViaTool = await mcp(token, "tools/call", {
+      name: "keyhall__list_skills",
+      arguments: {},
+    })
+    assert.ok(!listedViaTool.result.isError)
+    const parsedSkillList = JSON.parse(listedViaTool.result.content[0].text)
+    assert.equal(parsedSkillList.length, 1)
+    assert.equal(parsedSkillList[0].slug, "refund-policy")
+    assert.equal(parsedSkillList[0].version, "1.0")
+    assert.deepEqual(parsedSkillList[0].files, ["references/rules.md"])
+
+    const gotV11 = await mcp(token, "tools/call", {
+      name: "keyhall__get_skill",
+      arguments: { slug: "refund-policy", version: "1.1" },
+    })
+    assert.ok(!gotV11.result.isError)
+    assert.match(gotV11.result.content[0].text, /version: "1\.1"/)
+
+    const gotFile = await mcp(token, "tools/call", {
+      name: "keyhall__get_skill",
+      arguments: {
+        slug: "refund-policy",
+        version: "1.1",
+        file: "templates/reply.md",
+      },
+    })
+    assert.ok(!gotFile.result.isError)
+    assert.equal(
+      gotFile.result.content[0].text,
+      "Hello,\n\nYour refund is approved.\n"
+    )
+
+    // Tool-based access WITH Code Mode (mode: "code"): search discovers skill tools and execute calls them.
+    const codeTok = await call("/api/admin/tokens", {
+      method: "POST",
+      admin: true,
+      body: {
+        name: "skills-code-mode",
+        target: { kind: "project", id: projectId },
+        mode: "code",
+      },
+    })
+    assert.equal(codeTok.status, 201, codeTok.text)
+    const codeTools = (await mcp(codeTok.json.key, "tools/list")).result.tools
+    assert.deepEqual(
+      codeTools.map((t) => t.name),
+      ["search", "execute"]
+    )
+    assert.match(codeTools[0].description, /keyhall__list_skills/)
+
+    const searchRes = await mcp(codeTok.json.key, "tools/call", {
+      name: "search",
+      arguments: { query: "skills" },
+    })
+    assert.match(searchRes.result.content[0].text, /keyhall__list_skills/)
+    assert.match(searchRes.result.content[0].text, /keyhall__get_skill/)
+
+    const execRes = await mcp(codeTok.json.key, "tools/call", {
+      name: "execute",
+      arguments: {
+        code: `
+          const skills = await call("keyhall__list_skills", {})
+          const md = await call("keyhall__get_skill", { slug: skills[0].slug })
+          const ref = await call("keyhall__get_skill", { slug: skills[0].slug, file: "references/rules.md" })
+          return { slug: skills[0].slug, version: skills[0].version, hasVersion: md.includes('version: "1.0"'), ref }
+        `,
+      },
+    })
+    assert.ok(!execRes.result.isError, execRes.result.content[0].text)
+    assert.deepEqual(JSON.parse(execRes.result.content[0].text), {
+      slug: "refund-policy",
+      version: "1.0",
+      hasVersion: true,
+      ref: "# Rules v1\n\nUp to 30 days.\n",
+    })
+
+    // Empty scope sees neither skill tool.
+    const emptyScopeNoSkills = await call("/api/admin/scopes", {
+      method: "POST",
+      admin: true,
+      body: {
+        orgId: "org-default",
+        projectId,
+        name: "Really No Skills",
+        slug: "really-no-skills",
+      },
+    })
+    const emptyScopeTok = await call("/api/admin/tokens", {
+      method: "POST",
+      admin: true,
+      body: {
+        name: "really-no-skills-tok",
+        target: { kind: "scope", id: emptyScopeNoSkills.json.id },
+      },
+    })
+    const emptyToolNames = (
+      await mcp(emptyScopeTok.json.key, "tools/list")
+    ).result.tools.map((t) => t.name)
+    assert.ok(!emptyToolNames.includes("keyhall__list_skills"))
+
     await call(`/api/admin/skills/${skillId}`, {
       method: "DELETE",
       admin: true,

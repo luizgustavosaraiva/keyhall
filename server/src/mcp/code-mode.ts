@@ -16,6 +16,7 @@ export type CodeModeContext = {
   ) => Promise<CallToolResult>
   connections: { prefix: string; name: string }[]
   secrets: boolean
+  skills?: boolean
 }
 
 const SEARCH = "search"
@@ -33,10 +34,13 @@ export function codeModeTools(ctx: CodeModeContext): Tool[] {
   const vault = ctx.secrets
     ? " The vault is searchable too (keyhall__list_secrets, keyhall__get_secret)."
     : ""
+  const skills = ctx.skills
+    ? " Versioned Agent Skills are available too (keyhall__list_skills, keyhall__get_skill)."
+    : ""
   return [
     {
       name: SEARCH,
-      description: `Find the tools keyhall can call for you. Search by what you want to do (e.g. "deploy application", "dns records"); each result shows the tool name to pass to call(), its description and its input type. Results are ranked by matching words, so a tool named differently can be missed: then filter the full catalog in execute with tools(). Connections: ${reach}. Tool names start with the connection prefix.${vault}`,
+      description: `Find the tools keyhall can call for you. Search by what you want to do (e.g. "deploy application", "dns records"); each result shows the tool name to pass to call(), its description and its input type. Results are ranked by matching words, so a tool named differently can be missed: then filter the full catalog in execute with tools(). Connections: ${reach}. Tool names start with the connection prefix.${vault}${skills}`,
       inputSchema: {
         type: "object",
         properties: {
